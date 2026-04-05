@@ -81,12 +81,7 @@ namespace Claude4Net.Api
             {
                 foreach (var t in tools)
                 {
-                    object parameters = t.Name switch {
-                        "BashTool" => (object)new { type = "object", properties = new { command = new { type = "string" } }, required = new[] { "command" } },
-                        "FileReadTool" => (object)new { type = "object", properties = new { file_path = new { type = "string" } }, required = new[] { "file_path" } },
-                        "LsTool" => (object)new { type = "object", properties = new { path = new { type = "string", description = "Directory path to list" } }, required = new[] { "path" } },
-                        _ => (object)new { type = "object", properties = new { }, required = new string[] { } }
-                    };
+                    object parameters = t.InputSchema ?? (object)new { type = "object", properties = new { }, required = new string[] { } };
                     ollamaTools.Add(new { type = "function", function = new { name = t.Name, description = t.Description, parameters = parameters } });
                 }
             }

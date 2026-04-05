@@ -19,6 +19,7 @@ namespace Claude4Net.Tools
         public string Name => "FileEditTool";
         public string Description => "Edit a file.";
         public List<string>? Aliases => new() { "edit" };
+        public object? InputSchema => new { type = "object", properties = new { file_path = new { type = "string" }, old_string = new { type = "string" }, new_string = new { type = "string" } }, required = new[] { "file_path", "old_string", "new_string" } };
 
         public async Task<object> ExecuteAsync(string arguments, object context)
         {

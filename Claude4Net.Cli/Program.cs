@@ -19,6 +19,25 @@ services.AddSingleton<ITool, FileWriteTool>();
 services.AddSingleton<ITool, FileEditTool>();
 services.AddSingleton<ITool, LsTool>();
 
+// --- Dynamic Plugin Loader ---
+string pluginsPath = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "plugins");
+if (System.IO.Directory.Exists(pluginsPath))
+{
+    foreach (var dllPath in System.IO.Directory.GetFiles(pluginsPath, "*.dll"))
+    {
+        try
+        {
+            var assembly = System.Reflection.Assembly.LoadFrom(dllPath);
+            var toolTypes = assembly.GetTypes().Where(t => typeof(ITool).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
+            foreach (var type in toolTypes)
+            {
+                services.AddSingleton(typeof(ITool), type);
+            }
+        }
+        catch { }
+    }
+}
+
 // Runtime
 services.AddSingleton<IUserApprovalHandler, CliUserApprovalHandler>();
 services.AddSingleton<ToolOrchestrator>(sp => new ToolOrchestrator(sp.GetServices<ITool>(), sp.GetService<IUserApprovalHandler>()));

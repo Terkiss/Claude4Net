@@ -20,6 +20,7 @@ namespace Claude4Net.Tools
         public string Name => "FileReadTool";
         public string Description => "Read the content of a file.";
         public List<string>? Aliases => new() { "read" };
+        public object? InputSchema => new { type = "object", properties = new { file_path = new { type = "string", description = "Path to read" } }, required = new[] { "file_path" } };
 
         public async Task<object> ExecuteAsync(string arguments, object context)
         {

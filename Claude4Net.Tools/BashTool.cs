@@ -18,6 +18,7 @@ namespace Claude4Net.Tools
         public string Name => "BashTool";
         public string Description => "Execute a shell command in the local system.";
         public List<string>? Aliases => new() { "bash", "sh", "shell" };
+        public object? InputSchema => new { type = "object", properties = new { command = new { type = "string", description = "The shell command to run" } }, required = new[] { "command" } };
 
         public async Task<object> ExecuteAsync(string arguments, object context)
         {

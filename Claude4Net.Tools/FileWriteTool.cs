@@ -18,6 +18,7 @@ namespace Claude4Net.Tools
         public string Name => "FileWriteTool";
         public string Description => "Write content to a file.";
         public List<string>? Aliases => new() { "write" };
+        public object? InputSchema => new { type = "object", properties = new { file_path = new { type = "string" }, content = new { type = "string" } }, required = new[] { "file_path", "content" } };
 
         public async Task<object> ExecuteAsync(string arguments, object context)
         {

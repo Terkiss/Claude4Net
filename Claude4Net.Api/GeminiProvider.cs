@@ -93,12 +93,7 @@ namespace Claude4Net.Api
                 var declarations = tools.Select(t => new {
                     name = t.Name.Replace("__", "_").Replace("-", "_"),
                     description = (t.Description ?? t.Name) + " (Executes on user's ACTUAL local machine)",
-                    parameters = t.Name switch {
-                        "BashTool" => (object)new { type = "OBJECT", properties = new { command = new { type = "STRING" } }, required = new[] { "command" } },
-                        "FileReadTool" => (object)new { type = "OBJECT", properties = new { file_path = new { type = "STRING" } }, required = new[] { "file_path" } },
-                        "LsTool" => (object)new { type = "OBJECT", properties = new { path = new { type = "STRING" } }, required = new[] { "path" } },
-                        _ => (object)new { type = "OBJECT", properties = new { }, required = new string[] { } }
-                    }
+                    parameters = t.InputSchema ?? (object)new { type = "OBJECT", properties = new { }, required = new string[] { } }
                 }).ToList();
                 geminiTools.Add(new { function_declarations = declarations });
             }

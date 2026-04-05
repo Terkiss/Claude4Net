@@ -11,6 +11,7 @@ namespace Claude4Net.SDK
         string Description { get; }
         List<string>? Aliases => null;
         string? SearchHint => null;
+        object? InputSchema => null;
         Task<object> ExecuteAsync(string arguments, object context);
     }
 

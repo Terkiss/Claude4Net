@@ -13,6 +13,7 @@ namespace Claude4Net.Tools
     {
         public string Name => "LsTool";
         public string Description => "List files and directories in a given path.";
+        public object? InputSchema => new { type = "object", properties = new { path = new { type = "string", description = "Directory path to list" } }, required = new[] { "path" } };
 
         public async Task<object> ExecuteAsync(string arguments, object context)
         {
