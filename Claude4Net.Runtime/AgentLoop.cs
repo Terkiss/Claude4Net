@@ -28,14 +28,14 @@ namespace Claude4Net.Runtime
             string currentPrompt = userPrompt;
             bool isFirstTurn = true;
             int turnCount = 0;
-            const int MAX_TURNS = 20; // Increased for deeper analysis
+            const int MAX_TURNS = 100; // Increased for deeper analysis
 
             while (!ct.IsCancellationRequested && turnCount < MAX_TURNS)
             {
                 turnCount++;
                 var toolCalls = new List<ToolUseRequest>();
-                
-                try 
+
+                try
                 {
                     // Show both Thinking and Output
                     await AnsiConsole.Live(new Panel("Initializing...") { Header = new PanelHeader($"{_provider.Name.ToUpper()} (Turn {turnCount})"), Border = BoxBorder.Rounded })
@@ -82,23 +82,23 @@ namespace Claude4Net.Runtime
                 {
                     AnsiConsole.MarkupLine($"\n[bold yellow]🛠️  Executing {toolCalls.Count} tools...[/]");
                     var batchResults = await _orchestrator.ExecuteBatchAsync(toolCalls, new { });
-                    
+
                     var toolResults = new List<object>();
                     foreach (var result in batchResults)
                     {
                         string summary = result.Content?.ToString() ?? "Success";
                         if (summary.Length > 100) summary = summary.Substring(0, 97) + "...";
-                        
-                        if (result.IsError) 
+
+                        if (result.IsError)
                             AnsiConsole.MarkupLine($"  [red]✗ {result.ToolUseId}:[/] [grey]{Markup.Escape(summary)}[/]");
-                        else 
+                        else
                             AnsiConsole.MarkupLine($"  [green]✓ {result.ToolUseId}:[/] [grey]{Markup.Escape(summary)}[/]");
-                        
+
                         toolResults.Add(new { type = "tool_result", tool_use_id = result.ToolUseId, content = result.Content?.ToString() ?? "Success", is_error = result.IsError });
                     }
 
                     _provider.AddMessage(new { role = "user", content = toolResults });
-                    continue; 
+                    continue;
                 }
 
                 break;

@@ -13,6 +13,8 @@ using Claude4Net.Commands;
 var services = new ServiceCollection();
 
 // Tools
+services.AddSingleton<LspClient>();
+services.AddSingleton<ITool, LspTool>();
 services.AddSingleton<ITool, BashTool>();
 services.AddSingleton<ITool, FileReadTool>();
 services.AddSingleton<ITool, FileWriteTool>();

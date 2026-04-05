@@ -4,6 +4,10 @@
     <ProjectReference Include="..\Claude4Net.SDK\Claude4Net.SDK.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Discord.Net" Version="3.19.1" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

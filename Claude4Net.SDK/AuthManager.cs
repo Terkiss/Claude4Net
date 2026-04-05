@@ -29,6 +29,7 @@ namespace Claude4Net.SDK
 
         public static string? GetAnthropicApiKey() => GetApiKey("claude");
         public static string? GetGeminiApiKey() => GetApiKey("gemini");
+        public static string? GetDiscordApiKey() => GetApiKey("discord");
 
         public static async Task SaveProviderKeyAsync(string provider, string key)
         {
