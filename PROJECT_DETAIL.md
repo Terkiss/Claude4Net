@@ -53,13 +53,18 @@
 ### 3.5 Claude4Net.MyPlugins
 - **`ImageEngineTool`**: Gemini를 활용해 고화질 이미지를 생성하고 로컬에 저장합니다.
 - **`DiscordEngineTool`**: 에이전트가 명시적으로 특정 채널에 메시지를 보낼 수 있는 기능을 제공합니다.
+- **`PandasDbTool`**: 고성능 데이터 처리 라이브러리인 `TeruTeruPandas`를 사용하여 CSV, SQLite 데이터를 로드하고 SQL 쿼리를 실행하는 기능을 제공합니다.
+    - `pandas_load_csv`: CSV 파일을 테이블로 로드.
+    - `pandas_load_sqlite`: SQLite 테이블을 로드.
+    - `pandas_sql`: 로드된 테이블들에 대해 SQL 실행.
+    - `pandas_show_tables`: 현재 로드된 테이블 목록 및 통계 확인.
 
 ---
 
 ## 4. 설치 및 설정 (Setup)
 
 ### 4.1 필수 요구 사항
-- .NET 10.0 SDK 이상
+- .NET 10.0 SDK 이상 (TeruTeruPandas 등 일부 모듈은 net9.0 사용)
 - Discord Bot Token (Message Content Intent 활성화 필수)
 - Google Gemini API Key 또는 Anthropic API Key
 

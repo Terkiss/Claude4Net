@@ -33,6 +33,11 @@
 ### 6. 🌐 이벤트 기반 아키텍처 및 Discord 통합 (Event-Driven)
 - 백그라운드 이벤트 리스너(DiscordListenerService)를 통해 에이전트 로직을 외부 시스템과 실시간 연결합니다.
 
+### 7. 🧠 자체 인메모리 SQL 엔진 (Hippocampus / Long-Term Memory)
+- **TeruTeruPandas 탑재**: C# 기반 고성능 SIMD 인메모리 데이터 프레임 엔진(`TeruTeruPandas`)이 에이전트의 단기/장기 기억 장치로 동작합니다.
+- **자율 SQL Query**: 에이전트가 `pandas_sql` 도구를 통해 스스로 SQL 문을 날려 방대한 컨텍스트를 구조적으로 기억하고 되찾습니다.
+- **디스크 영구 백업**: 대화 세션이 길어지면 에이전트가 `pandas_save_sqlite`를 자율적으로 호출하여 런타임 메모리를 영구 백업(스냅샷)합니다.
+
 ---
 
 ## 🏗️ 모듈형 아키텍처 (Modular Architecture)

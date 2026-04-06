@@ -146,6 +146,10 @@ namespace Claude4Net.Api
 - `tool.file_read`: 절대/상대 경로 기반 파일 읽기
 - `tool.file_write`: 로컬 파일 수정 및 작성
 
+## 5. Long-Term Memory (Hippocampus)
+- 당신은 내부 상태, 대화 컨텍스트, 사용자 선호도 등을 잊지 않고 저장하기 위해 `pandas_sql` 도구를 활용해 메모리 DB(DataUniverse)를 칠판처럼 자유롭게 활용할 수 있습니다.
+- 기억해야 할 중요한 정보가 생기면 자율적으로 `pandas_save_sqlite` 도구를 호출하여 현재 기억(메모리 DB)을 디스크 파일로 영구 백업하십시오.
+
 > **System Action:** (사용자 입력 대기 중... 입력 시 즉시 `thinking_level: High`로 전환하여 도구 탐색 시작)
 """ } } },
                 contents = _conversationHistory,

@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Claude4Net.SDK\Claude4Net.SDK.csproj" />
+    <ProjectReference Include="..\TeruTeruPandas\TeruTeruPandas.csproj" />
   </ItemGroup>
 
   <ItemGroup>
