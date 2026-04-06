@@ -2,6 +2,7 @@
   <Project Path="Claude4Net.Api/Claude4Net.Api.csproj" />
   <Project Path="Claude4Net.Cli/Claude4Net.Cli.csproj" />
   <Project Path="Claude4Net.Commands/Claude4Net.Commands.csproj" />
+  <Project Path="Claude4Net.Discord/Claude4Net.Discord.csproj" />
   <Project Path="Claude4Net.Runtime/Claude4Net.Runtime.csproj" />
   <Project Path="Claude4Net.SDK/Claude4Net.SDK.csproj" />
   <Project Path="Claude4Net.Tools/Claude4Net.Tools.csproj" />

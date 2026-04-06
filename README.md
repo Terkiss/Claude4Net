@@ -14,9 +14,9 @@
 - **Local Ollama**: `llama3`, `qwen3` 등 로컬 모델을 활용한 보안 기반 자율 실행.
 
 ### 2. ⚡ Antigravity 시스템 프로토콜
-- **강력한 로컬 페르소나**: AI가 자신이 로컬 시스템에 상주함을 완벽히 인지합니다.
-- **도구 우선 실행(Tool-First)**: "할 수 있다"는 말 대신 즉시 도구를 호출하여 결과를 증명합니다.
-- **자율 디버깅(Self-Healing)**: 도구 실행 실패 시 AI가 스스로 오류를 분석하고 재시도합니다.
+- **고도화된 로컬 페르소나**: `Gemini 3.0 Antigravity Protocol` 및 `Ollama Local System Agent Protocol` 등 모델별 전용 시스템 프롬프트를 적용하여, AI가 스스로를 대화형 챗봇이 아닌 최고 권한의 로컬 엔지니어로 완벽히 인지합니다.
+- **도구 우선 실행(Tool-First) 및 Zero-Hallucination**: 파일이나 디렉토리를 절대 추측하지 않으며, "어떤 일을 할 수 있습니다"라고 말하기 전에 즉시 `BashTool` 또는 `LsTool` 등을 백그라운드에서 직접 실행하여 실제 결과(Observation)만을 가지고 보고합니다.
+- **자율 디버깅(Self-Healing)**: 도구 실행 실패 시 AI가 로그를 스스로 분석하고 컨텍스트를 활용해 재시도합니다.
 
 ### 3. 🛡️ 보안 및 !YOLO 모드
 - **권한 승인 체계**: 민감한 작업(Write, Bash 등) 실행 전 사용자의 명시적 승인을 요청합니다.
@@ -28,20 +28,25 @@
 
 ### 5. 🧩 완전한 동적 플러그인 생태계 (Dynamic Plugins)
 - **자율 파라미터 스키마**: 도구 스스로 필요한 입력 형태(`InputSchema`)를 정의하여 유연성을 극대화했습니다.
-- **핫 로드 (Hot-Load)**: `plugins/` 폴더에 `.dll` 파일만 넣으면 소스코드 수정 없이도 AI가 즉각 새로운 도구로 인식합니다.
+- **핫 로드 (Hot-Load)**: `plugins/` 폴더에 `.dll` 파일만 넣으면 소스코드 수정 없이도 AI가 즉각 새로운 도구(`ImageEngineTool`, `DiscordEngineTool` 등)로 인식합니다.
+
+### 6. 🌐 이벤트 기반 아키텍처 및 Discord 통합 (Event-Driven)
+- 백그라운드 이벤트 리스너(DiscordListenerService)를 통해 에이전트 로직을 외부 시스템과 실시간 연결합니다.
 
 ---
 
 ## 🏗️ 모듈형 아키텍처 (Modular Architecture)
 
-`Claude4Net`은 클린 아키텍처 철학에 따라 6개의 전문 프로젝트로 정밀하게 분리되어 있습니다.
+`Claude4Net`은 클린 아키텍처 철학에 따라 기능별 전문 프로젝트로 정밀하게 분리되어 있습니다.
 
 - **`Claude4Net.SDK`**: 핵심 인터페이스와 공통 데이터 모델 정의. 모든 도구와 프로바이더의 기초.
 - **`Claude4Net.Runtime`**: '생각-행동-관찰' 루프를 관리하는 에이전트의 핵심 엔진 (`AgentLoop`, `AppState`).
 - **`Claude4Net.Api`**: LLM(Claude, Gemini, Ollama)과의 고수준 통신 레이어.
-- **`Claude4Net.Tools`**: 시스템의 손발이 되는 도구 집합 (`BashTool`, `FileRead/Write`, `LsTool`).
+- **`Claude4Net.Tools`**: 시스템의 손발이 되는 범용 도구 집합 (`BashTool`, `FileRead/Write`, `LsTool`, `LspTool` 등).
 - **`Claude4Net.Commands`**: 사용자 명령 처리기 (`!login`, `/model`, `!yolo`).
 - **`Claude4Net.Cli`**: `Spectre.Console` 기반의 인터랙티브 진입점.
+- **`Claude4Net.Discord`** *(New!)*: 이벤트 기반 디스코드 봇 통합 서비스 및 백그라운드 리스너.
+- **`Claude4Net.MyPlugins`** *(New!)*: 런타임에 동적으로 주입되는 플러그인 확장 생태계 (`ImageEngineTool`, `DiscordEngineTool`).
 
 ---
 
@@ -49,7 +54,7 @@
 
 | 명령어 | 설명 |
 | :--- | :--- |
-| `!login <provider> <key>` | API 키 또는 Ollama URI를 등록하고 `api_key.json`에 영구 저장합니다. |
+| `!login <provider> <key>` | API 키 또는 Ollama URI를 등록하고 `.gitignore` 처리된 `api_key.json`에 영구 저장합니다. |
 | `/model` | 현재 사용 가능한 모든 프로바이더의 모델 리스트를 보여줍니다. |
 | `/model <name>` | 사용할 모델을 변경합니다. (접두사에 따라 프로바이더 자동 스위칭) |
 | `!yolo` | **[위험]** 모든 보안 승인 절차를 생략하고 완전 자율 모드를 활성화합니다. |
@@ -60,7 +65,7 @@
 ## 🛠️ 시작하기 (Getting Started)
 
 ### 1. 요구 사항
-- [.NET 10.0](https://dotnet.microsoft.com/download) SDK 이상 (또는 .NET 8.0)
+- [.NET 10.0](https://dotnet.microsoft.com/download) SDK 이상 (또는 .NET 8.0/9.0 지원)
 
 ### 2. 빌드 및 실행
 ```bash
@@ -82,7 +87,7 @@ dotnet run --project Claude4Net.Cli
 
 ## 🤝 기여하기 (Contributing)
 
-`Claude4Net`은 인터페이스 중심 설계로 확장이 매우 쉽습니다. `SDK`의 `ITool`을 구현하여 여러분만의 강력한 도구를 추가해 보세요!
+`Claude4Net`은 인터페이스 중심 설계로 확장이 매우 쉽습니다. `SDK`의 `ITool`을 구현하거나 새로운 `Plugin` DLL을 동적으로 로드해 여러분만의 강력한 도구를 추가해 보세요!
 
 ---
 **Powered by Antigravity Design Philosophy** 🚀
