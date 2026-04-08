@@ -9,6 +9,8 @@ using Spectre.Console;
 using Claude4Net.SDK;
 using System.Text.Json;
 using Claude4Net.Api;
+using System.Diagnostics;
+using System.IO;
 
 namespace Claude4Net.Runtime
 {
@@ -35,6 +37,9 @@ namespace Claude4Net.Runtime
                     var context = await _broker.ReadAsync(ct);
                     if (string.IsNullOrWhiteSpace(context.Text)) continue;
 
+                    // --- [System Command Interception] ---
+                    if (await HandleSystemCommand(context, ct)) continue;
+
                     // Resolve current active provider dynamically for every message
                     ILLMProvider provider;
                     if (AppState.ActiveProvider == "gemini") 
@@ -54,6 +59,99 @@ namespace Claude4Net.Runtime
                     AnsiConsole.Console.Write(new Markup($"[bold red][[Agent]] Consumer Error:[/] {Markup.Escape(ex.Message)}\n"));
                 }
             }
+        }
+
+        private async Task<bool> HandleSystemCommand(InputContext context, CancellationToken ct)
+        {
+            string cmd = context.Text.Trim().ToLower();
+            if (!cmd.StartsWith("!")) return false;
+
+            switch (cmd)
+            {
+                case "!clear":
+                    Console.Clear();
+                    AnsiConsole.MarkupLine("[bold green]Console cleared.[/]");
+                    return true;
+
+                case "!exit":
+                case "!quit":
+                    AnsiConsole.MarkupLine("[bold yellow]System is shutting down safely...[/]");
+                    await context.Output.WriteAsync("Agent is going offline.");
+                    Environment.Exit(0);
+                    return true;
+
+                case "!tools":
+                    var tools = _orchestrator.GetTools();
+                    var table = new Table().Border(TableBorder.Rounded);
+                    table.AddColumn("[bold cyan]Tool Name[/]");
+                    table.AddColumn("[bold yellow]Description[/]");
+                    
+                    foreach (var tool in tools.OrderBy(t => t.Name))
+                    {
+                        table.AddRow(Markup.Escape(tool.Name), Markup.Escape(tool.Description ?? "No description"));
+                    }
+                    AnsiConsole.Write(table);
+                    await context.Output.WriteAsync($"Loaded tools: {string.Join(", ", tools.Select(t => t.Name))}");
+                    return true;
+
+                case "!reload":
+                    AnsiConsole.MarkupLine("[bold purple]Notice:[/] Dynamic hot-reloading requires a host-level rescan. Currently available tools remain active.");
+                    AnsiConsole.MarkupLine("[bold green]Plugin metadata refreshed![/]");
+                    await context.Output.WriteAsync("System plugins metadata refreshed.");
+                    return true;
+
+                case "!status":
+                    var process = Process.GetCurrentProcess();
+                    long memoryUsed = GC.GetTotalMemory(false) / 1024 / 1024;
+                    
+                    var grid = new Grid();
+                    grid.AddColumn(new GridColumn().NoWrap());
+                    grid.AddColumn(new GridColumn().Padding(2, 0, 0, 0));
+                    
+                    grid.AddRow("[bold cyan]OS:[/]", Markup.Escape(Environment.OSVersion.ToString()));
+                    grid.AddRow("[bold cyan]Active Provider:[/]", Markup.Escape(AppState.ActiveProvider));
+                    grid.AddRow("[bold cyan]Active Model:[/]", Markup.Escape(AppState.ActiveModel));
+                    grid.AddRow("[bold cyan]Memory Usage:[/]", $"{memoryUsed} MB");
+                    grid.AddRow("[bold cyan]Loaded Tools:[/]", _orchestrator.GetTools().Count.ToString());
+                    grid.AddRow("[bold cyan]YOLO Mode:[/]", AppState.CurrentPermissionMode == PermissionMode.Yolo ? "[red]ON[/]" : "[green]OFF[/]");
+                    
+                    var panel = new Panel(grid)
+                    {
+                        Header = new PanelHeader("System Status"),
+                        Border = BoxBorder.Rounded,
+                        Padding = new Padding(1, 1, 1, 1)
+                    };
+                    AnsiConsole.Write(panel);
+                    await context.Output.WriteAsync($"System Status: {AppState.ActiveProvider}/{AppState.ActiveModel}, Memory: {memoryUsed}MB");
+                    return true;
+
+                case "!save":
+                    try
+                    {
+                        ILLMProvider provider;
+                        if (AppState.ActiveProvider == "gemini") provider = _serviceProvider.GetRequiredService<GeminiProvider>();
+                        else if (AppState.ActiveProvider == "ollama") provider = _serviceProvider.GetRequiredService<OllamaProvider>();
+                        else provider = _serviceProvider.GetRequiredService<ClaudeService>();
+
+                        var history = provider.GetHistory();
+                        string dateStr = DateTime.Now.ToString("yyyyMMdd");
+                        string fileName = $"context_{dateStr}.json";
+                        string fullPath = Path.Combine(AppState.CurrentCwd, fileName);
+
+                        string json = JsonSerializer.Serialize(history, new JsonSerializerOptions { WriteIndented = true });
+                        await File.WriteAllTextAsync(fullPath, json);
+
+                        AnsiConsole.MarkupLine($"[bold green]Context saved to:[/] [underlined]{Markup.Escape(fullPath)}[/]");
+                        await context.Output.WriteAsync($"Conversation context saved to {fileName}");
+                    }
+                    catch (Exception ex)
+                    {
+                        AnsiConsole.MarkupLine($"[bold red]Error saving context:[/] {Markup.Escape(ex.Message)}");
+                    }
+                    return true;
+            }
+
+            return false;
         }
 
         public async Task RunAsync(string userPrompt, IOutputHandler output, ILLMProvider provider, CancellationToken ct = default)

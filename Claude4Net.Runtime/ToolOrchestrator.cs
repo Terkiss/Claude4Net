@@ -25,7 +25,7 @@ namespace Claude4Net.Runtime
 
         public IReadOnlyList<ITool> GetTools() => _tools.ToList();
 
-        public ITool? FindTool(string name)
+        public ITool? GetTool(string name)
         {
             return _tools.FirstOrDefault(t => 
                 t.Name.Equals(name, StringComparison.OrdinalIgnoreCase) || 
@@ -34,7 +34,7 @@ namespace Claude4Net.Runtime
 
         public async Task<ToolUseResult> ExecuteToolAsync(ToolUseRequest request, object context)
         {
-            var tool = FindTool(request.Name);
+            var tool = GetTool(request.Name);
             if (tool == null) return new ToolUseResult { ToolUseId = request.Id, Content = $"Error: Tool '{request.Name}' not found.", IsError = true };
 
             try

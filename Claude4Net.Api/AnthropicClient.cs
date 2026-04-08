@@ -47,9 +47,8 @@ namespace Claude4Net.Api
             using var reader = new System.IO.StreamReader(stream);
 
             string? currentEventType = null;
-            while (!reader.EndOfStream)
+            while (await reader.ReadLineAsync(ct) is { } line)
             {
-                string? line = await reader.ReadLineAsync(ct);
                 if (string.IsNullOrWhiteSpace(line)) continue;
 
                 if (line.StartsWith("event:")) currentEventType = line.Substring(6).Trim();

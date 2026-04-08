@@ -20,6 +20,8 @@ namespace Claude4Net.Api
 
         public void AddMessage(object message) => _messageHistory.Add(message);
 
+        public IReadOnlyList<object> GetHistory() => _messageHistory.AsReadOnly();
+
         public async IAsyncEnumerable<LLMStreamEvent> StreamQueryAsync(string prompt, string? model = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
         {
             _messageHistory.Add(new { role = "user", content = prompt });

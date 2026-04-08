@@ -70,7 +70,7 @@ namespace Claude4Net.Api
             while (true)
             {
                 int contentLength = -1;
-                string line;
+                string? line;
                 while (!string.IsNullOrEmpty(line = await ReadLineAsync(_readerStream)))
                 {
                     if (line.StartsWith("Content-Length:"))
@@ -102,7 +102,7 @@ namespace Claude4Net.Api
             }
         }
 
-        private async Task<string> ReadLineAsync(Stream stream)
+        private async Task<string?> ReadLineAsync(Stream stream)
         {
             List<byte> lineBytes = new List<byte>();
             int b;

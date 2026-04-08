@@ -13,6 +13,7 @@ namespace Claude4Net.Tools
     {
         public string prompt { get; set; } = string.Empty;
         public string? image { get; set; }
+        public string? resolution { get; set; }
     }
 
     public class ImageEngineTool : ITool
@@ -26,7 +27,8 @@ namespace Claude4Net.Tools
             type = "object",
             properties = new
             {
-                prompt = new { type = "string" }
+                prompt = new { type = "string", description = "The image generation prompt." },
+                resolution = new { type = "string", description = "Optional resolution or aspect ratio (e.g. '4K', '1080p', '16:9')" }
             },
             required = new[] { "prompt" }
         };
@@ -40,6 +42,10 @@ namespace Claude4Net.Tools
 
             // 2. 나노 바나나 기본 프롬프트 믹싱
             string finalPrompt = input.prompt + " (Apply nano banana style / theme explicitly)";
+            if (!string.IsNullOrWhiteSpace(input.resolution))
+            {
+                finalPrompt += $" [Target Resolution/Format: {input.resolution}]";
+            }
 
             // 3. API 키 획득 빛 Endpoint 정의 (Claude4Net 구조상 AuthManager.cs 활용 권장)
             // AuthManager.GetGeminiApiKey() 같은 메서드가 있다면 대체하세요!
@@ -50,12 +56,42 @@ namespace Claude4Net.Tools
 
             string url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key={apiKey}";
 
-            // 4. 요청 페이로드 세팅 (Python의 contents=[prompt] 와 동일한 JSON 체계)
+            // 4. 요청 페이로드 세팅
+            object? genConfig = null;
+            if (!string.IsNullOrWhiteSpace(input.resolution))
+            {
+                string resUpper = input.resolution.ToUpper();
+
+                string? targetSize = null;
+                if (resUpper.Contains("4K")) targetSize = "4K";
+                else if (resUpper.Contains("2K")) targetSize = "2K";
+                else if (resUpper.Contains("1K")) targetSize = "1K";
+                else if (resUpper.Contains("512")) targetSize = "512";
+
+                string? targetAspect = null;
+                if (resUpper.Contains(":")) targetAspect = input.resolution.Trim(); // e.g. "16:9"
+
+                if (targetSize != null || targetAspect != null)
+                {
+                    // Python SDK의 image_config => JSON의 imageConfig 로 매핑
+                    var imgCfg = new Dictionary<string, string>();
+                    if (targetSize != null) imgCfg["imageSize"] = targetSize;
+                    if (targetAspect != null) imgCfg["aspectRatio"] = targetAspect;
+
+                    genConfig = new
+                    {
+                        responseModalities = new[] { "IMAGE" },
+                        imageConfig = imgCfg
+                    };
+                }
+            }
+
             var payload = new
             {
                 contents = new[] {
                     new { parts = new[] { new { text = finalPrompt } } }
-                }
+                },
+                generationConfig = genConfig
             };
 
             // 5. HttpClient로 백엔드 전송
@@ -92,7 +128,8 @@ namespace Claude4Net.Tools
                 throw new Exception("결과물에서 이미지를 추출하지 못했습니다.");
 
             // 7. 디코딩 후 물리 파일로 저장
-            string savePath = "generated_image.png";
+            string dateTime = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            string savePath = $"generated_image_{dateTime}.png";
             byte[] imageBytes = Convert.FromBase64String(base64Image);
             await File.WriteAllBytesAsync(savePath, imageBytes);
 

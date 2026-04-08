@@ -53,6 +53,8 @@ namespace Claude4Net.Api
             _messageHistory.Add(message);
         }
 
+        public IReadOnlyList<object> GetHistory() => _messageHistory.AsReadOnly();
+
         public async Task<List<string>> ListModelsAsync()
         {
             string? uri = AuthManager.GetApiKey("ollama") ?? "http://localhost:11434";
@@ -109,6 +111,7 @@ namespace Claude4Net.Api
 ## 4. Long-Term Memory (Hippocampus)
 - 당신은 내부 상태나 중요한 대화 컨텍스트를 기억하기 위해 `pandas_sql` 도구를 활용하여 메모리 DB를 자신의 메모장처럼 자율적으로 다룰 수 있습니다.
 - 중요한 정보가 누적되거나 백업이 필요하다고 판단되면, `pandas_save_sqlite` 도구를 스스로 호출하여 당신의 기억(메모리 DB)을 디스크에 영구 백업(스냅샷)하십시오.
+- **저장소 위치 규칙**: 모든 백업 파일은 반드시 현재 실행 경로 하위의 `DB/` 디렉토리에 저장하십시오. 만약 `DB` 폴더가 없다면, `BashTool` 도구를 활용해 먼저 `DB` 폴더를 생성한 뒤 저장해야 합니다.
 """
             };
 
@@ -129,9 +132,8 @@ namespace Claude4Net.Api
             var assistantToolCalls = new List<object>();
             bool toolCalled = false;
 
-            while (!reader.EndOfStream)
+            while (await reader.ReadLineAsync(ct) is { } line)
             {
-                string? line = await reader.ReadLineAsync(ct);
                 if (string.IsNullOrWhiteSpace(line)) continue;
 
                 var chunk = JsonSerializer.Deserialize<JsonElement>(line);

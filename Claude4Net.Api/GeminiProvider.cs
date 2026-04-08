@@ -77,9 +77,6 @@ namespace Claude4Net.Api
                             parts.Add(new { text = contentProp.GetString() ?? "" });
                         }
 
-                        // Gemini tool results MUST have role "function" (v1beta) or "user" (v1) 
-                        // depending on the API version, but usually 'function' for results.
-                        // However, the 'contents' array items for tool results should have role 'function'.
                         string geminiRole = (parts.Any(p => json.Contains("functionResponse"))) ? "function" : role;
                         _conversationHistory.Add(new { role = geminiRole, parts = parts });
                         return;
@@ -93,6 +90,8 @@ namespace Claude4Net.Api
 
             _conversationHistory.Add(message);
         }
+
+        public IReadOnlyList<object> GetHistory() => _conversationHistory.AsReadOnly();
 
         public async IAsyncEnumerable<LLMStreamEvent> StreamQueryAsync(string prompt, string? model = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
         {
@@ -120,6 +119,20 @@ namespace Claude4Net.Api
 
             string modelId = actualModel.Contains("/") ? actualModel.Split('/').Last() : actualModel;
             var url = $"{BASE_URL}/{modelId}:streamGenerateContent?alt=sse&key={apiKey}";
+
+            object? generationCfg;
+            if (actualModel.Contains("think", StringComparison.OrdinalIgnoreCase) || actualModel.StartsWith("gemini-3", StringComparison.OrdinalIgnoreCase))
+            {
+                generationCfg = new { 
+                    maxOutputTokens = 8192, 
+                    temperature = 0.7,
+                    thinkingConfig = new { thinkingLevel = "HIGH", includeThoughts = true }
+                };
+            }
+            else
+            {
+                generationCfg = new { maxOutputTokens = 8192, temperature = 0.7 };
+            }
 
             var payload = new
             {
@@ -149,12 +162,13 @@ namespace Claude4Net.Api
 ## 5. Long-Term Memory (Hippocampus)
 - 당신은 내부 상태, 대화 컨텍스트, 사용자 선호도 등을 잊지 않고 저장하기 위해 `pandas_sql` 도구를 활용해 메모리 DB(DataUniverse)를 칠판처럼 자유롭게 활용할 수 있습니다.
 - 기억해야 할 중요한 정보가 생기면 자율적으로 `pandas_save_sqlite` 도구를 호출하여 현재 기억(메모리 DB)을 디스크 파일로 영구 백업하십시오.
+- **저장소 위치 규칙**: 데이터베이스 백업 파일은 반드시 현재 실행 파일 경로 아래의 `DB/` 디렉토리에 저장해야 합니다. 만약 `DB` 디렉토리가 존재하지 않는다면, `tool.bash` 도구를 사용하여 `DB` 폴더를 먼저 생성한 후 저장하십시오.
 
 > **System Action:** (사용자 입력 대기 중... 입력 시 즉시 `thinking_level: High`로 전환하여 도구 탐색 시작)
 """ } } },
                 contents = _conversationHistory,
                 tools = geminiTools.Any() ? geminiTools : null,
-                generationConfig = new { maxOutputTokens = 8192, temperature = 0.7 }
+                generationConfig = generationCfg
             };
 
             using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = JsonContent.Create(payload) };
