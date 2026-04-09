@@ -21,6 +21,7 @@ namespace Claude4Net.Tools
         public string Name => "ImageEngineTool";
         public string Description => "Generate or edit an image. Always save image logic is included.";
         public List<string>? Aliases => new() { "image", "img" };
+        public bool IsConcurrencySafe => true;
 
         public object? InputSchema => new
         {

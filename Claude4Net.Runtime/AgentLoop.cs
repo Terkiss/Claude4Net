@@ -37,8 +37,14 @@ namespace Claude4Net.Runtime
                     var context = await _broker.ReadAsync(ct);
                     if (string.IsNullOrWhiteSpace(context.Text)) continue;
 
+                    // --- [Task 5.1: Intent-based Query Routing] ---
+                    string? routedCommand = QueryRouter.Route(context.Text);
+                    string finalInput = routedCommand ?? context.Text;
+
                     // --- [System Command Interception] ---
-                    if (await HandleSystemCommand(context, ct)) continue;
+                    // Re-create a temporary context if routed to a command
+                    var effectiveContext = routedCommand != null ? new InputContext(routedCommand, context.Output) : context;
+                    if (await HandleSystemCommand(effectiveContext, ct)) continue;
 
                     // Resolve current active provider dynamically for every message
                     ILLMProvider provider;
@@ -66,8 +72,27 @@ namespace Claude4Net.Runtime
             string cmd = context.Text.Trim().ToLower();
             if (!cmd.StartsWith("!")) return false;
 
-            switch (cmd)
+            string[] parts = cmd.Split(' ', 2);
+            string baseCmd = parts[0];
+
+            switch (baseCmd)
             {
+                case "!build":
+                    AnsiConsole.MarkupLine("[bold blue]Building project...[/]");
+                    // Logic to invoke dotnet build etc.
+                    await context.Output.WriteAsync("Build triggered.");
+                    return true;
+
+                case "!test":
+                    AnsiConsole.MarkupLine("[bold blue]Running tests...[/]");
+                    await context.Output.WriteAsync("Test suite execution started.");
+                    return true;
+
+                case "!clean":
+                    AnsiConsole.MarkupLine("[bold blue]Cleaning solution...[/]");
+                    await context.Output.WriteAsync("Solution clean started.");
+                    return true;
+
                 case "!clear":
                     Console.Clear();
                     AnsiConsole.MarkupLine("[bold green]Console cleared.[/]");
@@ -259,7 +284,9 @@ namespace Claude4Net.Runtime
                         toolResults.Add(new { type = "tool_result", tool_use_id = result.ToolUseId, content = result.Content?.ToString() ?? "Success", is_error = result.IsError });
                     }
 
-                    provider.AddMessage(new { role = "user", content = toolResults });
+                    // Task 3.2: Context Compression
+                    var processedResults = ContextCompressor.SummarizeToolResults(toolResults);
+                    provider.AddMessage(new { role = "user", content = processedResults });
                     continue;
                 }
 

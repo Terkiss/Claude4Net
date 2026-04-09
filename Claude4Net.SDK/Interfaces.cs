@@ -11,6 +11,7 @@ namespace Claude4Net.SDK
         string Description { get; }
         IEnumerable<string>? Aliases => null;
         object? InputSchema { get; }
+        bool IsConcurrencySafe => false;
         Task<object> ExecuteAsync(string arguments, object context);
     }
 

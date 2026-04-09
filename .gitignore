@@ -19,3 +19,6 @@ config.local.json
 .idea/
 .vscode/
 *.swp
+
+# Docs
+[Dd]ocuments/

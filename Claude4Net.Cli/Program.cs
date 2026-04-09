@@ -14,6 +14,9 @@ using System.IO;
 // --- 1. DI Setup ---
 var services = new ServiceCollection();
 
+// HTTP Client Factory
+services.AddHttpClient();
+
 // Messaging
 services.AddSingleton<IInputBroker, ChannelBroker>();
 
@@ -54,10 +57,27 @@ services.AddSingleton<ToolOrchestrator>(sp => new ToolOrchestrator(sp.GetService
 services.AddSingleton<IToolRegistry>(sp => sp.GetRequiredService<ToolOrchestrator>());
 
 // Api
-services.AddSingleton<AnthropicClient>(sp => new AnthropicClient());
+services.AddSingleton<AnthropicClient>(sp => 
+{
+    var clientFactory = sp.GetRequiredService<IHttpClientFactory>();
+    var httpClient = clientFactory.CreateClient("Anthropic");
+    return new AnthropicClient(httpClient);
+});
 services.AddSingleton<ClaudeService>();
-services.AddSingleton<GeminiProvider>(sp => new GeminiProvider(sp.GetRequiredService<IToolRegistry>()));
-services.AddSingleton<OllamaProvider>(sp => new OllamaProvider(sp.GetRequiredService<IToolRegistry>()));
+services.AddSingleton<GeminiProvider>(sp => 
+{
+    var clientFactory = sp.GetRequiredService<IHttpClientFactory>();
+    var httpClient = clientFactory.CreateClient("Gemini");
+    httpClient.Timeout = TimeSpan.FromSeconds(180);
+    return new GeminiProvider(httpClient, sp.GetRequiredService<IToolRegistry>());
+});
+services.AddSingleton<OllamaProvider>(sp => 
+{
+    var clientFactory = sp.GetRequiredService<IHttpClientFactory>();
+    var httpClient = clientFactory.CreateClient("Ollama");
+    httpClient.Timeout = TimeSpan.FromSeconds(300);
+    return new OllamaProvider(httpClient, sp.GetRequiredService<IToolRegistry>());
+});
 
 var serviceProvider = services.BuildServiceProvider();
 
