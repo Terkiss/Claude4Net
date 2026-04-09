@@ -22,3 +22,8 @@ config.local.json
 
 # Docs
 [Dd]ocuments/
+
+# Images
+*.png
+*.jpg
+*.jpeg

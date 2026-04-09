@@ -2,9 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Claude4Net.SDK;
 
-namespace Claude4Net.Runtime
+namespace Claude4Net.SDK
 {
     public class QueryRouter
     {

@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http;
 using Spectre.Console;
 using Claude4Net.SDK;
 using Claude4Net.Runtime;

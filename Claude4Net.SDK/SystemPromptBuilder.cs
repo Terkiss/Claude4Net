@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using Claude4Net.SDK;
 
-namespace Claude4Net.Runtime
+namespace Claude4Net.SDK
 {
     public class SystemPromptBuilder
     {
