@@ -22,6 +22,7 @@ config.local.json
 
 # Docs
 [Dd]ocuments/
+[Oo]pen[Ss]pace/
 
 # Images
 *.png
