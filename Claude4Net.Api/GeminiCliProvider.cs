@@ -43,15 +43,38 @@ namespace Claude4Net.Api
 
             var tools = _toolRegistry?.GetTools();
 
+            var toolDefs = new StringBuilder();
+            if (tools != null && tools.Count > 0)
+            {
+                toolDefs.AppendLine("[AVAILABLE TOOLS]");
+                foreach (var t in tools)
+                {
+                    string schemaDoc = t.InputSchema != null ? System.Text.Json.JsonSerializer.Serialize(t.InputSchema, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }) : "{}";
+                    toolDefs.AppendLine($"- Name: {t.Name}");
+                    toolDefs.AppendLine($"  Description: {t.Description}");
+                    toolDefs.AppendLine($"  InputSchema: {schemaDoc}");
+                    toolDefs.AppendLine();
+                }
+                toolDefs.AppendLine(@"[TOOL USE RULES]
+You are connected to a C# execution loop. DO NOT execute your internal commands.
+If you need to use a tool from the list above, you MUST respond EXACTLY in this XML format:
+<tool_call name=""ToolName"">
+{ ""argName"": ""argValue"" }
+</tool_call>
+You can only call one tool per <tool_call> tag. After outputting a tool call, wait for the result.");
+            }
+
+            var historyDump = new StringBuilder();
+            if (_conversationHistory.Count > 0)
+            {
+                historyDump.AppendLine("[CONVERSATION HISTORY]");
+                historyDump.AppendLine(System.Text.Json.JsonSerializer.Serialize(_conversationHistory, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+            }
+
             var systemPrompt = "";
 
-            // CLI 명령줄에서 --system 같은 전용 인자가 제공되지 않으므로, 
-            // 시스템 프롬프트를 일반 프롬프트 위쪽에 결합하여 전달합니다.
-            // 추가로 모든 출력과 사고 과정(Thinking)을 한국어로 진행하도록 강제 지시를 덧붙입니다.
-            string combinedPrompt = $"{systemPrompt}\n\n[CRITICAL INSTRUCTION]\n반드시 모든 사고(Thinking) 과정과 출력, 대답, 분석 내용을 한국어(Korean)로만 작성하세요.\n\n[User Prompt]:\n{prompt}";
+            string combinedPrompt = $"{systemPrompt}\n\n[CRITICAL INSTRUCTION]\n반드시 모든 사고(Thinking) 과정과 출력, 대답, 분석 내용을 한국어(Korean)로만 작성하세요.\n\n{toolDefs}\n\n{historyDump}\n\n[CURRENT USER PROMPT]:\n{prompt}";
 
-            // cmd.exe의 인자 길이 제한 및 개행 문자(\n) 잘림 문제를 해결하기 위해,
-            // -p 인자는 비워두고 긴 멀티라인 프롬프트를 표준 입력(StandardInput) 스트림으로 안전하게 밀어넣습니다.
             string arguments = "/c gemini -y -p \"\"";
 
             var processStartInfo = new ProcessStartInfo
@@ -70,10 +93,13 @@ namespace Claude4Net.Api
             using var process = new Process { StartInfo = processStartInfo };
             process.Start();
 
-            // 문자열이 길거나 개행이 포함되어도 안전하게 전달됩니다.
             await process.StandardInput.WriteAsync(combinedPrompt);
-            process.StandardInput.Close(); // 표준 입력을 닫아서 입력 스트림이 끝났음을 알림
+            process.StandardInput.Close();
 
+            var interceptedTools = new List<ToolUseRequest>();
+            bool isBufferingTool = false;
+            StringBuilder toolBuffer = new();
+            string currentToolName = "";
 
             var fullText = new StringBuilder();
             using var reader = process.StandardOutput;
@@ -86,26 +112,104 @@ namespace Claude4Net.Api
                     break;
                 }
 
-                // 텍스트를 한 줄씩 또는 버퍼로 읽어서 1차 가공 후 스트리밍
                 string? line = await reader.ReadLineAsync(ct);
                 if (line == null) break;
 
-                // ANSI Escape 코드 제거 (콘솔 제어 문자 등으로 인해 매칭이 안되는 현상 방지)
                 string cleanLine = System.Text.RegularExpressions.Regex.Replace(line, @"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])", "");
 
-                // 불필요한 CLI 경고/시스템 안내 메시지가 첫 줄에 섞여 나오는 것 교정
                 if (cleanLine.Contains("MCP issues detected"))
                 {
-                    cleanLine = cleanLine.Replace("MCP issues detected. ", "");
-                    cleanLine = cleanLine.Replace("Run /mcp list for status.", "");
-                    cleanLine = cleanLine.Replace("MCP issues detected.", "");
+                    cleanLine = cleanLine.Replace("MCP issues detected. ", "")
+                                         .Replace("Run /mcp list for status.", "")
+                                         .Replace("MCP issues detected.", "");
                 }
 
-                // CLI 경고 등을 필터링하고 남은 알맹이가 하얀 공백뿐이라면 쓸데없는 개행을 내보내지 않고 무시
+                if (!isBufferingTool)
+                {
+                    var matchStart = System.Text.RegularExpressions.Regex.Match(cleanLine, @"<tool_call[ \t]+name\s*=\s*""([^""]+)""\s*>");
+                    if (matchStart.Success)
+                    {
+                        isBufferingTool = true;
+                        currentToolName = matchStart.Groups[1].Value;
+                        string precedingText = cleanLine.Substring(0, matchStart.Index);
+                        
+                        if (!string.IsNullOrWhiteSpace(precedingText))
+                        {
+                            fullText.Append(precedingText + "\n");
+                            yield return new LLMStreamEvent { Type = LLMStreamEventType.TextDelta, Delta = precedingText + "\n" };
+                        }
+
+                        string remainder = cleanLine.Substring(matchStart.Index + matchStart.Length);
+                        toolBuffer.Clear();
+                        
+                        var matchEnd = System.Text.RegularExpressions.Regex.Match(remainder, @"</tool_call>");
+                        if (matchEnd.Success)
+                        {
+                            isBufferingTool = false;
+                            toolBuffer.AppendLine(remainder.Substring(0, matchEnd.Index));
+                            cleanLine = remainder.Substring(matchEnd.Index + matchEnd.Length);
+                        }
+                        else
+                        {
+                            toolBuffer.AppendLine(remainder);
+                            continue;
+                        }
+                    }
+                }
+                else
+                {
+                    var matchEnd = System.Text.RegularExpressions.Regex.Match(cleanLine, @"</tool_call>");
+                    if (matchEnd.Success)
+                    {
+                        isBufferingTool = false;
+                        toolBuffer.AppendLine(cleanLine.Substring(0, matchEnd.Index));
+                        cleanLine = cleanLine.Substring(matchEnd.Index + matchEnd.Length);
+                    }
+                    else
+                    {
+                        toolBuffer.AppendLine(cleanLine);
+                        continue;
+                    }
+                }
+
+                if (!isBufferingTool && toolBuffer.Length > 0 && !string.IsNullOrEmpty(currentToolName))
+                {
+                    string jsonArgs = toolBuffer.ToString().Trim();
+                    if (string.IsNullOrEmpty(jsonArgs)) jsonArgs = "{}";
+                    
+                    object? inputObj = null;
+                    try 
+                    { 
+                        inputObj = System.Text.Json.JsonSerializer.Deserialize<object>(jsonArgs); 
+                    } 
+                    catch (Exception ex)
+                    { 
+                        Console.WriteLine($"\n\x1b[1;31m⚠️ JSON Parse Error (\x1b[33m{currentToolName}\x1b[1;31m):\x1b[0m {ex.Message}");
+                        Console.WriteLine($"\x1b[90mRaw JSON:\x1b[0m {jsonArgs}");
+                    }
+                    
+                    var toolReq = new ToolUseRequest {
+                        Id = "call_" + Guid.NewGuid().ToString("N"),
+                        Name = currentToolName,
+                        Input = inputObj ?? new { }
+                    };
+                    interceptedTools.Add(toolReq);
+
+                    yield return new LLMStreamEvent {
+                        Type = LLMStreamEventType.ToolCallStart,
+                        ToolCall = toolReq
+                    };
+
+                    toolBuffer.Clear();
+                    currentToolName = "";
+                    
+                    if (string.IsNullOrWhiteSpace(cleanLine))
+                        continue;
+                }
+
                 if (string.IsNullOrWhiteSpace(cleanLine))
                     continue;
 
-                // AI의 응답 델타가 있을 경우에만 이벤트 방출
                 string chunk = cleanLine + "\n";
                 fullText.Append(chunk);
 
@@ -120,7 +224,6 @@ namespace Claude4Net.Api
 
             string finalOutput = fullText.ToString().TrimEnd();
 
-            // 응답 내용은 이후 히스토리 진행을 위해 추가
             if (!string.IsNullOrEmpty(finalOutput))
             {
                 _conversationHistory.Add(new { role = "model", content = finalOutput });
@@ -129,7 +232,7 @@ namespace Claude4Net.Api
             yield return new LLMStreamEvent
             {
                 Type = LLMStreamEventType.Completed,
-                FinalResponse = new LLMResponse { Text = finalOutput }
+                FinalResponse = new LLMResponse { Text = finalOutput, ToolCalls = interceptedTools }
             };
         }
     }
