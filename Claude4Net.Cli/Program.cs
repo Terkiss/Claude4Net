@@ -72,6 +72,7 @@ services.AddSingleton<GeminiProvider>(sp =>
     httpClient.Timeout = TimeSpan.FromSeconds(180);
     return new GeminiProvider(httpClient, sp.GetRequiredService<IToolRegistry>());
 });
+services.AddSingleton<GeminiCliProvider>();
 services.AddSingleton<OllamaProvider>(sp => 
 {
     var clientFactory = sp.GetRequiredService<IHttpClientFactory>();

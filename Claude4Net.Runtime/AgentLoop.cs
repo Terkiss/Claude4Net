@@ -50,6 +50,8 @@ namespace Claude4Net.Runtime
                     ILLMProvider provider;
                     if (AppState.ActiveProvider == "gemini") 
                         provider = _serviceProvider.GetRequiredService<GeminiProvider>();
+                    else if (AppState.ActiveProvider == "gemini-cli") 
+                        provider = _serviceProvider.GetRequiredService<GeminiCliProvider>();
                     else if (AppState.ActiveProvider == "ollama") 
                         provider = _serviceProvider.GetRequiredService<OllamaProvider>();
                     else 
@@ -103,6 +105,42 @@ namespace Claude4Net.Runtime
                     AnsiConsole.MarkupLine("[bold yellow]System is shutting down safely...[/]");
                     await context.Output.WriteAsync("Agent is going offline.");
                     Environment.Exit(0);
+                    return true;
+
+                case "!login":
+                    var loginArgs = parts.Length > 1 ? parts[1].Split(' ', 2, StringSplitOptions.RemoveEmptyEntries) : Array.Empty<string>();
+                    
+                    if (loginArgs.Length == 0)
+                    {
+                        AnsiConsole.MarkupLine("[bold yellow]Usage:[/] !login <provider> [key]");
+                        await context.Output.WriteAsync("Usage: !login <provider> [key]");
+                        return true;
+                    }
+
+                    string providerName = loginArgs[0].ToLowerInvariant();
+                    
+                    if (providerName == "geminicli" || providerName == "gemini-cli")
+                    {
+                        AnsiConsole.MarkupLine("[bold cyan]Switching provider to Gemini CLI...[/]");
+                        AppState.ActiveProvider = "gemini-cli";
+                        await context.Output.WriteAsync("Provider switched to Gemini CLI (gemini-cli). No API key required (OAuth handled by CLI).");
+                    }
+                    else
+                    {
+                        if (loginArgs.Length < 2)
+                        {
+                            AnsiConsole.MarkupLine($"[bold red]Error:[/] API key is required for provider '{providerName}'.");
+                            await context.Output.WriteAsync($"Error: API key is required for provider '{providerName}'.");
+                            return true;
+                        }
+
+                        string key = loginArgs[1];
+                        await AuthManager.SaveProviderKeyAsync(providerName, key);
+                        
+                        AppState.ActiveProvider = providerName;
+                        AnsiConsole.MarkupLine($"[bold cyan]Switching provider to {providerName}...[/]");
+                        await context.Output.WriteAsync($"Provider switched to {providerName} and API key has been saved.");
+                    }
                     return true;
 
                 case "!tools":

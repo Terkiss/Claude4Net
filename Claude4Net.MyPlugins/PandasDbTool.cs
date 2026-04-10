@@ -4,16 +4,12 @@ using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Claude4Net.SDK;
+using Claude4Net.Runtime;
 using TeruTeruPandas.Core;
 using TeruTeruPandas.IO;
 
 namespace Claude4Net.Tools
 {
-    public static class PandasStorage
-    {
-        public static readonly DataUniverse Universe = new DataUniverse();
-    }
-
     public class PandasLoadCsvTool : ITool
     {
         public string Name => "pandas_load_csv";
@@ -42,7 +38,8 @@ namespace Claude4Net.Tools
             try
             {
                 var df = CsvReader.ReadCsv(path);
-                PandasStorage.Universe.AddOrUpdateTable(tableName, df);
+                await PandasUniverseManager.Instance.ExecuteAsync(u => u.AddOrUpdateTable(tableName, df));
+                
                 return new
                 {
                     status = "Success",
@@ -87,7 +84,8 @@ namespace Claude4Net.Tools
             try
             {
                 var df = SqliteIO.ReadSqliteTable(dbPath, sqliteTableName);
-                PandasStorage.Universe.AddOrUpdateTable(targetTableName, df);
+                await PandasUniverseManager.Instance.ExecuteAsync(u => u.AddOrUpdateTable(targetTableName, df));
+                
                 return new
                 {
                     status = "Success",
@@ -124,13 +122,16 @@ namespace Claude4Net.Tools
 
             try
             {
-                var df = PandasStorage.Universe.SqlExecute(sql);
-                return new
-                {
-                    status = "Success",
-                    rowCount = df.RowCount,
-                    data = df.ToString() // Returns a string representation of the first 10 rows
-                };
+                var result = await PandasUniverseManager.Instance.ExecuteAsync(u => {
+                    var df = u.SqlExecute(sql);
+                    return new
+                    {
+                        status = "Success",
+                        rowCount = df.RowCount,
+                        data = df.ToString()
+                    };
+                });
+                return result;
             }
             catch (Exception ex)
             {
@@ -150,10 +151,11 @@ namespace Claude4Net.Tools
         {
             try
             {
+                var details = await PandasUniverseManager.Instance.ExecuteAsync(u => u.ToString());
                 return new
                 {
                     status = "Success",
-                    details = PandasStorage.Universe.ToString()
+                    details = details
                 };
             }
             catch (Exception ex)
@@ -187,13 +189,16 @@ namespace Claude4Net.Tools
 
             try
             {
-                var df = PandasStorage.Universe.GetTableOrThrow(tableName);
-                CsvWriter.ToCsv(df, savePath);
-                return new
-                {
-                    status = "Success",
-                    message = $"Saved table '{tableName}' to '{savePath}' ({df.RowCount} rows)."
-                };
+                var result = await PandasUniverseManager.Instance.ExecuteAsync(u => {
+                    var df = u.GetTableOrThrow(tableName);
+                    CsvWriter.ToCsv(df, savePath);
+                    return new
+                    {
+                        status = "Success",
+                        message = $"Saved table '{tableName}' to '{savePath}' ({df.RowCount} rows)."
+                    };
+                });
+                return result;
             }
             catch (Exception ex)
             {
@@ -228,15 +233,18 @@ namespace Claude4Net.Tools
 
             try
             {
-                var df = PandasStorage.Universe.GetTableOrThrow(tableName);
-                string connectionString = $"Data Source={dbPath}";
-                SqliteIO.ToSqlite(df, connectionString, sqliteTableName, ifExists: true);
-                
-                return new
-                {
-                    status = "Success",
-                    message = $"Saved table '{tableName}' into SQLite database '{dbPath}' as '{sqliteTableName}' ({df.RowCount} rows)."
-                };
+                var result = await PandasUniverseManager.Instance.ExecuteAsync(u => {
+                    var df = u.GetTableOrThrow(tableName);
+                    string connectionString = $"Data Source={dbPath}";
+                    SqliteIO.ToSqlite(df, connectionString, sqliteTableName, ifExists: true);
+                    
+                    return new
+                    {
+                        status = "Success",
+                        message = $"Saved table '{tableName}' into SQLite database '{dbPath}' as '{sqliteTableName}' ({df.RowCount} rows)."
+                    };
+                });
+                return result;
             }
             catch (Exception ex)
             {

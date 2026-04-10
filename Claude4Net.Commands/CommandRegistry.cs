@@ -42,10 +42,19 @@ namespace Claude4Net.Commands
                 }
             }},
 
-            new Command { Name = "login", Description = "Log in to a provider (gemini, claude, ollama)", Handler = async (args, sp) => {
+            new Command { Name = "login", Description = "Log in to a provider (gemini, claude, ollama, gemini-cli)", Handler = async (args, sp) => {
                 var parts = args.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length < 2) return "Usage: !login <provider> <key_or_uri>";
-                string provider = parts[0].ToLower();
+                if (parts.Length == 0) return "Usage: !login <provider> [key_or_uri]";
+                
+                string provider = parts[0].ToLowerInvariant();
+                if (provider == "geminicli" || provider == "gemini-cli")
+                {
+                    AppState.ActiveProvider = "gemini-cli";
+                    return $"[green]Logged in to Gemini CLI (gemini-cli).[/] No API key required (OAuth handled by CLI). Provider switched.";
+                }
+
+                if (parts.Length < 2) return $"Usage: !login <provider> <key_or_uri>\n[bold red]Error:[/] API key is required for '{Markup.Escape(provider)}'.";
+                
                 await AuthManager.SaveProviderKeyAsync(provider, parts[1]);
                 AppState.ActiveProvider = provider;
                 return $"[green]Logged in to {Markup.Escape(provider)}.[/] API key saved and provider switched.";
