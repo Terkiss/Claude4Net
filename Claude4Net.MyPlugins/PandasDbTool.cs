@@ -379,4 +379,159 @@ namespace Claude4Net.Tools
             }
         }
     }
+
+    public class PandasInsertRowTool : ITool
+    {
+        public string Name => "pandas_insert_row";
+        public string Description => "데이터프레임(테이블)에 새 행(단일 JSON 오브젝트)을 1개 추가합니다. 스키마 누락시 Null로 방어됩니다.";
+
+        public object? InputSchema => new
+        {
+            type = "object",
+            properties = new
+            {
+                tableName = new { type = "string" },
+                rowJson = new { type = "string", description = "추가할 행의 단일 JSON 오브젝트 문자열 (예: {\"id\": 1, \"name\": \"Test\"})" }
+            },
+            required = new[] { "tableName", "rowJson" }
+        };
+
+        public async Task<object> ExecuteAsync(string arguments, object context)
+        {
+            var input = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
+            string tableName = input?["tableName"] ?? throw new ArgumentException("tableName");
+            string rowJson = input?["rowJson"] ?? throw new ArgumentException("rowJson");
+
+            try
+            {
+                var result = await PandasUniverseManager.Instance.ExecuteAsync(u =>
+                {
+                    var df = u.GetTableOrThrow(tableName);
+                    string tmpFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+                    File.WriteAllText(tmpFile, "[" + rowJson + "]");
+
+                    try
+                    {
+                        var newRowDf = TeruTeruPandas.IO.JsonIO.ReadJson(tmpFile);
+                        var updatedDf = TeruTeruPandas.Core.DataFrameJoinExtensions.Concat(new[] { df, newRowDf }, 0);
+                        u.AddOrUpdateTable(tableName, updatedDf);
+                        return new { status = "Success", message = $"1 row inserted.", newRowCount = updatedDf.RowCount };
+                    }
+                    finally
+                    {
+                        if (File.Exists(tmpFile)) File.Delete(tmpFile);
+                    }
+                });
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return new { status = "Error", error = ex.Message };
+            }
+        }
+    }
+
+    public class PandasUpdateCellTool : ITool
+    {
+        public string Name => "pandas_update_cell";
+        public string Description => "특정 행(정수 인덱스) 및 열의 단일 셀 값을 새로운 값으로 업데이트합니다.";
+
+        public object? InputSchema => new
+        {
+            type = "object",
+            properties = new
+            {
+                tableName = new { type = "string" },
+                rowIndex = new { type = "integer", description = "수정할 대상의 0부터 시작하는 행 정수 인덱스" },
+                columnName = new { type = "string" },
+                value = new { type = "string", description = "수정할 새 값 (문자열). 컬럼의 본래 데이터 타입에 맞춰내부적으로 파싱됩니다." }
+            },
+            required = new[] { "tableName", "rowIndex", "columnName", "value" }
+        };
+
+        public async Task<object> ExecuteAsync(string arguments, object context)
+        {
+            using var doc = JsonDocument.Parse(arguments);
+            var root = doc.RootElement;
+            string tableName = root.GetProperty("tableName").GetString()!;
+            int rowIndex = root.GetProperty("rowIndex").GetInt32();
+            string columnName = root.GetProperty("columnName").GetString()!;
+            string? value = root.TryGetProperty("value", out var v) ? v.GetString() : null;
+
+            try
+            {
+                var result = await PandasUniverseManager.Instance.ExecuteAsync(u =>
+                {
+                    var df = u.GetTableOrThrow(tableName);
+                    if (!df.Dtypes.ContainsKey(columnName)) throw new KeyNotFoundException($"Column {columnName} not found.");
+                    
+                    var colType = df.Dtypes[columnName];
+                    object? castedValue = value == null ? null : Convert.ChangeType(value, colType);
+
+                    df[rowIndex, columnName] = castedValue;
+                    return new { status = "Success", message = $"Cell ({rowIndex},{columnName}) updated to {value}." };
+                });
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return new { status = "Error", error = ex.Message };
+            }
+        }
+    }
+
+    public class PandasDeleteRowsTool : ITool
+    {
+        public string Name => "pandas_delete_rows";
+        public string Description => "지정된 정수 인덱스들의 행을 테이블에서 제거합니다.";
+
+        public object? InputSchema => new
+        {
+            type = "object",
+            properties = new
+            {
+                tableName = new { type = "string" },
+                rowIndices = new
+                {
+                    type = "array",
+                    items = new { type = "integer" },
+                    description = "삭제할 0부터 시작하는 행 인덱스들의 배열"
+                }
+            },
+            required = new[] { "tableName", "rowIndices" }
+        };
+
+        public async Task<object> ExecuteAsync(string arguments, object context)
+        {
+            using var doc = JsonDocument.Parse(arguments);
+            var root = doc.RootElement;
+            string tableName = root.GetProperty("tableName").GetString()!;
+            var rowIndices = root.GetProperty("rowIndices").EnumerateArray().Select(x => x.GetInt32()).ToHashSet();
+
+            try
+            {
+                var result = await PandasUniverseManager.Instance.ExecuteAsync(u =>
+                {
+                    var df = u.GetTableOrThrow(tableName);
+                    var indicesToKeep = Enumerable.Range(0, df.RowCount).Where(i => !rowIndices.Contains(i)).ToArray();
+
+                    var newColumns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>();
+                    foreach (var colName in df.Columns)
+                    {
+                        newColumns[colName] = df[colName].Reorder(indicesToKeep);
+                    }
+                    var newIndex = df.Index.Reorder(indicesToKeep);
+                    var newDf = new TeruTeruPandas.Core.DataFrame(newColumns, newIndex);
+                    
+                    u.AddOrUpdateTable(tableName, newDf);
+                    return new { status = "Success", message = $"Deleted {rowIndices.Count} rows. New count: {newDf.RowCount}." };
+                });
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return new { status = "Error", error = ex.Message };
+            }
+        }
+    }
 }

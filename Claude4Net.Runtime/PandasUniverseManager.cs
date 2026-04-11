@@ -19,6 +19,7 @@ namespace Claude4Net.Runtime
         private readonly DataUniverse _universe;
         private readonly string _dbPath;
         private readonly Channel<Func<DataUniverse, Task>> _transactionQueue;
+        private bool _isDirty = false;
 
         private PandasUniverseManager()
         {
@@ -51,6 +52,36 @@ namespace Claude4Net.Runtime
 
             // 4. 백그라운드 큐 처리 루프 시작
             _ = ProcessQueueAsync();
+
+            // 5. 10분 단위 자동 저장 백그라운드 루프 시작
+            _ = AutoSaveLoopAsync();
+
+            // 6. 앱 강제 종료 감지 시 남은 데이터 저장 보장
+            AppDomain.CurrentDomain.ProcessExit += (s, e) =>
+            {
+                if (_isDirty)
+                {
+                    // 콘솔 종료 시 동기적으로 즉시 강제 덮어쓰기
+                    try { _universe.ToSqlite(_dbPath, overwrite: true); } catch { }
+                }
+            };
+        }
+
+        private async Task AutoSaveLoopAsync()
+        {
+            while (true)
+            {
+                await Task.Delay(TimeSpan.FromMinutes(10));
+                if (_isDirty)
+                {
+                    // 큐에 저장 트랜잭션을 삽입하여 동시성 충돌 방지
+                    await ExecuteAsync(u =>
+                    {
+                        Save(u);
+                        _isDirty = false;
+                    });
+                }
+            }
         }
 
         /// <summary>
@@ -66,8 +97,7 @@ namespace Claude4Net.Runtime
                 try
                 {
                     T result = action(u);
-                    // 데이터 변경 가능성이 있으므로 매 작업 후 저장 (SqliteIO 사용)
-                    Save(u);
+                    _isDirty = true; // 변경 사항 발생 마킹 (저장은 10분마다 일괄 처리)
                     tcs.SetResult(result);
                 }
                 catch (Exception ex)
@@ -104,7 +134,7 @@ namespace Claude4Net.Runtime
                 try
                 {
                     T result = await action(u);
-                    Save(u);
+                    _isDirty = true;
                     tcs.SetResult(result);
                 }
                 catch (Exception ex)

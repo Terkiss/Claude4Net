@@ -42,8 +42,8 @@
 ### 8. 🧠 DataUniverse (Hippocampus / In-Memory Long-Term Memory)
 - **TeruTeruPandas 탑재**: C# 기반 고성능 SIMD 인메모리 프레임워크(`TeruTeruPandas`)가 에이전트의 메인 두뇌(DB)로 동작합니다.
 - **무정형(Schema-less) 동적 테이블 설계**: 고정된 하드코딩 구조 없이 AI가 스스로 `pandas_load_csv`, `pandas_load_json` 도구를 통해 외부 지식을 흡수하고 테이블 구조를 실시간 창조합니다.
-- **PandasUniverseManager의 자동 백업 (Auto-Backup)**: 에이전트가 테이블(데이터)을 건드릴 때마다, 트랜잭션 큐 기반의 싱글톤 매니저가 즉시 `DB/memory.db`로 영구 자동 저장(스냅샷 덮어쓰기)을 수행하여 데이터 손실을 완벽히 차단합니다.
-- **도구 기반(ReAct) 구조 파악 및 통제**: 답답한 텍스트 SQL 쿼리에만 의존하지 않고, AI가 `pandas_table_info`로 테이블 구조(DataType, Null 여부)를 투시하고, AI 전용 C# 네이티브 툴 플러그인(`PandasDbTool`)을 통해 데이터를 자율적으로 통제(CRUD)할 수 있도록 진화하였습니다.
+- **10분 주기 비동기 스냅샷 (Zero I/O Bottleneck)**: 데이터 건바이건 동기 저장의 병목 한계를 돌파하기 위해, `PandasUniverseManager`가 자체적인 백그라운드 심장 박동(10-minute Timer & Process Exit Hook)을 돌리며 시스템의 I/O 정지 없이 `DB/memory.db` 안전하게 영구 저장합니다.
+- **도구 기반 진성 CRUD 통제**: 답답한 텍스트 SQL 파서에만 의존하지 않고, AI가 `pandas_table_info`로 뼈대를 투시한 뒤, `pandas_insert_row`, `pandas_update_cell`, `pandas_delete_rows` 네이티브(C#) 플러그인 툴들을 사용해 완벽에 가까운 결정론적 데이터 유니버스 조작을 수행합니다.
 
 ### 9. 🏎️ 고성능 초최적화 아키텍처 (High-Performance Engine)
 - **도구 실행 병렬화**: `IsConcurrencySafe`를 통해 조회성 도구들을 병렬로 동시 실행하여 I/O 오버헤드를 대폭 줄였습니다.
