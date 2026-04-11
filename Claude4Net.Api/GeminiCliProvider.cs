@@ -102,9 +102,13 @@ You can only call one tool per <tool_call> tag. After outputting a tool call, wa
             string currentToolName = "";
 
             var fullText = new StringBuilder();
+
+            process.ErrorDataReceived += (sender, args) => { /* 백그라운드 에러 스트림 드레인 (Deadlock 방지) */ };
+            process.BeginErrorReadLine();
+
             using var reader = process.StandardOutput;
 
-            while (!reader.EndOfStream)
+            while (true)
             {
                 if (ct.IsCancellationRequested)
                 {

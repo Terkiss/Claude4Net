@@ -39,12 +39,13 @@
 - Function Calling API가 지원되지 않는 CLI 전용 모델이나 환경에서도, 시스템 프롬프트 주입 및 실시간 스트림 데이터 인터셉트를 통해 **완벽한 C# 네이티브 도구 연동**을 구현해냅니다.
 - `GeminiCliProvider`는 자체 컨텍스트 덤프와 XML 태그 파서를 통해 터미널 환경을 뛰어넘는 안정적인 자동 툴 체이닝(Auto Tool Chaining) 샌드박스를 제공합니다.
 
-### 8. 🧠 자체 인메모리 SQL 엔진 (Hippocampus / Long-Term Memory)
-- **TeruTeruPandas 탑재**: C# 기반 고성능 SIMD 인메모리 데이터 프레임 엔진(`TeruTeruPandas`)이 에이전트의 단기/장기 기억 장치로 동작합니다.
-- **자율 SQL Query**: 에이전트가 `pandas_sql` 도구를 통해 스스로 SQL 문을 날려 방대한 컨텍스트를 구조적으로 기억하고 되찾습니다.
-- **디스크 영구 백업**: 대화 세션이 길어지면 에이전트가 `pandas_save_sqlite`를 자율적으로 호출하여 런타임 메모리를 영구 백업(스냅샷)합니다.
+### 8. 🧠 DataUniverse (Hippocampus / In-Memory Long-Term Memory)
+- **TeruTeruPandas 탑재**: C# 기반 고성능 SIMD 인메모리 프레임워크(`TeruTeruPandas`)가 에이전트의 메인 두뇌(DB)로 동작합니다.
+- **무정형(Schema-less) 동적 테이블 설계**: 고정된 하드코딩 구조 없이 AI가 스스로 `pandas_load_csv`, `pandas_load_json` 도구를 통해 외부 지식을 흡수하고 테이블 구조를 실시간 창조합니다.
+- **PandasUniverseManager의 자동 백업 (Auto-Backup)**: 에이전트가 테이블(데이터)을 건드릴 때마다, 트랜잭션 큐 기반의 싱글톤 매니저가 즉시 `DB/memory.db`로 영구 자동 저장(스냅샷 덮어쓰기)을 수행하여 데이터 손실을 완벽히 차단합니다.
+- **도구 기반(ReAct) 구조 파악 및 통제**: 답답한 텍스트 SQL 쿼리에만 의존하지 않고, AI가 `pandas_table_info`로 테이블 구조(DataType, Null 여부)를 투시하고, AI 전용 C# 네이티브 툴 플러그인(`PandasDbTool`)을 통해 데이터를 자율적으로 통제(CRUD)할 수 있도록 진화하였습니다.
 
-### 8. 🏎️ 고성능 초최적화 아키텍처 (High-Performance Engine)
+### 9. 🏎️ 고성능 초최적화 아키텍처 (High-Performance Engine)
 - **도구 실행 병렬화**: `IsConcurrencySafe`를 통해 조회성 도구들을 병렬로 동시 실행하여 I/O 오버헤드를 대폭 줄였습니다.
 - **인텐트 기반 라우팅**: 정형화된 사용자의 요청은 LLM을 거치지 않고 `QueryRouter`가 식별 후 즉시 처리하여 응답 속도를 극대화했습니다.
 - **동적 프롬프트 & 컨텍스트 압축**: 도구 실행 결과가 일정 길이를 넘으면 자동으로 압축 및 요약하여 LLM 토큰 비용을 낮추고 컨텍스트 윈도우 한계를 극복합니다.

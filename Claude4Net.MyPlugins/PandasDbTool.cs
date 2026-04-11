@@ -54,6 +54,50 @@ namespace Claude4Net.Tools
         }
     }
 
+    public class PandasLoadJsonTool : ITool
+    {
+        public string Name => "pandas_load_json";
+        public string Description => "Load a JSON file (array of records) into a TeruTeruPandas table within the DataUniverse.";
+
+        public object? InputSchema => new
+        {
+            type = "object",
+            properties = new
+            {
+                path = new { type = "string", description = "The path to the JSON file." },
+                tableName = new { type = "string", description = "The name of the table to create in the DataUniverse." }
+            },
+            required = new[] { "path", "tableName" }
+        };
+
+        public async Task<object> ExecuteAsync(string arguments, object context)
+        {
+            var input = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
+            string path = input?["path"] ?? throw new ArgumentException("Path is required");
+            string tableName = input?["tableName"] ?? throw new ArgumentException("TableName is required");
+
+            if (!File.Exists(path))
+                return new { status = "Error", message = $"File not found: {path}" };
+
+            try
+            {
+                var df = JsonIO.ReadJson(path);
+                await PandasUniverseManager.Instance.ExecuteAsync(u => u.AddOrUpdateTable(tableName, df));
+                
+                return new
+                {
+                    status = "Success",
+                    message = $"Loaded {df.RowCount} rows into table '{tableName}'.",
+                    columns = df.Columns
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { status = "Error", message = ex.Message };
+            }
+        }
+    }
+
     public class PandasLoadSqliteTool : ITool
     {
         public string Name => "pandas_load_sqlite";
@@ -165,6 +209,47 @@ namespace Claude4Net.Tools
         }
     }
 
+    public class PandasTableInfoTool : ITool
+    {
+        public string Name => "pandas_table_info";
+        public string Description => "Get detailed structural information about a specific table in DataUniverse, including column data types and non-null counts.";
+
+        public object? InputSchema => new
+        {
+            type = "object",
+            properties = new
+            {
+                tableName = new { type = "string", description = "The name of the table to inspect." }
+            },
+            required = new[] { "tableName" }
+        };
+
+        public async Task<object> ExecuteAsync(string arguments, object context)
+        {
+            var input = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
+            string tableName = input?["tableName"] ?? throw new ArgumentException("tableName is required");
+
+            try
+            {
+                var result = await PandasUniverseManager.Instance.ExecuteAsync(u => {
+                    var df = u.GetTableOrThrow(tableName);
+                    var sb = new System.Text.StringBuilder();
+                    df.Info(sb);
+                    return new
+                    {
+                        status = "Success",
+                        info = sb.ToString()
+                    };
+                });
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return new { status = "Error", message = ex.Message };
+            }
+        }
+    }
+
     public class PandasSaveCsvTool : ITool
     {
         public string Name => "pandas_save_csv";
@@ -192,6 +277,48 @@ namespace Claude4Net.Tools
                 var result = await PandasUniverseManager.Instance.ExecuteAsync(u => {
                     var df = u.GetTableOrThrow(tableName);
                     CsvWriter.ToCsv(df, savePath);
+                    return new
+                    {
+                        status = "Success",
+                        message = $"Saved table '{tableName}' to '{savePath}' ({df.RowCount} rows)."
+                    };
+                });
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return new { status = "Error", message = ex.Message };
+            }
+        }
+    }
+
+    public class PandasSaveJsonTool : ITool
+    {
+        public string Name => "pandas_save_json";
+        public string Description => "Save a table from the DataUniverse to a JSON file.";
+
+        public object? InputSchema => new
+        {
+            type = "object",
+            properties = new
+            {
+                tableName = new { type = "string", description = "The name of the table to save." },
+                savePath = new { type = "string", description = "The file path to save the JSON to." }
+            },
+            required = new[] { "tableName", "savePath" }
+        };
+
+        public async Task<object> ExecuteAsync(string arguments, object context)
+        {
+            var input = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
+            string tableName = input?["tableName"] ?? throw new ArgumentException("tableName is required");
+            string savePath = input?["savePath"] ?? throw new ArgumentException("savePath is required");
+
+            try
+            {
+                var result = await PandasUniverseManager.Instance.ExecuteAsync(u => {
+                    var df = u.GetTableOrThrow(tableName);
+                    JsonIO.ToJson(df, savePath);
                     return new
                     {
                         status = "Success",

@@ -36,9 +36,26 @@ namespace Claude4Net.Tools
 
             process.Start();
             
-            string output = await process.StandardOutput.ReadToEndAsync();
-            string error = await process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
+            // Task.WhenAll을 통한 병렬 스트림 읽기 (Deadlock 방지)
+            var outTask = process.StandardOutput.ReadToEndAsync();
+            var errTask = process.StandardError.ReadToEndAsync();
+            
+            try
+            {
+                // 타임아웃 60초 설정 (대화형 프롬프트 등으로 인한 무한 대기 방지)
+                using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(60));
+                await process.WaitForExitAsync(cts.Token);
+            }
+            catch (TaskCanceledException)
+            {
+                process.Kill(true);
+                return new { command = input.command, output = "", error = "Command execution timed out after 60 seconds.", exitCode = -1 };
+            }
+
+            await Task.WhenAll(outTask, errTask);
+            
+            string output = await outTask;
+            string error = await errTask;
 
             return new { command = input.command, output = output, error = error, exitCode = process.ExitCode };
         }
