@@ -33,28 +33,12 @@ services.AddSingleton<ITool, FileWriteTool>();
 services.AddSingleton<ITool, FileEditTool>();
 services.AddSingleton<ITool, LsTool>();
 
-// --- Dynamic Plugin Loader ---
+// --- Dynamic Plugin Loader (Now handled inside ToolOrchestrator) ---
 string pluginsPath = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "plugins");
-if (System.IO.Directory.Exists(pluginsPath))
-{
-    foreach (var dllPath in System.IO.Directory.GetFiles(pluginsPath, "*.dll"))
-    {
-        try
-        {
-            var assembly = System.Reflection.Assembly.LoadFrom(dllPath);
-            var toolTypes = assembly.GetTypes().Where(t => typeof(ITool).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
-            foreach (var type in toolTypes)
-            {
-                services.AddSingleton(typeof(ITool), type);
-            }
-        }
-        catch { }
-    }
-}
 
 // Runtime
 services.AddSingleton<IUserApprovalHandler, CliUserApprovalHandler>();
-services.AddSingleton<ToolOrchestrator>(sp => new ToolOrchestrator(sp.GetServices<ITool>(), sp.GetService<IUserApprovalHandler>()));
+services.AddSingleton<ToolOrchestrator>(sp => new ToolOrchestrator(sp.GetServices<ITool>(), sp.GetService<IUserApprovalHandler>(), sp));
 services.AddSingleton<IToolRegistry>(sp => sp.GetRequiredService<ToolOrchestrator>());
 
 // Api
@@ -82,6 +66,10 @@ services.AddSingleton<OllamaProvider>(sp =>
 });
 
 var serviceProvider = services.BuildServiceProvider();
+
+// Load initial dynamic plugins using RAM-bound Byte Array Loader
+var orchestrator = serviceProvider.GetRequiredService<ToolOrchestrator>();
+orchestrator.ReloadDynamicPlugins(pluginsPath);
 
 // --- 2. Initialize and Start ---
 AnsiConsole.Write(new FigletText("Claude4Net").Color(Color.Orange1));

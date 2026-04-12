@@ -1,33 +1,61 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Claude4Net.SDK;
 
 namespace Claude4Net.Runtime
 {
     public class ToolOrchestrator : IToolRegistry
     {
-        private readonly List<ITool> _tools;
+        private readonly List<ITool> _coreTools;
+        private readonly List<ITool> _dynamicTools = new List<ITool>();
         private readonly IUserApprovalHandler? _approvalHandler;
+        private readonly IServiceProvider _serviceProvider;
 
-        public ToolOrchestrator(IEnumerable<ITool> tools, IUserApprovalHandler? approvalHandler = null)
+        public ToolOrchestrator(IEnumerable<ITool> coreTools, IUserApprovalHandler? approvalHandler, IServiceProvider serviceProvider)
         {
-            _tools = tools.ToList();
+            _coreTools = coreTools.ToList();
             _approvalHandler = approvalHandler;
+            _serviceProvider = serviceProvider;
+        }
+
+        public void ReloadDynamicPlugins(string directoryPath)
+        {
+            _dynamicTools.Clear();
+            if (!Directory.Exists(directoryPath)) return;
+            
+            foreach (var dllPath in Directory.GetFiles(directoryPath, "*.dll"))
+            {
+                try
+                {
+                    byte[] rawAssembly = File.ReadAllBytes(dllPath);
+                    var assembly = System.Reflection.Assembly.Load(rawAssembly);
+                    var toolTypes = assembly.GetTypes().Where(t => typeof(ITool).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
+                    
+                    foreach(var type in toolTypes)
+                    {
+                        var instance = ActivatorUtilities.CreateInstance(_serviceProvider, type) as ITool;
+                        if (instance != null) _dynamicTools.Add(instance);
+                    }
+                }
+                catch { } // Ignore faulty DLLs safely
+            }
         }
 
         public void AddTool(ITool tool)
         {
-            if (!_tools.Any(t => t.Name == tool.Name)) _tools.Add(tool);
+            if (!_coreTools.Any(t => t.Name == tool.Name)) _coreTools.Add(tool);
         }
 
-        public IReadOnlyList<ITool> GetTools() => _tools.ToList();
+        public IReadOnlyList<ITool> GetTools() => _coreTools.Concat(_dynamicTools).ToList();
 
         public ITool? GetTool(string name)
         {
-            return _tools.FirstOrDefault(t => 
+            return _coreTools.Concat(_dynamicTools).FirstOrDefault(t => 
                 t.Name.Equals(name, StringComparison.OrdinalIgnoreCase) || 
                 (t.Aliases != null && t.Aliases.Any(a => a.Equals(name, StringComparison.OrdinalIgnoreCase))));
         }

@@ -14,6 +14,7 @@ namespace Claude4Net.Tools
     {
         public ulong? channel_id { get; set; }
         public string message { get; set; } = string.Empty;
+        public string? file_path { get; set; }
     }
 
     public class DiscordEngineTool : ITool
@@ -27,7 +28,8 @@ namespace Claude4Net.Tools
             properties = new
             {
                 channel_id = new { type = "integer", description = "The Discord channel ID to send the message to." },
-                message = new { type = "string", description = "The message content to send." }
+                message = new { type = "string", description = "The message content to send." },
+                file_path = new { type = "string", description = "(Optional) The full local file path of an image or file to attach." }
             },
             required = new[] { "message" }
         };
@@ -65,7 +67,14 @@ namespace Claude4Net.Tools
                 return new { status = "Error", message = $"Channel {input.channel_id} not found or inaccessible." };
             }
 
-            await channel.SendMessageAsync(input.message);
+            if (!string.IsNullOrEmpty(input.file_path) && File.Exists(input.file_path))
+            {
+                await channel.SendFileAsync(input.file_path, input.message);
+            }
+            else
+            {
+                await channel.SendMessageAsync(input.message);
+            }
             
             await client.LogoutAsync();
 

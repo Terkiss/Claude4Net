@@ -71,7 +71,20 @@ You can only call one tool per <tool_call> tag. After outputting a tool call, wa
                 historyDump.AppendLine(System.Text.Json.JsonSerializer.Serialize(_conversationHistory, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
             }
 
-            var systemPrompt = "";
+            var systemPromptBuilder = new StringBuilder();
+            
+            string skillsDir = Path.Combine(AppState.CurrentCwd, "Skills");
+            if (Directory.Exists(skillsDir))
+            {
+                var skillFiles = Directory.GetFiles(skillsDir, "*.md");
+                foreach (var file in skillFiles)
+                {
+                    systemPromptBuilder.AppendLine($"\n[SKILL GUIDELINE: {Path.GetFileName(file)}]");
+                    systemPromptBuilder.AppendLine(File.ReadAllText(file));
+                    systemPromptBuilder.AppendLine();
+                }
+            }
+            var systemPrompt = systemPromptBuilder.ToString();
 
             string combinedPrompt = $"{systemPrompt}\n\n[CRITICAL INSTRUCTION]\n반드시 모든 사고(Thinking) 과정과 출력, 대답, 분석 내용을 한국어(Korean)로만 작성하세요.\n\n{toolDefs}\n\n{historyDump}\n\n[CURRENT USER PROMPT]:\n{prompt}";
 
