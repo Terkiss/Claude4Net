@@ -7,7 +7,11 @@ using Claude4Net.SDK;
 
 namespace Claude4Net.Tools
 {
-    public class LsInput { public string path { get; set; } = string.Empty; }
+    public class LsInput 
+    { 
+        public string path { get; set; } = string.Empty; 
+        public string Path { get => path; set => path = value; }
+    }
 
     public class LsTool : ITool
     {

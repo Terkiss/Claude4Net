@@ -129,8 +129,14 @@ namespace Claude4Net.Tools
                 throw new Exception("결과물에서 이미지를 추출하지 못했습니다.");
 
             // 7. 디코딩 후 물리 파일로 저장
+            string targetDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Generate");
+            if (!Directory.Exists(targetDir))
+            {
+                Directory.CreateDirectory(targetDir);
+            }
             string dateTime = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            string savePath = $"generated_image_{dateTime}.png";
+            string fileName = $"generated_image_{dateTime}.png";
+            string savePath = Path.Combine(targetDir, fileName);
             byte[] imageBytes = Convert.FromBase64String(base64Image);
             await File.WriteAllBytesAsync(savePath, imageBytes);
 

@@ -12,6 +12,12 @@ namespace Claude4Net.Tools
         public string file_path { get; set; } = string.Empty;
         public string old_string { get; set; } = string.Empty;
         public string new_string { get; set; } = string.Empty;
+        
+        // Fallbacks for LLM generating camelCase
+        public string filePath { get => file_path; set => file_path = value; }
+        public string path { get => file_path; set => file_path = value; }
+        public string oldString { get => old_string; set => old_string = value; }
+        public string newString { get => new_string; set => new_string = value; }
     }
 
     public class FileEditTool : ITool

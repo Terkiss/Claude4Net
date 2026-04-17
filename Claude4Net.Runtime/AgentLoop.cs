@@ -325,7 +325,7 @@ namespace Claude4Net.Runtime
                         {
                             foreach (var tc in evt.FinalResponse.ToolCalls)
                             {
-                                if (!toolCalls.Any(existing => existing.Name == tc.Name)) toolCalls.Add(tc);
+                                if (!toolCalls.Any(existing => existing.Id == tc.Id)) toolCalls.Add(tc);
                             }
                         }
                     }

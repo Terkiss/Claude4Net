@@ -13,6 +13,9 @@ namespace Claude4Net.Tools
         public string file_path { get; set; } = string.Empty;
         public int? offset { get; set; }
         public int? limit { get; set; }
+
+        public string filePath { get => file_path; set => file_path = value; }
+        public string path { get => file_path; set => file_path = value; }
     }
 
     public class FileReadTool : ITool

@@ -11,6 +11,8 @@ namespace Claude4Net.Tools
     {
         public string command { get; set; } = string.Empty;
         public bool? restart { get; set; }
+        
+        public string Command { get => command; set => command = value; }
     }
 
     public class BashTool : ITool

@@ -11,6 +11,10 @@ namespace Claude4Net.Tools
     {
         public string file_path { get; set; } = string.Empty;
         public string content { get; set; } = string.Empty;
+        
+        // For LLMs that generate camelCase or 'path' instead of 'file_path'
+        public string filePath { get => file_path; set => file_path = value; }
+        public string path { get => file_path; set => file_path = value; }
     }
 
     public class FileWriteTool : ITool
