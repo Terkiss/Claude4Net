@@ -12,7 +12,7 @@ namespace Claude4Net.SDK
         IEnumerable<string>? Aliases => null;
         object? InputSchema { get; }
         bool IsConcurrencySafe => false;
-        Task<object> ExecuteAsync(string arguments, object context);
+        Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default);
     }
 
     public interface IToolRegistry

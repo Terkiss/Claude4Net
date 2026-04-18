@@ -65,6 +65,14 @@ namespace Claude4Net.Runtime
                         finalPrompt = effectiveContext.Text;
                     }
 
+                    if (string.IsNullOrEmpty(AppState.CurrentCwd))
+                    {
+                        AnsiConsole.MarkupLine("[bold red]Error:[/] Workspace is not set. Conversations are blocked. Use [bold]/setworkspace <path>[/] first.");
+                        await context.Output.WriteAsync("Error: Workspace is not set. Conversations are blocked. Use /setworkspace <path> first.");
+                        Console.Write("\n> ");
+                        continue;
+                    }
+
                     // Resolve current active provider dynamically for every message
                     ILLMProvider provider;
                     if (AppState.ActiveProvider == "gemini") 
@@ -353,7 +361,7 @@ namespace Claude4Net.Runtime
                         AnsiConsole.MarkupLine($"[grey]🛠️  [bold yellow]Tool Call:[/] {Markup.Escape(tc.Name)}[/]");
                     }
                     
-                    var batchResults = await _orchestrator.ExecuteBatchAsync(toolCalls, new { });
+                    var batchResults = await _orchestrator.ExecuteBatchAsync(toolCalls, new { }, ct);
 
                     var toolResults = new List<object>();
                     foreach (var result in batchResults)

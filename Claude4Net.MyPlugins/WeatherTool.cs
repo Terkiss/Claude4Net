@@ -28,7 +28,7 @@ namespace Claude4Net.MyPlugins
 
         private static readonly HttpClient _httpClient = new HttpClient();
 
-        public async Task<object> ExecuteAsync(string arguments, object context)
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             try
             {

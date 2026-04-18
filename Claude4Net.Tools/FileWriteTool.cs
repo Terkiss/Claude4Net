@@ -12,8 +12,7 @@ namespace Claude4Net.Tools
         public string file_path { get; set; } = string.Empty;
         public string content { get; set; } = string.Empty;
         
-        // For LLMs that generate camelCase or 'path' instead of 'file_path'
-        public string filePath { get => file_path; set => file_path = value; }
+        // For LLMs that generate 'path' instead of 'file_path'
         public string path { get => file_path; set => file_path = value; }
     }
 
@@ -30,7 +29,7 @@ namespace Claude4Net.Tools
             }, 
             required = new[] { "file_path", "content" } };
 
-        public async Task<object> ExecuteAsync(string arguments, object context)
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             var input = JsonSerializer.Deserialize<FileWriteInput>(arguments, options) 

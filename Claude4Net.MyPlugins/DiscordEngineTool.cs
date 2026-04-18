@@ -34,7 +34,7 @@ namespace Claude4Net.Tools
             required = new[] { "message" }
         };
 
-        public async Task<object> ExecuteAsync(string arguments, object context)
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             var input = JsonSerializer.Deserialize<DiscordEngineInput>(arguments, options)

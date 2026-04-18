@@ -74,8 +74,28 @@ orchestrator.ReloadDynamicPlugins(pluginsPath);
 // --- 2. Initialize and Start ---
 AnsiConsole.Write(new FigletText("Claude4Net").Color(Color.Orange1));
 AnsiConsole.MarkupLine("[bold red]YOLO Mode Support Enabled.[/] Use [bold]!yolo[/] for root access.");
+AnsiConsole.MarkupLine("[grey]Tip: Press [bold white]ESC[/] during execution to cancel current task.[/]\n");
 
 var broker = serviceProvider.GetRequiredService<IInputBroker>();
+var mainCts = new CancellationTokenSource();
+
+// ESC Key Monitor Task
+_ = Task.Run(() =>
+{
+    while (true)
+    {
+        if (Console.KeyAvailable)
+        {
+            var key = Console.ReadKey(true);
+            if (key.Key == ConsoleKey.Escape)
+            {
+                mainCts.Cancel();
+                AnsiConsole.MarkupLine("\n[bold red]✖ Cancellation requested via ESC.[/]");
+            }
+        }
+        Thread.Sleep(100);
+    }
+});
 
 // Start Discord Listener
 var discordService = serviceProvider.GetRequiredService<DiscordListenerService>();
@@ -120,12 +140,26 @@ _ = Task.Run(async () =>
 // Agent Consumer Loop
 while (true)
 {
+    // Reset CTS for each new agent loop cycle if needed, 
+    // or manage it per-request within AgentLoop.
+    if (mainCts.IsCancellationRequested) 
+    {
+        mainCts = new CancellationTokenSource();
+    }
+
     var agent = new AgentLoop(
         serviceProvider.GetRequiredService<ToolOrchestrator>(), 
         serviceProvider, 
         broker);
     
-    await agent.ListenAsync();
+    try 
+    {
+        await agent.ListenAsync(mainCts.Token);
+    }
+    catch (OperationCanceledException)
+    {
+        // Handled within loop or reset for next
+    }
 }
 
 // --- 3. Helper Classes ---
@@ -145,9 +179,24 @@ public class CliOutputHandler : IOutputHandler
 
 public class CliUserApprovalHandler : IUserApprovalHandler
 {
-    public Task<bool> RequestApprovalAsync(string tool, string args)
+    public async Task<bool> RequestApprovalAsync(string tool, string args)
     {
         AnsiConsole.MarkupLine($"[yellow]Request:[/] [bold]{Markup.Escape(tool)}[/] {Markup.Escape(args)}");
-        return Task.FromResult(AnsiConsole.Confirm("Allow execution?"));
+        
+        while (true)
+        {
+            AnsiConsole.Markup("[bold white]Allow execution? (y/n): [/]");
+            // Console.ReadLine() 사용 시 배경 Task와 경쟁할 수 있으므로, 
+            // 직접 Console.In.ReadLine() 등을 고려하거나 Spectre Console의 Prompt 사용
+            // 하지만 오타 대응을 위해 직접 한 줄 읽고 분석
+            string? input = Console.ReadLine()?.Trim().ToLower();
+            
+            if (string.IsNullOrEmpty(input)) continue;
+
+            if (input.StartsWith("y")) return true;
+            if (input.StartsWith("n")) return false;
+
+            AnsiConsole.MarkupLine("[red]Invalid input. Please type 'y' for yes or 'n' for no.[/]");
+        }
     }
 }

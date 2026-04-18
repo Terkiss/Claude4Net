@@ -22,7 +22,7 @@ namespace Claude4Net.MyPlugins
             required = new[] { "query" }
         };
 
-        public async Task<object> ExecuteAsync(string arguments, object context)
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
             string query = dict?["query"] ?? "";
@@ -67,7 +67,7 @@ namespace Claude4Net.MyPlugins
             required = new[] { "sourcePath", "destinationZipPath" }
         };
 
-        public async Task<object> ExecuteAsync(string arguments, object context)
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
             string sourcePath = dict?["sourcePath"] ?? "";
@@ -115,7 +115,7 @@ namespace Claude4Net.MyPlugins
             required = new[] { "filePath" }
         };
 
-        public async Task<object> ExecuteAsync(string arguments, object context)
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
             string filePath = dict?["filePath"] ?? "";

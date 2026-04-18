@@ -15,7 +15,12 @@ namespace Claude4Net.SDK
             sb.AppendLine("# Claude4Net Global System Protocol");
             sb.AppendLine($"Current Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             sb.AppendLine($"OS: {Environment.OSVersion}");
-            sb.AppendLine($"Working Directory: {AppState.CurrentCwd}");
+            sb.AppendLine($"System Storage: {AppState.SystemBaseDir}");
+            sb.AppendLine($"User Workspace: {(string.IsNullOrEmpty(AppState.CurrentCwd) ? "NOT_SET (Wait for user instructions or /setworkspace)" : AppState.CurrentCwd)}");
+            sb.AppendLine();
+            sb.AppendLine("## 📂 Storage Architecture (CRITICAL)");
+            sb.AppendLine("- [User Workspace]: 사용자의 개인 프로젝트 파일이 있는 공간입니다. `/setworkspace` 명령어로 지정되기 전까지는 이 공간에 접근할 수 없습니다.");
+            sb.AppendLine("- [System Storage]: 당신의 지능과 기억(Skills, Memory, DB)을 저장하는 전용 공간입니다. 이 공간은 `/setworkspace` 설정과 무관하게 접근 가능합니다.");
             sb.AppendLine();
             sb.AppendLine("당신은 사용자의 로컬 시스템과 완벽하게 동기화된 인텔리전트 에이전트입니다.");
             sb.AppendLine("제공된 도구를 활용하여 파일 조작, 시스템 관리, 코드 실행 요청을 자율적으로 완수하십시오.");
@@ -55,8 +60,8 @@ namespace Claude4Net.SDK
             sb.AppendLine("3. [Verify] 결과 확인 및 필요시 스스로 디버깅하여 재시도.");
             sb.AppendLine();
 
-            // 5. Load Self-Evolved Skills from 'Skills' directory
-            string skillsDir = Path.Combine(AppState.CurrentCwd, "Skills");
+            // 5. Load Self-Evolved Skills from 'Skills' directory (Inside System Storage)
+            string skillsDir = Path.Combine(AppState.SystemBaseDir, "Skills");
             if (Directory.Exists(skillsDir))
             {
                 var skillFiles = Directory.GetFiles(skillsDir, "*.md");

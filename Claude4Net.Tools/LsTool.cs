@@ -10,7 +10,6 @@ namespace Claude4Net.Tools
     public class LsInput 
     { 
         public string path { get; set; } = string.Empty; 
-        public string Path { get => path; set => path = value; }
     }
 
     public class LsTool : ITool
@@ -20,7 +19,7 @@ namespace Claude4Net.Tools
         public object? InputSchema => new { type = "object", properties = new { path = new { type = "string", description = "Directory path to list" } }, required = new[] { "path" } };
         public bool IsConcurrencySafe => true;
 
-        public async Task<object> ExecuteAsync(string arguments, object context)
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             var input = JsonSerializer.Deserialize<LsInput>(arguments, options) ?? new LsInput();

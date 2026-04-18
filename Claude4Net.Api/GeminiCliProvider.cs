@@ -73,8 +73,8 @@ You can only call one tool per <tool_call> tag. After outputting a tool call, wa
 
             var systemPromptBuilder = new StringBuilder();
             
-            string skillsDir = Path.Combine(AppState.CurrentCwd, "Skills");
-            if (Directory.Exists(skillsDir))
+            string skillsDir = string.IsNullOrEmpty(AppState.CurrentCwd) ? "" : Path.Combine(AppState.CurrentCwd, "Skills");
+            if (!string.IsNullOrEmpty(skillsDir) && Directory.Exists(skillsDir))
             {
                 var skillFiles = Directory.GetFiles(skillsDir, "*.md");
                 foreach (var file in skillFiles)

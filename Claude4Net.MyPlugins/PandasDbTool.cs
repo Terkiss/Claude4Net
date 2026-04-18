@@ -26,7 +26,7 @@ namespace Claude4Net.Tools
             required = new[] { "path", "tableName" }
         };
 
-        public async Task<object> ExecuteAsync(string arguments, object context)
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             var input = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
             string path = input?["path"] ?? throw new ArgumentException("Path is required");
@@ -70,7 +70,7 @@ namespace Claude4Net.Tools
             required = new[] { "path", "tableName" }
         };
 
-        public async Task<object> ExecuteAsync(string arguments, object context)
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             var input = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
             string path = input?["path"] ?? throw new ArgumentException("Path is required");
@@ -115,7 +115,7 @@ namespace Claude4Net.Tools
             required = new[] { "dbPath", "sqliteTableName", "targetTableName" }
         };
 
-        public async Task<object> ExecuteAsync(string arguments, object context)
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             var input = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
             string dbPath = input?["dbPath"] ?? throw new ArgumentException("dbPath is required");
@@ -159,7 +159,7 @@ namespace Claude4Net.Tools
             required = new[] { "sql" }
         };
 
-        public async Task<object> ExecuteAsync(string arguments, object context)
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             var input = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
             string sql = input?["sql"] ?? throw new ArgumentException("SQL query is required");
@@ -191,7 +191,7 @@ namespace Claude4Net.Tools
 
         public object? InputSchema => null;
 
-        public async Task<object> ExecuteAsync(string arguments, object context)
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             try
             {
@@ -224,7 +224,7 @@ namespace Claude4Net.Tools
             required = new[] { "tableName" }
         };
 
-        public async Task<object> ExecuteAsync(string arguments, object context)
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             var input = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
             string tableName = input?["tableName"] ?? throw new ArgumentException("tableName is required");
@@ -266,7 +266,7 @@ namespace Claude4Net.Tools
             required = new[] { "tableName", "savePath" }
         };
 
-        public async Task<object> ExecuteAsync(string arguments, object context)
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             var input = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
             string tableName = input?["tableName"] ?? throw new ArgumentException("tableName is required");
@@ -308,7 +308,7 @@ namespace Claude4Net.Tools
             required = new[] { "tableName", "savePath" }
         };
 
-        public async Task<object> ExecuteAsync(string arguments, object context)
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             var input = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
             string tableName = input?["tableName"] ?? throw new ArgumentException("tableName is required");
@@ -351,7 +351,7 @@ namespace Claude4Net.Tools
             required = new[] { "tableName", "dbPath", "sqliteTableName" }
         };
 
-        public async Task<object> ExecuteAsync(string arguments, object context)
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             var input = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
             string tableName = input?["tableName"] ?? throw new ArgumentException("tableName is required");
@@ -396,7 +396,7 @@ namespace Claude4Net.Tools
             required = new[] { "tableName", "rowJson" }
         };
 
-        public async Task<object> ExecuteAsync(string arguments, object context)
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             var input = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
             string tableName = input?["tableName"] ?? throw new ArgumentException("tableName");
@@ -449,7 +449,7 @@ namespace Claude4Net.Tools
             required = new[] { "tableName", "rowIndex", "columnName", "value" }
         };
 
-        public async Task<object> ExecuteAsync(string arguments, object context)
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             using var doc = JsonDocument.Parse(arguments);
             var root = doc.RootElement;
@@ -501,7 +501,7 @@ namespace Claude4Net.Tools
             required = new[] { "tableName", "rowIndices" }
         };
 
-        public async Task<object> ExecuteAsync(string arguments, object context)
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             using var doc = JsonDocument.Parse(arguments);
             var root = doc.RootElement;

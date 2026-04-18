@@ -139,13 +139,31 @@ namespace Claude4Net.Commands
                 return Task.FromResult($"[cyan]CWD:[/] {Markup.Escape(AppState.CurrentCwd)}");
             }},
 
-            new Command { Name = "cd", Description = "Change current working directory", Handler = (a, sp) => {
-                if (string.IsNullOrWhiteSpace(a)) return Task.FromResult("Usage: /cd <path>");
-                string newPath = Path.GetFullPath(Path.Combine(AppState.CurrentCwd, a));
+            new Command { Name = "setworkspace", Description = "Set the root project workspace path (Required for tools)", Handler = (a, sp) => {
+                if (string.IsNullOrWhiteSpace(a)) return Task.FromResult("Usage: /setworkspace <path>");
+                string newPath = Path.GetFullPath(a);
                 if (Directory.Exists(newPath)) {
                     AppState.CurrentCwd = newPath;
                     Environment.CurrentDirectory = newPath;
-                    return Task.FromResult($"[green]Directory changed to:[/] {Markup.Escape(newPath)}");
+                    return Task.FromResult($"[bold green]Workspace set to:[/] {Markup.Escape(newPath)}\n[grey]Tools are now active for this directory.[/]");
+                }
+                return Task.FromResult($"[red]Error:[/] Directory not found: {Markup.Escape(newPath)}");
+            }},
+
+            new Command { Name = "cd", Description = "Change current working directory within workspace", Handler = (a, sp) => {
+                if (string.IsNullOrEmpty(AppState.CurrentCwd)) return Task.FromResult("[red]Error:[/] Please set your workspace first using [bold]/setworkspace <path>[/]");
+                if (string.IsNullOrWhiteSpace(a)) return Task.FromResult("Usage: /cd <path>");
+                
+                string combined = Path.Combine(Environment.CurrentDirectory, a);
+                string newPath = Path.GetFullPath(combined);
+                
+                if (Directory.Exists(newPath)) {
+                    // Check if newPath is still within or equal to the root workspace
+                    if (newPath.StartsWith(AppState.CurrentCwd, StringComparison.OrdinalIgnoreCase)) {
+                        Environment.CurrentDirectory = newPath;
+                        return Task.FromResult($"[green]Directory changed to:[/] {Markup.Escape(newPath)}");
+                    }
+                    return Task.FromResult($"[red]Error:[/] Cannot move outside the set workspace root: {Markup.Escape(AppState.CurrentCwd)}");
                 }
                 return Task.FromResult($"[red]Error:[/] Directory not found: {Markup.Escape(newPath)}");
             }},
