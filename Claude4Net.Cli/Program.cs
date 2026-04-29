@@ -109,8 +109,37 @@ _ = Task.Run(async () =>
     {
         try
         {
-            Console.Write("> ");
+            if (CliUserApprovalHandler.PendingApproval == null)
+                Console.Write("> ");
+                
             string? input = Console.ReadLine();
+
+            if (CliUserApprovalHandler.PendingApproval != null)
+            {
+                var tcs = CliUserApprovalHandler.PendingApproval;
+                CliUserApprovalHandler.PendingApproval = null;
+                tcs.TrySetResult(input ?? "");
+                continue;
+            }
+
+            // 붙여넣기(Paste)로 인한 멀티라인(개행) 폭탄 방어 로직
+            if (input != null)
+            {
+                var sb = new System.Text.StringBuilder(input);
+                System.Threading.Thread.Sleep(15); // 붙여넣기 판별을 위한 짧은 딜레이
+                while (Console.KeyAvailable)
+                {
+                    string? nextLine = Console.ReadLine();
+                    if (nextLine != null)
+                    {
+                        sb.AppendLine();
+                        sb.Append(nextLine);
+                    }
+                    System.Threading.Thread.Sleep(15);
+                }
+                input = sb.ToString();
+            }
+
             if (string.IsNullOrWhiteSpace(input)) continue;
 
             if (input.StartsWith("!") || input.StartsWith("/"))
@@ -179,6 +208,8 @@ public class CliOutputHandler : IOutputHandler
 
 public class CliUserApprovalHandler : IUserApprovalHandler
 {
+    public static System.Threading.Tasks.TaskCompletionSource<string>? PendingApproval;
+
     public async Task<bool> RequestApprovalAsync(string tool, string args)
     {
         AnsiConsole.MarkupLine($"[yellow]Request:[/] [bold]{Markup.Escape(tool)}[/] {Markup.Escape(args)}");
@@ -186,10 +217,12 @@ public class CliUserApprovalHandler : IUserApprovalHandler
         while (true)
         {
             AnsiConsole.Markup("[bold white]Allow execution? (y/n): [/]");
-            // Console.ReadLine() 사용 시 배경 Task와 경쟁할 수 있으므로, 
-            // 직접 Console.In.ReadLine() 등을 고려하거나 Spectre Console의 Prompt 사용
-            // 하지만 오타 대응을 위해 직접 한 줄 읽고 분석
-            string? input = Console.ReadLine()?.Trim().ToLower();
+            
+            var tcs = new System.Threading.Tasks.TaskCompletionSource<string>();
+            PendingApproval = tcs;
+
+            string input = await tcs.Task;
+            input = input.Trim().ToLower();
             
             if (string.IsNullOrEmpty(input)) continue;
 

@@ -33,7 +33,7 @@ namespace Claude4Net.Tools
             process.StartInfo.RedirectStandardError = true;
             process.StartInfo.UseShellExecute = false;
             process.StartInfo.CreateNoWindow = true;
-            process.StartInfo.WorkingDirectory = Environment.CurrentDirectory;
+            process.StartInfo.WorkingDirectory = string.IsNullOrEmpty(AppState.CurrentCwd) ? Environment.CurrentDirectory : AppState.CurrentCwd;
 
             process.Start();
             

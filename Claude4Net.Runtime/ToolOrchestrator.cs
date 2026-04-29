@@ -188,6 +188,8 @@ namespace Claude4Net.Runtime
             string[] tokens = cmd.Split(new[] { ' ', '\t', '|', '>', '<', '&', ';' }, StringSplitOptions.RemoveEmptyEntries);
             foreach (var token in tokens)
             {
+                if (token.StartsWith("/")) continue; // Ignore CLI flags (Windows treats '/' as rooted path)
+
                 string t = token.Trim('\'', '\"');
                 if (t.Contains("..") || Path.IsPathRooted(t))
                 {

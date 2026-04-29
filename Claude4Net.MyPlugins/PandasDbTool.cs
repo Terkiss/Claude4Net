@@ -37,6 +37,14 @@ namespace Claude4Net.Tools
 
             try
             {
+                string fileContent = File.ReadAllText(path).Trim();
+                if (string.IsNullOrEmpty(fileContent))
+                {
+                    var emptyDf = new TeruTeruPandas.Core.DataFrame(new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>());
+                    await PandasUniverseManager.Instance.ExecuteAsync(u => u.AddOrUpdateTable(tableName, emptyDf));
+                    return new { status = "Success", message = $"Loaded 0 rows into table '{tableName}' (Empty CSV initialized).", columns = emptyDf.Columns };
+                }
+
                 var df = CsvReader.ReadCsv(path);
                 await PandasUniverseManager.Instance.ExecuteAsync(u => u.AddOrUpdateTable(tableName, df));
                 
@@ -81,6 +89,14 @@ namespace Claude4Net.Tools
 
             try
             {
+                string fileContent = File.ReadAllText(path).Trim();
+                if (string.IsNullOrEmpty(fileContent) || fileContent == "[]" || fileContent == "{}")
+                {
+                    var emptyDf = new TeruTeruPandas.Core.DataFrame(new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>());
+                    await PandasUniverseManager.Instance.ExecuteAsync(u => u.AddOrUpdateTable(tableName, emptyDf));
+                    return new { status = "Success", message = $"Loaded 0 rows into table '{tableName}' (Empty JSON initialized).", columns = emptyDf.Columns };
+                }
+
                 var df = JsonIO.ReadJson(path);
                 await PandasUniverseManager.Instance.ExecuteAsync(u => u.AddOrUpdateTable(tableName, df));
                 

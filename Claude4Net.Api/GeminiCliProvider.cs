@@ -94,7 +94,7 @@ You can only call one tool per <tool_call> tag. After outputting a tool call, wa
             {
                 FileName = "cmd.exe",
                 Arguments = arguments,
-                WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory,
+                WorkingDirectory = string.IsNullOrEmpty(AppState.CurrentCwd) ? AppDomain.CurrentDomain.BaseDirectory : AppState.CurrentCwd,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 RedirectStandardInput = true,

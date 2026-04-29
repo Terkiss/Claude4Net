@@ -36,7 +36,7 @@ namespace Claude4Net.Runtime
                 {
                     var context = await _broker.ReadAsync(ct);
                     string finalPrompt = context.Text;
-                    
+
                     if (finalPrompt.Trim().ToLower() == "!reflect")
                     {
                         AnsiConsole.MarkupLine("[bold cyan]Analyzing agent_trajectories...[/]");
@@ -54,10 +54,10 @@ namespace Claude4Net.Runtime
                     {
                         // --- [Task 5.1: Intent-based Query Routing] ---
                         string? routedCommand = QueryRouter.Route(context.Text);
-                        
+
                         // --- [System Command Interception] ---
                         var effectiveContext = routedCommand != null ? new InputContext(routedCommand, context.Output) : context;
-                        if (await HandleSystemCommand(effectiveContext, ct)) 
+                        if (await HandleSystemCommand(effectiveContext, ct))
                         {
                             Console.Write("\n> ");
                             continue;
@@ -75,17 +75,17 @@ namespace Claude4Net.Runtime
 
                     // Resolve current active provider dynamically for every message
                     ILLMProvider provider;
-                    if (AppState.ActiveProvider == "gemini") 
+                    if (AppState.ActiveProvider == "gemini")
                         provider = _serviceProvider.GetRequiredService<GeminiProvider>();
-                    else if (AppState.ActiveProvider == "gemini-cli") 
+                    else if (AppState.ActiveProvider == "gemini-cli")
                         provider = _serviceProvider.GetRequiredService<GeminiCliProvider>();
-                    else if (AppState.ActiveProvider == "ollama") 
+                    else if (AppState.ActiveProvider == "ollama")
                         provider = _serviceProvider.GetRequiredService<OllamaProvider>();
-                    else 
+                    else
                         provider = _serviceProvider.GetRequiredService<ClaudeService>();
 
                     await RunAsync(finalPrompt, context.Output, provider, ct);
-                    
+
                     Console.Write("\n> ");
                 }
                 catch (OperationCanceledException) { break; }
@@ -103,44 +103,48 @@ namespace Claude4Net.Runtime
                 if (!u.ContainsTable("agent_trajectories")) return "";
                 var df = u.GetTableOrThrow("agent_trajectories");
                 if (df.RowCount == 0) return "";
-                
+
                 int totalCount = df.RowCount;
-                
+
                 var toolNames = new List<string>();
                 var isErrors = new List<bool>();
                 var errorReasons = new List<string>();
-                
-                for(int i = 0; i < df.RowCount; i++) {
+
+                for (int i = 0; i < df.RowCount; i++)
+                {
                     toolNames.Add(df["ToolName"].GetValue(i)?.ToString() ?? "");
                     isErrors.Add(df["IsError"].GetValue(i)?.ToString() == "True");
                     errorReasons.Add(df["ErrorReason"].GetValue(i)?.ToString() ?? "");
                 }
-                
-                var stats = toolNames.Distinct().Select(tn => {
+
+                var stats = toolNames.Distinct().Select(tn =>
+                {
                     var indices = toolNames.Select((n, idx) => (n, idx)).Where(x => x.n == tn).Select(x => x.idx).ToList();
                     int total = indices.Count;
                     int fails = indices.Count(idx => isErrors[idx]);
-                    return new { ToolName = tn, Total = total, Fails = fails, Rate = total > 0 ? (double)fails/total : 0 };
+                    return new { ToolName = tn, Total = total, Fails = fails, Rate = total > 0 ? (double)fails / total : 0 };
                 }).OrderByDescending(x => x.Rate).ThenByDescending(x => x.Fails).ToList();
-                
+
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine("=== 지능형 통계 진단서 (DataUniverse Agent Trajectories) ===");
                 sb.AppendLine($"총 툴 호출 횟수: {totalCount}");
-                foreach(var s in stats) {
-                    sb.AppendLine($"- {s.ToolName} : {s.Total}회 시도, {s.Fails}회 실패 (실패율 {s.Rate*100:0.1}%)");
+                foreach (var s in stats)
+                {
+                    sb.AppendLine($"- {s.ToolName} : {s.Total}회 시도, {s.Fails}회 실패 (실패율 {s.Rate * 100:0.1}%)");
                 }
-                
+
                 var topErrors = errorReasons.Where(e => !string.IsNullOrWhiteSpace(e) && e.Length > 3)
                                             .GroupBy(e => e)
                                             .OrderByDescending(g => g.Count())
                                             .Take(3);
-                
-                if (topErrors.Any()) {
+
+                if (topErrors.Any())
+                {
                     sb.AppendLine("\n주요 발생 에러 내용 (Top 3):");
-                    foreach(var e in topErrors) sb.AppendLine($" - [{e.Count()}회 발생] {e.Key.Replace("\n", " ").Substring(0, Math.Min(150, e.Key.Length))}");
+                    foreach (var e in topErrors) sb.AppendLine($" - [{e.Count()}회 발생] {e.Key.Replace("\n", " ").Substring(0, Math.Min(150, e.Key.Length))}");
                 }
-                
-                return sb.ToString(); 
+
+                return sb.ToString();
             });
         }
 
@@ -184,7 +188,7 @@ namespace Claude4Net.Runtime
 
                 case "!login":
                     var loginArgs = parts.Length > 1 ? parts[1].Split(' ', 2, StringSplitOptions.RemoveEmptyEntries) : Array.Empty<string>();
-                    
+
                     if (loginArgs.Length == 0)
                     {
                         AnsiConsole.MarkupLine("[bold yellow]Usage:[/] !login <provider> [key]");
@@ -193,7 +197,7 @@ namespace Claude4Net.Runtime
                     }
 
                     string providerName = loginArgs[0].ToLowerInvariant();
-                    
+
                     if (providerName == "geminicli" || providerName == "gemini-cli")
                     {
                         AnsiConsole.MarkupLine("[bold cyan]Switching provider to Gemini CLI...[/]");
@@ -211,7 +215,7 @@ namespace Claude4Net.Runtime
 
                         string key = loginArgs[1];
                         await AuthManager.SaveProviderKeyAsync(providerName, key);
-                        
+
                         AppState.ActiveProvider = providerName;
                         AnsiConsole.MarkupLine($"[bold cyan]Switching provider to {providerName}...[/]");
                         await context.Output.WriteAsync($"Provider switched to {providerName} and API key has been saved.");
@@ -223,7 +227,7 @@ namespace Claude4Net.Runtime
                     var table = new Table().Border(TableBorder.Rounded);
                     table.AddColumn("[bold cyan]Tool Name[/]");
                     table.AddColumn("[bold yellow]Description[/]");
-                    
+
                     foreach (var tool in tools.OrderBy(t => t.Name))
                     {
                         table.AddRow(Markup.Escape(tool.Name), Markup.Escape(tool.Description ?? "No description"));
@@ -235,7 +239,7 @@ namespace Claude4Net.Runtime
                 case "!reload":
                     string pluginsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "plugins");
                     _orchestrator.ReloadDynamicPlugins(pluginsDir);
-                    
+
                     AnsiConsole.MarkupLine($"[bold green]Dynamic plugins have been fully hot-reloaded from RAM! ({pluginsDir})[/]");
                     await context.Output.WriteAsync("System plugins metadata and runtime assemblies refreshed.");
                     return true;
@@ -243,18 +247,18 @@ namespace Claude4Net.Runtime
                 case "!status":
                     var process = Process.GetCurrentProcess();
                     long memoryUsed = GC.GetTotalMemory(false) / 1024 / 1024;
-                    
+
                     var grid = new Grid();
                     grid.AddColumn(new GridColumn().NoWrap());
                     grid.AddColumn(new GridColumn().Padding(2, 0, 0, 0));
-                    
+
                     grid.AddRow("[bold cyan]OS:[/]", Markup.Escape(Environment.OSVersion.ToString()));
                     grid.AddRow("[bold cyan]Active Provider:[/]", Markup.Escape(AppState.ActiveProvider));
                     grid.AddRow("[bold cyan]Active Model:[/]", Markup.Escape(AppState.ActiveModel));
                     grid.AddRow("[bold cyan]Memory Usage:[/]", $"{memoryUsed} MB");
                     grid.AddRow("[bold cyan]Loaded Tools:[/]", _orchestrator.GetTools().Count.ToString());
                     grid.AddRow("[bold cyan]YOLO Mode:[/]", AppState.CurrentPermissionMode == PermissionMode.Yolo ? "[red]ON[/]" : "[green]OFF[/]");
-                    
+
                     var panel = new Panel(grid)
                     {
                         Header = new PanelHeader("System Status"),
@@ -299,7 +303,7 @@ namespace Claude4Net.Runtime
             string currentPrompt = userPrompt;
             bool isFirstTurn = true;
             int turnCount = 0;
-            const int MAX_TURNS = 100; 
+            const int MAX_TURNS = 200;
 
             while (!ct.IsCancellationRequested && turnCount < MAX_TURNS)
             {
@@ -311,22 +315,22 @@ namespace Claude4Net.Runtime
                 {
                     string providerName = Markup.Escape(provider.Name);
                     AnsiConsole.Markup($"[grey]Thinking... ({providerName} T{turnCount}) [/]");
-                    
+
                     await foreach (var evt in provider.StreamQueryAsync(isFirstTurn ? currentPrompt : "Proceed based on previous tool results.", model: AppState.ActiveModel, ct: ct))
                     {
                         if (evt.Type == LLMStreamEventType.TextDelta && !string.IsNullOrEmpty(evt.Delta))
                         {
-                            if (turnTextBuilder.Length == 0) Console.WriteLine(); 
+                            if (turnTextBuilder.Length == 0) Console.WriteLine();
                             Console.Write(evt.Delta);
                             turnTextBuilder.Append(evt.Delta);
                         }
                         else if (evt.Type == LLMStreamEventType.ThinkingDelta)
                         {
-                            Console.Write("."); 
+                            Console.Write(".");
                         }
                         else if (evt.Type == LLMStreamEventType.ToolCallStart && evt.ToolCall != null)
                         {
-                            Console.Write("!"); 
+                            Console.Write("!");
                             toolCalls.Add(evt.ToolCall);
                         }
                         else if (evt.Type == LLMStreamEventType.Completed && evt.FinalResponse != null)
@@ -356,18 +360,18 @@ namespace Claude4Net.Runtime
 
                 if (toolCalls.Count > 0)
                 {
-                    foreach(var tc in toolCalls)
+                    foreach (var tc in toolCalls)
                     {
                         AnsiConsole.MarkupLine($"[grey]🛠️  [bold yellow]Tool Call:[/] {Markup.Escape(tc.Name)}[/]");
                     }
-                    
+
                     var batchResults = await _orchestrator.ExecuteBatchAsync(toolCalls, new { }, ct);
 
                     var toolResults = new List<object>();
                     foreach (var result in batchResults)
                     {
                         string summary = result.Content?.ToString() ?? "Success";
-                        
+
                         if (!result.IsError && result.Content != null)
                         {
                             try
@@ -417,23 +421,28 @@ namespace Claude4Net.Runtime
                             };
                             telemetryList.Add(JsonSerializer.Serialize(dict));
                         }
-                        
+
                         var jsonArrayStr = "[" + string.Join(",", telemetryList) + "]";
                         // Non-blocking fire-and-forget ingestion
                         _ = PandasUniverseManager.Instance.ExecuteAsync(u =>
                         {
                             string tmpFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
                             File.WriteAllText(tmpFile, jsonArrayStr);
-                            try {
+                            try
+                            {
                                 var newRowDf = TeruTeruPandas.IO.JsonIO.ReadJson(tmpFile);
-                                if (u.ContainsTable("agent_trajectories")) {
+                                if (u.ContainsTable("agent_trajectories"))
+                                {
                                     var df = u.GetTableOrThrow("agent_trajectories");
                                     var updatedDf = TeruTeruPandas.Core.DataFrameJoinExtensions.Concat(new[] { df, newRowDf }, 0);
                                     u.AddOrUpdateTable("agent_trajectories", updatedDf);
-                                } else {
+                                }
+                                else
+                                {
                                     u.AddTable("agent_trajectories", newRowDf, "Auto-collected AI execution trajectories for self-reflection.");
                                 }
-                            } catch { }
+                            }
+                            catch { }
                             finally { if (File.Exists(tmpFile)) File.Delete(tmpFile); }
                             return null!;
                         });
