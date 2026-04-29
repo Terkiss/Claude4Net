@@ -280,7 +280,8 @@ namespace Claude4Net.Runtime
                         var history = provider.GetHistory();
                         string dateStr = DateTime.Now.ToString("yyyyMMdd");
                         string fileName = $"context_{dateStr}.json";
-                        string fullPath = Path.Combine(AppState.CurrentCwd, fileName);
+                        string saveDir = AppState.CurrentCwd ?? Environment.CurrentDirectory;
+                        string fullPath = Path.Combine(saveDir, fileName);
 
                         string json = JsonSerializer.Serialize(history, new JsonSerializerOptions { WriteIndented = true });
                         await File.WriteAllTextAsync(fullPath, json);

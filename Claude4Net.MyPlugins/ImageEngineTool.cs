@@ -105,7 +105,7 @@ namespace Claude4Net.Tools
 
             // 6. 결과 파싱 및 이미지 Base64 찾기
             var data = await response.Content.ReadFromJsonAsync<JsonElement>(options, ct);
-            string base64Image = null;
+            string? base64Image = null;
 
             if (data.TryGetProperty("candidates", out var candidates) && candidates.GetArrayLength() > 0)
             {
@@ -127,7 +127,8 @@ namespace Claude4Net.Tools
                 throw new Exception("결과물에서 이미지를 추출하지 못했습니다.");
 
             // 7. 디코딩 후 물리 파일로 저장 (사용자 워크스페이스 기준)
-            string targetDir = Path.Combine(AppState.CurrentCwd, "GeneratedImages");
+            string currentCwd = AppState.CurrentCwd ?? Environment.CurrentDirectory;
+            string targetDir = Path.Combine(currentCwd, "GeneratedImages");
             if (!Directory.Exists(targetDir))
             {
                 Directory.CreateDirectory(targetDir);

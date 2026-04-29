@@ -11,7 +11,7 @@ public class MultiIndex : Index
     private readonly Index[] _levels;
     private readonly int[][] _codes;
     private readonly string[]? _names;
-    private readonly object[][] _values;
+    private readonly object?[][] _values;
 
     public override int Length { get; }
     public override Type DataType => typeof(object[]);
@@ -44,10 +44,10 @@ public class MultiIndex : Index
         }
 
         // 값들을 미리 계산해서 캐시
-        _values = new object[Length][];
+        _values = new object?[Length][];
         for (int i = 0; i < Length; i++)
         {
-            _values[i] = new object[_levels.Length];
+            _values[i] = new object?[_levels.Length];
             for (int level = 0; level < _levels.Length; level++)
             {
                 var code = _codes[level][i];

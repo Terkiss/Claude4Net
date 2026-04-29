@@ -38,28 +38,33 @@ public static class DataFramePivotExtensions
                 uniqueColumns.Add(colVal);
 
                 // 중복 발생 시 마지막 값 덮어쓰기 (pandas pivot 기본 동작)
-                valueMap[(idxVal, colVal)] = valueColumn.GetValue(i);
+                var val = valueColumn.GetValue(i);
+                if (val != null)
+                {
+                    valueMap[(idxVal, colVal)] = val;
+                }
             }
 
-            var sortedIndexes = uniqueIndexes.OrderBy(x => x).ToArray();
-            var sortedColumns = uniqueColumns.OrderBy(x => x).ToArray();
+            var sortedIndexes = uniqueIndexes.Where(x => x != null).OrderBy(x => x!).ToArray();
+            var sortedColumns = uniqueColumns.Where(x => x != null).OrderBy(x => x!).ToArray();
 
             // 2. 결과 데이터 생성
             var resultColumns = new Dictionary<string, IColumn>();
 
             // 인덱스 컬럼
-            resultColumns[indexCol] = CreateColumnFromObjects(sortedIndexes, indexColumn.DataType);
+            resultColumns[indexCol] = CreateColumnFromObjects(sortedIndexes!, indexColumn.DataType);
 
             // 피벗된 값 컬럼들
             foreach (var colKey in sortedColumns)
             {
+                if (colKey == null) continue;
                 var colName = $"{valueCol}_{colKey}";
-                var colValues = new object[sortedIndexes.Length];
+                var colValues = new object?[sortedIndexes.Length];
 
                 for (int i = 0; i < sortedIndexes.Length; i++)
                 {
                     var idxKey = sortedIndexes[i];
-                    if (valueMap.TryGetValue((idxKey, colKey), out var val))
+                    if (idxKey != null && valueMap.TryGetValue((idxKey, colKey), out var val))
                     {
                         colValues[i] = val;
                     }
@@ -69,7 +74,7 @@ public static class DataFramePivotExtensions
                     }
                 }
 
-                resultColumns[colName] = CreateColumnFromObjects(colValues, valueColumn.DataType);
+                resultColumns[colName] = CreateColumnFromObjects(colValues!, valueColumn.DataType);
             }
 
             return new DataFrame(resultColumns);
@@ -101,7 +106,7 @@ public static class DataFramePivotExtensions
                     if (!df.Columns.Contains(idVar)) continue;
 
                     var sourceCol = df[idVar];
-                    var newValues = new object[newRowCount];
+                    var newValues = new object?[newRowCount];
 
                     for (int i = 0; i < valueVars.Length; i++)
                     {
@@ -116,7 +121,7 @@ public static class DataFramePivotExtensions
 
             // 2. Variable/Value 컬럼 생성
             var variableValues = new string[newRowCount];
-            var mainValues = new object[newRowCount];
+            var mainValues = new object?[newRowCount];
 
             // 타겟 타입 결정 (첫 번째 valueVar 기준)
             var targetType = df[valueVars[0]].DataType;
@@ -146,7 +151,7 @@ public static class DataFramePivotExtensions
         }
     }
 
-    private static IColumn CreateColumnFromObjects(object[] values, Type dataType)
+    private static IColumn CreateColumnFromObjects(object?[] values, Type dataType)
     {
         if (dataType == typeof(int))
         {

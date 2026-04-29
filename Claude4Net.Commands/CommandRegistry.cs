@@ -123,9 +123,10 @@ namespace Claude4Net.Commands
             }},
 
             new Command { Name = "ls", Description = "List files in current directory", Handler = (a, sp) => {
-                var files = Directory.GetFileSystemEntries(AppState.CurrentCwd);
+                string currentPath = AppState.CurrentCwd ?? Environment.CurrentDirectory;
+                var files = Directory.GetFileSystemEntries(currentPath);
                 var sb = new System.Text.StringBuilder();
-                sb.AppendLine($"[bold cyan]Directory: {Markup.Escape(AppState.CurrentCwd)}[/]");
+                sb.AppendLine($"[bold cyan]Directory: {Markup.Escape(currentPath)}[/]");
                 foreach(var f in files) 
                 {
                     bool isDir = Directory.Exists(f);
@@ -136,7 +137,8 @@ namespace Claude4Net.Commands
             }},
 
             new Command { Name = "pwd", Description = "Show current working directory", Handler = (a, sp) => {
-                return Task.FromResult($"[cyan]CWD:[/] {Markup.Escape(AppState.CurrentCwd)}");
+                string currentPath = AppState.CurrentCwd ?? Environment.CurrentDirectory;
+                return Task.FromResult($"[cyan]CWD:[/] {Markup.Escape(currentPath)}");
             }},
 
             new Command { Name = "setworkspace", Description = "Set the root project workspace path (Required for tools)", Handler = (a, sp) => {

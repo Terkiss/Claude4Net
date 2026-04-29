@@ -118,7 +118,7 @@ namespace Claude4Net.Runtime
             await ExecuteAsync<object?>(u =>
             {
                 action(u);
-                return null;
+                return Task.FromResult<object?>(null);
             });
         }
 
@@ -154,7 +154,7 @@ namespace Claude4Net.Runtime
             await ExecuteAsync<object?>(async u =>
             {
                 await action(u);
-                return null;
+                return await Task.FromResult<object?>(null);
             });
         }
 
