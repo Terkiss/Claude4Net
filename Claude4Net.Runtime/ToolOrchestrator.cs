@@ -81,18 +81,26 @@ namespace Claude4Net.Runtime
                 // --- STRICT WORKSPACE SANDBOXING ---
                 if (safetyLevel == 0) // Outside everything
                 {
+                    // Even in YOLO mode, we require explicit confirmation for actions outside the sandbox
                     if (isYolo)
                     {
                         if (_approvalHandler != null)
                         {
-                            AnsiConsole.MarkupLine("[bold yellow]⚠ Warning: Target is OUTSIDE both Workspace and System storage. YOLO downgraded to 'Normal'.[/]");
+                            AnsiConsole.MarkupLine("[bold red]⚠ SECURITY ALERT: Attempting to access file OUTSIDE the workspace/system sandbox![/]");
+                            AnsiConsole.MarkupLine($"[yellow]Tool:[/] {tool.Name}");
+                            AnsiConsole.MarkupLine($"[yellow]YOLO status:[/] Downgraded to 'Manual Approval' for safety.");
+                            
                             bool approved = await _approvalHandler.RequestApprovalAsync(tool.Name, jsonInput);
-                            if (!approved) return new ToolUseResult { ToolUseId = request.Id, Content = "User denied outside-access.", IsError = true };
+                            if (!approved) return new ToolUseResult { ToolUseId = request.Id, Content = "User denied outside-access. Security policy enforced.", IsError = true };
+                        }
+                        else
+                        {
+                            return new ToolUseResult { ToolUseId = request.Id, Content = "Security Error: Outside access requested but no approval handler available. Denied.", IsError = true };
                         }
                     }
                     else
                     {
-                        return new ToolUseResult { ToolUseId = request.Id, Content = "Security Error: Access denied. Target is outside workspace. Use /setworkspace or !yolo.", IsError = true };
+                        return new ToolUseResult { ToolUseId = request.Id, Content = "Security Error: Access denied. Target is outside workspace. Use /setworkspace or !yolo (requires approval for outside-access).", IsError = true };
                     }
                 }
                 else if (safetyLevel == 2) // Workspace
@@ -106,7 +114,7 @@ namespace Claude4Net.Runtime
                         if (!approved) return new ToolUseResult { ToolUseId = request.Id, Content = "User denied permission.", IsError = true };
                     }
                 }
-                // safetyLevel == 1 (System) is always allowed for internal agent functions
+                // safetyLevel == 1 (System) is allowed for internal agent functions (Skills/db)
 
                 var result = await tool.ExecuteAsync(jsonInput, context, ct);
                 return new ToolUseResult { ToolUseId = request.Id, Content = result, IsError = false };

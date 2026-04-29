@@ -35,11 +35,65 @@ namespace Claude4Net.Commands
             new Command { Name = "yolo", Description = "ROOT ACCESS - Bypass all permissions", Handler = (a, sp) => {
                 if (AppState.CurrentPermissionMode == PermissionMode.Yolo) {
                     AppState.CurrentPermissionMode = PermissionMode.Default;
-                    return Task.FromResult("[yellow]YOLO Mode Disabled.[/]");
+                    return Task.FromResult("[bold green]YOLO Mode Disabled.[/] Standard permissions applied.");
                 } else {
                     AppState.CurrentPermissionMode = PermissionMode.Yolo;
-                    return Task.FromResult("[bold red]YOLO MODE ACTIVATED![/]");
+                    return Task.FromResult("[bold red]YOLO Mode Enabled![/] All permissions bypassed. [blink]BE CAREFUL.[/]");
                 }
+            }},
+
+            new Command { Name = "doctor", Description = "Run system health check and diagnostics", Handler = async (a, sp) => {
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("[bold cyan]🩺 Claude4Net-App Diagnostics[/]");
+                sb.AppendLine(new string('-', 40));
+
+                // 1. .NET Runtime / SDK
+                sb.AppendLine($"[bold]Runtime:[/] {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}");
+                sb.AppendLine($"[bold]OS:[/] {System.Runtime.InteropServices.RuntimeInformation.OSDescription}");
+                
+                // 2. Workspace Status
+                sb.AppendLine($"[bold]System Base Dir:[/] {Markup.Escape(AppState.SystemBaseDir)}");
+                sb.AppendLine($"[bold]Current Workspace (CWD):[/] {Markup.Escape(AppState.CurrentCwd ?? "[red]NOT SET[/]")}");
+                sb.AppendLine($"[bold]Permission Mode:[/] {AppState.CurrentPermissionMode}");
+
+                // 3. Active Provider / Model
+                sb.AppendLine($"[bold]Active Provider:[/] {Markup.Escape(AppState.ActiveProvider)}");
+                sb.AppendLine($"[bold]Active Model:[/] {Markup.Escape(AppState.ActiveModel)}");
+
+                // 4. API Keys (Existence & Masking)
+                sb.AppendLine("[bold]API Keys Status:[/]");
+                string[] providers = { "Claude", "Gemini", "Discord", "Ollama" };
+                foreach(var p in providers)
+                {
+                    string? key = AuthManager.GetApiKey(p);
+                    string status = string.IsNullOrEmpty(key) ? "[red]Missing[/]" : $"[green]Present[/] ({SecurityUtils.Mask(key)})";
+                    sb.AppendLine($"  - {p.PadRight(10)}: {status}");
+                }
+
+                // 5. TeruTeruPandas memory.db
+                string dbPath = Path.Combine(AppState.SystemBaseDir, "db", "memory.db");
+                bool dbExists = File.Exists(dbPath);
+                string dbStatus = dbExists ? "[green]Accessible[/]" : "[yellow]Not Found (Will be created on use)[/]";
+                sb.AppendLine($"[bold]TeruTeruPandas DB:[/] {dbStatus}");
+                if (dbExists) sb.AppendLine($"  - Path: {Markup.Escape(dbPath)}");
+
+                // 6. Plugins & DLLs
+                string pluginDir = Path.Combine(AppState.SystemBaseDir, "plugins");
+                if (!Directory.Exists(pluginDir)) Directory.CreateDirectory(pluginDir);
+                
+                var dlls = Directory.GetFiles(pluginDir, "*.dll");
+                sb.AppendLine($"[bold]Plugins Directory:[/] {Markup.Escape(pluginDir)}");
+                sb.AppendLine($"[bold]Loaded Plugins:[/] {dlls.Length} found");
+                foreach(var dll in dlls)
+                {
+                    sb.AppendLine($"  - {Markup.Escape(Path.GetFileName(dll))}");
+                }
+
+                // 7. Environment
+                string? discordToken = Environment.GetEnvironmentVariable("DISCORD_TOKEN");
+                sb.AppendLine($"[bold]Discord Token:[/] {(string.IsNullOrEmpty(discordToken) ? "[red]Missing[/]" : $"[green]Present[/] ({SecurityUtils.Mask(discordToken)})")}");
+
+                return sb.ToString();
             }},
 
             new Command { Name = "login", Description = "Log in to a provider (gemini, claude, ollama, gemini-cli)", Handler = async (args, sp) => {
@@ -172,14 +226,33 @@ namespace Claude4Net.Commands
                 return Task.FromResult($"[red]Error:[/] Directory not found: {Markup.Escape(newPath)}");
             }},
 
-            new Command { Name = "env", Description = "List environment variables", Handler = (a, sp) => {
+            new Command { Name = "env", Description = "List environment variables (Masked)", Handler = (a, sp) => {
                 var sb = new System.Text.StringBuilder();
-                sb.AppendLine("[bold cyan]Environment Variables (Top 20):[/]");
+                sb.AppendLine("[bold cyan]Environment Variables (Top 20, Values Masked):[/]");
                 var env = Environment.GetEnvironmentVariables();
                 int count = 0;
                 foreach(System.Collections.DictionaryEntry de in env) {
                     if (count++ >= 20) break;
-                    sb.AppendLine($"  [bold]{Markup.Escape(de.Key.ToString() ?? "")}[/]: {Markup.Escape(de.Value?.ToString() ?? "")}");
+                    string key = de.Key.ToString() ?? "";
+                    string val = de.Value?.ToString() ?? "";
+                    
+                    // Heuristic: if key contains API, KEY, TOKEN, PWD, SECRET, mask it heavily.
+                    // Otherwise use standard masking.
+                    string maskedVal;
+                    if (key.Contains("KEY", StringComparison.OrdinalIgnoreCase) || 
+                        key.Contains("TOKEN", StringComparison.OrdinalIgnoreCase) || 
+                        key.Contains("SECRET", StringComparison.OrdinalIgnoreCase) ||
+                        key.Contains("PASSWORD", StringComparison.OrdinalIgnoreCase))
+                    {
+                        maskedVal = SecurityUtils.Mask(val);
+                    }
+                    else
+                    {
+                        // Even for non-obvious keys, mask slightly if they look like keys
+                        maskedVal = val.Length > 15 ? val.Substring(0, 3) + "..." + val.Substring(val.Length - 3) : val;
+                    }
+
+                    sb.AppendLine($"  [bold]{Markup.Escape(key)}[/]: {Markup.Escape(maskedVal)}");
                 }
                 return Task.FromResult(sb.ToString());
             }},
