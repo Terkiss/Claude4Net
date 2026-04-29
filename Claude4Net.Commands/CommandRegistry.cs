@@ -123,7 +123,9 @@ namespace Claude4Net.Commands
             }},
 
             new Command { Name = "ls", Description = "List files in current directory", Handler = (a, sp) => {
-                string currentPath = AppState.CurrentCwd ?? Environment.CurrentDirectory;
+                if (string.IsNullOrEmpty(AppState.CurrentCwd)) return Task.FromResult("[red]Error:[/] Workspace is not set. Use [bold]/setworkspace <path>[/] first.");
+                
+                string currentPath = Environment.CurrentDirectory;
                 var files = Directory.GetFileSystemEntries(currentPath);
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine($"[bold cyan]Directory: {Markup.Escape(currentPath)}[/]");

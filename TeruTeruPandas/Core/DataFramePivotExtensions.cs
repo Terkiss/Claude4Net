@@ -25,7 +25,7 @@ public static class DataFramePivotExtensions
             // 1. 고유 값 수집 및 매핑 (O(N))
             var uniqueIndexes = new HashSet<object>();
             var uniqueColumns = new HashSet<object>();
-            var valueMap = new Dictionary<(object, object), object>();
+            var valueMap = new Dictionary<(object, object), object?>();
 
             for (int i = 0; i < df.Index.Length; i++)
             {
@@ -38,11 +38,7 @@ public static class DataFramePivotExtensions
                 uniqueColumns.Add(colVal);
 
                 // 중복 발생 시 마지막 값 덮어쓰기 (pandas pivot 기본 동작)
-                var val = valueColumn.GetValue(i);
-                if (val != null)
-                {
-                    valueMap[(idxVal, colVal)] = val;
-                }
+                valueMap[(idxVal, colVal)] = valueColumn.GetValue(i);
             }
 
             var sortedIndexes = uniqueIndexes.Where(x => x != null).OrderBy(x => x!).ToArray();

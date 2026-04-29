@@ -272,6 +272,13 @@ namespace Claude4Net.Runtime
                 case "!save":
                     try
                     {
+                        if (string.IsNullOrEmpty(AppState.CurrentCwd))
+                        {
+                            AnsiConsole.MarkupLine("[bold red]Error:[/] Workspace is not set. Use [bold]/setworkspace <path>[/] before saving context.");
+                            await context.Output.WriteAsync("Error: Workspace is not set. Context save aborted.");
+                            return true;
+                        }
+
                         ILLMProvider provider;
                         if (AppState.ActiveProvider == "gemini") provider = _serviceProvider.GetRequiredService<GeminiProvider>();
                         else if (AppState.ActiveProvider == "ollama") provider = _serviceProvider.GetRequiredService<OllamaProvider>();
@@ -280,8 +287,7 @@ namespace Claude4Net.Runtime
                         var history = provider.GetHistory();
                         string dateStr = DateTime.Now.ToString("yyyyMMdd");
                         string fileName = $"context_{dateStr}.json";
-                        string saveDir = AppState.CurrentCwd ?? Environment.CurrentDirectory;
-                        string fullPath = Path.Combine(saveDir, fileName);
+                        string fullPath = Path.Combine(AppState.CurrentCwd, fileName);
 
                         string json = JsonSerializer.Serialize(history, new JsonSerializerOptions { WriteIndented = true });
                         await File.WriteAllTextAsync(fullPath, json);
