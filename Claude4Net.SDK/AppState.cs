@@ -36,8 +36,14 @@ namespace Claude4Net.SDK
     {
         private static readonly ConcurrentDictionary<string, ModelUsage> _modelUsage = new();
         public static string SessionId { get; private set; } = Guid.NewGuid().ToString();
+        
+        // The directory where the EXE is located (System storage for Skills, DB, etc.)
+        public static string SystemBaseDir { get; } = AppDomain.CurrentDomain.BaseDirectory;
+        
+        // The directory where the USER works (Must be set explicitly)
+        public static string? CurrentCwd { get; set; } = null;
+
         public static string OriginalCwd { get; private set; } = Environment.CurrentDirectory;
-        public static string CurrentCwd { get; set; } = Environment.CurrentDirectory;
         public static bool IsInteractive { get; set; } = true;
         public static PermissionMode CurrentPermissionMode { get; set; } = PermissionMode.Default;
         public static string ActiveProvider { get; set; } = "gemini";

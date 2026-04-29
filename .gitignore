@@ -19,3 +19,12 @@ config.local.json
 .idea/
 .vscode/
 *.swp
+
+# Docs
+[Dd]ocuments/
+[Oo]pen[Ss]pace/
+
+# Images
+*.png
+*.jpg
+*.jpeg

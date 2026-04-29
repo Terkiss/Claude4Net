@@ -13,8 +13,13 @@ namespace Claude4Net.Api
     {
         private readonly AnthropicClient _client;
         private readonly List<object> _messageHistory = new();
+        private readonly IToolRegistry _toolRegistry;
 
-        public ClaudeService(AnthropicClient client) { _client = client; }
+        public ClaudeService(AnthropicClient client, IToolRegistry toolRegistry) 
+        { 
+            _client = client;
+            _toolRegistry = toolRegistry;
+        }
 
         public string Name => "claude";
 
@@ -27,7 +32,28 @@ namespace Claude4Net.Api
             _messageHistory.Add(new { role = "user", content = prompt });
             string actualModel = model ?? AppState.ActiveModel;
 
-            var payload = new { model = actualModel, max_tokens = 4096, messages = _messageHistory, stream = true };
+            var tools = _toolRegistry.GetTools();
+            var anthropicTools = new List<object>();
+            if (tools != null)
+            {
+                foreach (var t in tools)
+                {
+                    object parameters = t.InputSchema ?? (object)new { type = "object", properties = new { }, required = new string[] { } };
+                    anthropicTools.Add(new { name = t.Name, description = t.Description, input_schema = parameters });
+                }
+            }
+
+            string systemPrompt = new SystemPromptBuilder().Build("claude");
+
+            var payload = new 
+            { 
+                model = actualModel, 
+                max_tokens = 4096, 
+                system = systemPrompt,
+                messages = _messageHistory, 
+                tools = anthropicTools.Any() ? anthropicTools : null,
+                stream = true 
+            };
             var finalResult = new LLMResponse();
             var toolCallsMap = new Dictionary<string, ToolUseRequest>();
             var toolInputsMap = new Dictionary<string, StringBuilder>();

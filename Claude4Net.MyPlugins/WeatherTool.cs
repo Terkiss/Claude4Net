@@ -10,6 +10,7 @@ namespace Claude4Net.MyPlugins
     {
         public string Name => "weather_search";
         public string Description => "지정된 도시의 현재 날씨와 온도 정보를 검색합니다.";
+        public bool IsConcurrencySafe => true;
 
         public object? InputSchema => new
         {
@@ -27,7 +28,7 @@ namespace Claude4Net.MyPlugins
 
         private static readonly HttpClient _httpClient = new HttpClient();
 
-        public async Task<object> ExecuteAsync(string arguments, object context)
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             try
             {

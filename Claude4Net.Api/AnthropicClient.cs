@@ -21,12 +21,19 @@ namespace Claude4Net.Api
         private readonly HttpClient _httpClient;
         private readonly string _baseUrl;
 
-        public AnthropicClient(string? apiKey = null, string? baseUrl = null)
+        public AnthropicClient(HttpClient httpClient, string? apiKey = null, string? baseUrl = null)
         {
             _baseUrl = baseUrl ?? Environment.GetEnvironmentVariable("ANTHROPIC_BASE_URL") ?? "https://api.anthropic.com";
-            _httpClient = new HttpClient();
-            _httpClient.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
-            _httpClient.DefaultRequestHeaders.Add("User-Agent", "Claude4Net/0.1.0");
+            _httpClient = httpClient;
+            
+            if (!_httpClient.DefaultRequestHeaders.Contains("anthropic-version"))
+            {
+                _httpClient.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+            }
+            if (!_httpClient.DefaultRequestHeaders.Contains("User-Agent"))
+            {
+                _httpClient.DefaultRequestHeaders.Add("User-Agent", "Claude4Net/0.1.0");
+            }
         }
 
         public async IAsyncEnumerable<AnthropicEvent> CreateMessageStreamAsync(object payload, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)

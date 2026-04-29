@@ -8,9 +8,10 @@
 
 ## ✨ 핵심 기능 (Key Features)
 
-### 1. 🚀 트리플 프로바이더 지원 (Multi-Provider)
+### 1. 🚀 쿼드러플 프로바이더 지원 (Multi-Provider)
 - **Anthropic Claude 3.5 Sonnet**: 정교한 코딩과 추론.
 - **Google Gemini 3.0/3.1**: 초고성능 사고(Thinking) 및 대규모 컨텍스트 지원.
+- **Gemini CLI (gemini-cli)**: 로컬 쉘에서 실행되는 Gemini 도구를 백그라운드로 납치하여 완전 무료로 로컬 추론 및 시스템 제어를 수행하는 하이브리드 ReAct 엔진.
 - **Local Ollama**: `llama3`, `qwen3` 등 로컬 모델을 활용한 보안 기반 자율 실행.
 
 ### 2. ⚡ Antigravity 시스템 프로토콜
@@ -20,7 +21,8 @@
 
 ### 3. 🛡️ 보안 및 !YOLO 모드
 - **권한 승인 체계**: 민감한 작업(Write, Bash 등) 실행 전 사용자의 명시적 승인을 요청합니다.
-- **🔥 !YOLO (Root Access)**: 모든 보안 가드레일을 해제하고 AI에게 완전한 자율 실행 권한을 부여합니다. 복잡한 프로젝트 분석 시 강력한 위력을 발휘합니다.
+- **보안 샌드박싱**: 작업 디렉토리(CWD) 외부로 벗어나는 위험한 경로 접근을 사전에 차단하여 샌드박싱을 강화합니다.
+- **🔥 !YOLO (Root Access)**: 모든 보안 가드레일을 일시 해제하고 AI에게 높은 자율 실행 권한을 부여합니다. (단, 시스템 파괴적 작업 감지 시 안전장치가 개입합니다).
 
 ### 4. 📊 지능형 사고 가시화 UI
 - **Thinking Process**: AI의 사고 과정을 실시간으로 중계하여 에이전트의 논리 흐름을 투명하게 공개합니다.
@@ -33,10 +35,23 @@
 ### 6. 🌐 이벤트 기반 아키텍처 및 Discord 통합 (Event-Driven)
 - 백그라운드 이벤트 리스너(DiscordListenerService)를 통해 에이전트 로직을 외부 시스템과 실시간 연결합니다.
 
-### 7. 🧠 자체 인메모리 SQL 엔진 (Hippocampus / Long-Term Memory)
-- **TeruTeruPandas 탑재**: C# 기반 고성능 SIMD 인메모리 데이터 프레임 엔진(`TeruTeruPandas`)이 에이전트의 단기/장기 기억 장치로 동작합니다.
-- **자율 SQL Query**: 에이전트가 `pandas_sql` 도구를 통해 스스로 SQL 문을 날려 방대한 컨텍스트를 구조적으로 기억하고 되찾습니다.
-- **디스크 영구 백업**: 대화 세션이 길어지면 에이전트가 `pandas_save_sqlite`를 자율적으로 호출하여 런타임 메모리를 영구 백업(스냅샷)합니다.
+### 7. 🤔 텍스트 기반 ReAct 파싱 아키텍처 (Text-to-Tool Bridging)
+- Function Calling API가 지원되지 않는 CLI 전용 모델이나 환경에서도, 시스템 프롬프트 주입 및 실시간 스트림 데이터 인터셉트를 통해 **완벽한 C# 네이티브 도구 연동**을 구현해냅니다.
+- `GeminiCliProvider`는 자체 컨텍스트 덤프와 XML 태그 파서를 통해 터미널 환경을 뛰어넘는 안정적인 자동 툴 체이닝(Auto Tool Chaining) 샌드박스를 제공합니다.
+
+### 8. 🧠 DataUniverse (Hippocampus / In-Memory Long-Term Memory)
+- **TeruTeruPandas 탑재**: C# 기반 고성능 SIMD 인메모리 프레임워크(`TeruTeruPandas`)가 에이전트의 메인 두뇌(DB)로 동작합니다.
+- **무정형(Schema-less) 동적 테이블 설계**: 고정된 하드코딩 구조 없이 AI가 스스로 `pandas_load_csv`, `pandas_load_json` 도구를 통해 외부 지식을 흡수하고 테이블 구조를 실시간 창조합니다.
+- **10분 주기 비동기 스냅샷 (Zero I/O Bottleneck)**: 데이터 건바이건 동기 저장의 병목 한계를 돌파하기 위해, `PandasUniverseManager`가 자체적인 백그라운드 심장 박동(10-minute Timer & Process Exit Hook)을 돌리며 시스템의 I/O 정지 없이 `DB/memory.db` 안전하게 영구 저장합니다.
+- **도구 기반 진성 CRUD 통제**: 답답한 텍스트 SQL 파서에만 의존하지 않고, AI가 `pandas_table_info`로 뼈대를 투시한 뒤, `pandas_insert_row`, `pandas_update_cell`, `pandas_delete_rows` 네이티브(C#) 플러그인 툴들을 사용해 완벽에 가까운 결정론적 데이터 유니버스 조작을 수행합니다.
+
+### 9. 🏎️ 고성능 초최적화 아키텍처 (High-Performance Engine)
+- **도구 실행 병렬화**: `IsConcurrencySafe`를 통해 조회성 도구들을 병렬로 동시 실행하여 I/O 오버헤드를 대폭 줄였습니다.
+- **인텐트 기반 라우팅**: 정형화된 사용자의 요청은 LLM을 거치지 않고 `QueryRouter`가 식별 후 즉시 처리하여 응답 속도를 극대화했습니다.
+- **동적 프롬프트 & 컨텍스트 압축**: 도구 실행 결과가 일정 길이를 넘으면 자동으로 압축 및 요약하여 LLM 토큰 비용을 낮추고 컨텍스트 윈도우 한계를 극복합니다.
+- **네트워크 안정성 강화**: `IHttpClientFactory` 인젝션을 통하여 소켓 고갈(Socket Exhaustion)을 방지하고 TCP 연결을 안정적으로 재사용합니다.
+- **정밀한 토큰 트래커**: Agent 루프에서 발생하는 Input/Output 토큰 사용량을 철저히 분리 추적하고 요약합니다.
+- **프롬프트 캐시 파괴 감지**: API 캐시 비용 절감을 위해 스키마 해시 변경 내역을 `TeruTeruPandas`로 실시간 수집 및 분석하는 텔레메트리 기반을 마련했습니다.
 
 ---
 
@@ -59,7 +74,7 @@
 
 | 명령어 | 설명 |
 | :--- | :--- |
-| `!login <provider> <key>` | API 키 또는 Ollama URI를 등록하고 `.gitignore` 처리된 `api_key.json`에 영구 저장합니다. |
+| `!login <provider> [key]` | API 키를 등록하고 `.gitignore` 처리된 `api_key.json`에 영구 저장합니다. `!login geminicli` 입력 시 키 없이 백그라운드 CLI 연동 모드가 켜집니다. |
 | `/model` | 현재 사용 가능한 모든 프로바이더의 모델 리스트를 보여줍니다. |
 | `/model <name>` | 사용할 모델을 변경합니다. (접두사에 따라 프로바이더 자동 스위칭) |
 | `!yolo` | **[위험]** 모든 보안 승인 절차를 생략하고 완전 자율 모드를 활성화합니다. |

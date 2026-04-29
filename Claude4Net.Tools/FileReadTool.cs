@@ -13,6 +13,8 @@ namespace Claude4Net.Tools
         public string file_path { get; set; } = string.Empty;
         public int? offset { get; set; }
         public int? limit { get; set; }
+
+        public string path { get => file_path; set => file_path = value; }
     }
 
     public class FileReadTool : ITool
@@ -21,8 +23,9 @@ namespace Claude4Net.Tools
         public string Description => "Read the content of a file.";
         public List<string>? Aliases => new() { "read" };
         public object? InputSchema => new { type = "object", properties = new { file_path = new { type = "string", description = "Path to read" } }, required = new[] { "file_path" } };
+        public bool IsConcurrencySafe => true;
 
-        public async Task<object> ExecuteAsync(string arguments, object context)
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             var input = JsonSerializer.Deserialize<FileReadInput>(arguments, options) 

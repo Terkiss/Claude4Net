@@ -91,7 +91,8 @@ namespace Claude4Net.Discord
                     LogToFile($"[Discord] Input received from {message.Author.Username}: {cleanText}");
                     
                     // Respond back via Discord Channel
-                    var context = new InputContext(cleanText, new DiscordOutputHandler(message.Channel));
+                    string enrichedText = $"[System Context: Discord Message from @{message.Author.Username} in Channel ID: {message.Channel.Id}]\n{cleanText}";
+                    var context = new InputContext(enrichedText, new DiscordOutputHandler(message.Channel));
                     _broker.TryWrite(context);
                 }
             }

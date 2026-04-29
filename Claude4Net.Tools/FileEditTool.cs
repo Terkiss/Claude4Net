@@ -12,6 +12,9 @@ namespace Claude4Net.Tools
         public string file_path { get; set; } = string.Empty;
         public string old_string { get; set; } = string.Empty;
         public string new_string { get; set; } = string.Empty;
+        
+        // Fallback for LLM generating 'path'
+        public string path { get => file_path; set => file_path = value; }
     }
 
     public class FileEditTool : ITool
@@ -21,7 +24,7 @@ namespace Claude4Net.Tools
         public List<string>? Aliases => new() { "edit" };
         public object? InputSchema => new { type = "object", properties = new { file_path = new { type = "string" }, old_string = new { type = "string" }, new_string = new { type = "string" } }, required = new[] { "file_path", "old_string", "new_string" } };
 
-        public async Task<object> ExecuteAsync(string arguments, object context)
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             var input = JsonSerializer.Deserialize<FileEditInput>(arguments, options) 
