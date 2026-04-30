@@ -97,6 +97,43 @@ namespace Claude4Net.Tests
         }
 
         [Fact]
+        public void CheckCommandSafety_ShouldIdentifyUnixAbsolutePaths()
+        {
+            // Arrange
+            var evaluator = new PathSafetyEvaluator();
+            string workspace = Path.GetTempPath();
+            AppState.CurrentCwd = workspace;
+            
+            // Unix-style absolute path in command
+            var input = new { command = "cat /etc/passwd" };
+
+            // Act
+            var result = evaluator.EvaluateInputSafety(input);
+
+            // Assert
+            Assert.Equal(PathSafetyResult.Outside, result);
+        }
+
+        [Fact]
+        public void CheckCommandSafety_ShouldAllowWindowsCliFlags()
+        {
+            // Arrange
+            var evaluator = new PathSafetyEvaluator();
+            string workspace = Path.GetTempPath();
+            AppState.CurrentCwd = workspace;
+            
+            // Windows-style short flag (/f) should NOT be identified as Outside path
+            var input = new { command = "some_tool.exe /f" };
+
+            // Act
+            var result = evaluator.EvaluateInputSafety(input);
+
+            // Assert
+            // It should be Workspace (default for safe commands) and definitely not Outside
+            Assert.NotEqual(PathSafetyResult.Outside, result);
+        }
+
+        [Fact]
         public void EvaluateInputSafety_ShouldIdentifyOutsideCommand()
         {
             // Arrange

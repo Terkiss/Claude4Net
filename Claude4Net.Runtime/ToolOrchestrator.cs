@@ -82,20 +82,27 @@ namespace Claude4Net.Runtime
                 // --- STRICT WORKSPACE SANDBOXING ---
                 if (safetyResult == PathSafetyResult.Outside) // Outside everything
                 {
-                    // Even in YOLO mode, we require explicit confirmation for actions outside the sandbox
-                    if (_approvalHandler != null)
+                    if (isYolo)
                     {
-                        AnsiConsole.MarkupLine("[bold red]⚠ SECURITY ALERT: Attempting to access file OUTSIDE the workspace/system sandbox![/]");
-                        AnsiConsole.MarkupLine($"[yellow]Tool:[/] {tool.Name}");
-                        AnsiConsole.MarkupLine($"[yellow]YOLO status:[/] {(isYolo ? "Downgraded to 'Manual Approval' for safety." : "Manual Approval Required.")}");
-                        
-                        bool approved = await _approvalHandler.RequestApprovalAsync(tool.Name, jsonInput);
-                        if (!approved) return new ToolUseResult { ToolUseId = request.Id, Content = "User denied outside-access. Security policy enforced.", IsError = true };
+                        // In YOLO mode, we allow manual approval for actions outside the sandbox
+                        if (_approvalHandler != null)
+                        {
+                            AnsiConsole.MarkupLine("[bold red]⚠ SECURITY ALERT: Attempting to access file OUTSIDE the workspace/system sandbox![/]");
+                            AnsiConsole.MarkupLine($"[yellow]Tool:[/] {tool.Name}");
+                            AnsiConsole.MarkupLine("[yellow]YOLO status:[/] Downgraded to 'Manual Approval' for safety.");
+                            
+                            bool approved = await _approvalHandler.RequestApprovalAsync(tool.Name, jsonInput);
+                            if (!approved) return new ToolUseResult { ToolUseId = request.Id, Content = "User denied outside-access. Security policy enforced.", IsError = true };
+                        }
+                        else
+                        {
+                            return new ToolUseResult { ToolUseId = request.Id, Content = "Security Error: Outside access requested in YOLO mode but no approval handler available. Denied.", IsError = true };
+                        }
                     }
                     else
                     {
-                        string modeInfo = isYolo ? " (YOLO mode does not bypass sandbox without approval handler)" : "";
-                        return new ToolUseResult { ToolUseId = request.Id, Content = $"Security Error: Outside access requested but no approval handler available. Denied.{modeInfo}", IsError = true };
+                        // In Normal mode, outside access is strictly forbidden
+                        return new ToolUseResult { ToolUseId = request.Id, Content = "Security Error: Access to paths outside the workspace is strictly prohibited in Normal mode.", IsError = true };
                     }
                 }
                 else if (safetyResult == PathSafetyResult.Workspace) // Workspace

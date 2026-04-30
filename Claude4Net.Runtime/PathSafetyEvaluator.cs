@@ -72,23 +72,36 @@ namespace Claude4Net.Runtime
             if (string.IsNullOrWhiteSpace(cmd)) return PathSafetyResult.NotApplicable;
 
             string[] tokens = cmd.Split(new[] { ' ', '\t', '|', '>', '<', '&', ';' }, StringSplitOptions.RemoveEmptyEntries);
+            PathSafetyResult maxRisk = PathSafetyResult.NotApplicable;
+
             foreach (var token in tokens)
             {
-                if (token.StartsWith("/")) continue; 
-
                 string t = token.Trim('\'', '\"');
-                if (t.Contains("..") || Path.IsPathRooted(t))
-                {
-                    PathSafetyResult s = EvaluateSinglePathSafety(t);
-                    if (s == PathSafetyResult.Outside) return PathSafetyResult.Outside;
-                }
+                
+                // If it's a CLI flag (/f), we skip path evaluation
+                if (t.StartsWith("/") && t.Length <= 10 && !t.Contains("\\") && t.LastIndexOf('/') == 0)
+                    continue;
+
+                PathSafetyResult s = EvaluateSinglePathSafety(t);
+                maxRisk = GetMinSafety(maxRisk, s);
+                if (maxRisk == PathSafetyResult.Outside) return PathSafetyResult.Outside;
             }
-            return PathSafetyResult.Workspace; 
+            return maxRisk == PathSafetyResult.NotApplicable ? PathSafetyResult.Workspace : maxRisk; 
         }
 
         public PathSafetyResult EvaluateSinglePathSafety(string? targetPath)
         {
             if (string.IsNullOrWhiteSpace(targetPath)) return PathSafetyResult.NotApplicable;
+
+            // Heuristic to distinguish between Windows-style CLI flags and paths starting with '/'
+            if (targetPath.StartsWith("/"))
+            {
+                bool hasInternalSlash = targetPath.IndexOf('/', 1) > 0;
+                bool isShortAlphanumeric = targetPath.Length <= 10 && targetPath.Substring(1).All(char.IsLetterOrDigit);
+                
+                // If it looks like a flag, it's not a path we evaluate here.
+                if (!hasInternalSlash && isShortAlphanumeric) return PathSafetyResult.NotApplicable;
+            }
 
             try
             {

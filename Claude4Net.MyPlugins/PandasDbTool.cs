@@ -786,14 +786,34 @@ namespace Claude4Net.Tools
 
             try
             {
-                await PandasUniverseManager.Instance.ExecuteAsync(u =>
+                await PandasUniverseManager.Instance.ExecuteAsync(async u =>
                 {
                     if (scope == "all")
                     {
                         u.ClearAll();
-                        // Re-create baseline tables since ClearAll removes everything
-                        // Note: EnsureBaselineTablesAsync is async and runs in background normally, 
-                        // but here we are inside an ExecuteAsync block.
+                        // Re-create baseline tables immediately
+                        var memoryColumns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>
+                        {
+                            ["AgentId"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                            ["Role"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                            ["Status"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                            ["CurrentTask"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                            ["SharedContext"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                            ["LastUpdated"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                            ["SessionId"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0])
+                        };
+                        u.AddTable("agent_memory", new DataFrame(memoryColumns), "Shared agent state synchronization table.");
+
+                        var trajectoryColumns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>
+                        {
+                            ["Timestamp"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                            ["AgentId"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                            ["ToolName"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                            ["IsError"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                            ["ErrorReason"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                            ["Payload"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0])
+                        };
+                        u.AddTable("agent_trajectories", new DataFrame(trajectoryColumns), "Execution history for self-reflection and auditing.");
                     }
                     else
                     {
