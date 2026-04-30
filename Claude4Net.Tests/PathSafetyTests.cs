@@ -147,7 +147,7 @@ namespace Claude4Net.Tests
 
                 // Assert
                 Assert.True(result.IsError);
-                Assert.Contains("User denied outside-access", result.Content.ToString());
+                Assert.Contains("User denied outside-access", result.Content?.ToString() ?? "");
                 mockApproval.Verify(m => m.RequestApprovalAsync("bash", It.IsAny<string>()), Times.Once);
             }
             finally

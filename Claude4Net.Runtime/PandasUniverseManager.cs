@@ -78,26 +78,29 @@ namespace Claude4Net.Runtime
                 {
                     var columns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>
                     {
-                        ["Timestamp"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                        ["Keywords"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                        ["UserPrompt"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                        ["AgentResponse"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0])
+                        ["AgentId"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                        ["Role"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                        ["Status"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                        ["CurrentTask"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                        ["SharedContext"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                        ["LastUpdated"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                        ["SessionId"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0])
                     };
-                    u.AddOrUpdateTable("agent_memory", new DataFrame(columns));
+                    u.AddTable("agent_memory", new DataFrame(columns), "Shared agent state synchronization table.");
                 }
 
                 if (!u.ContainsTable("agent_trajectories"))
                 {
                     var columns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>
                     {
-                        ["Id"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
                         ["Timestamp"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
                         ["AgentId"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                        ["Action"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                        ["Result"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                        ["ToolName"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                        ["IsError"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                        ["ErrorReason"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
                         ["Payload"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0])
                     };
-                    u.AddOrUpdateTable("agent_trajectories", new DataFrame(columns));
+                    u.AddTable("agent_trajectories", new DataFrame(columns), "Execution history for self-reflection and auditing.");
                 }
             });
         }

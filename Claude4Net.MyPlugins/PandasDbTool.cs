@@ -561,7 +561,7 @@ namespace Claude4Net.Tools
             type = "object",
             properties = new
             {
-                snapshotName = new { type = "string", description = "스냅샷 파일의 이름 (예: checkpoint_1)" }
+                snapshotName = new { type = "string", description = "스냅샷 파일의 이름 (예: checkpoint_1). 특수문자나 경로는 무시되고 파일명만 사용됩니다." }
             },
             required = new[] { "snapshotName" }
         };
@@ -569,13 +569,14 @@ namespace Claude4Net.Tools
         public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             var input = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
-            string snapshotName = input?["snapshotName"] ?? throw new ArgumentException("snapshotName is required");
+            string rawName = input?["snapshotName"] ?? throw new ArgumentException("snapshotName is required");
+            string safeName = Path.GetFileName(rawName); // Basic protection against traversal
 
             try
             {
                 string snapshotDir = Path.Combine(AppState.SystemBaseDir, "db", "snapshots");
                 if (!Directory.Exists(snapshotDir)) Directory.CreateDirectory(snapshotDir);
-                string snapshotPath = Path.Combine(snapshotDir, $"{snapshotName}.db");
+                string snapshotPath = Path.Combine(snapshotDir, $"{safeName}.db");
 
                 await PandasUniverseManager.Instance.ExecuteAsync(u =>
                 {
@@ -594,7 +595,7 @@ namespace Claude4Net.Tools
     public class PandasRestoreTool : ITool
     {
         public string Name => "pandas_restore";
-        public string Description => "이전에 저장된 스냅샷(SQLite 파일)으로부터 DataUniverse를 복구합니다. 현재 데이터는 덮어씌워집니다.";
+        public string Description => "이전에 저장된 스냅샷(SQLite 파일)으로부터 DataUniverse를 복구합니다. 현재 데이터는 덮어씌워지므로 주의하세요.";
 
         public object? InputSchema => new
         {
@@ -609,18 +610,18 @@ namespace Claude4Net.Tools
         public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             var input = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
-            string snapshotName = input?["snapshotName"] ?? throw new ArgumentException("snapshotName is required");
+            string rawName = input?["snapshotName"] ?? throw new ArgumentException("snapshotName is required");
+            string safeName = Path.GetFileName(rawName);
 
             try
             {
-                string snapshotPath = Path.Combine(AppState.SystemBaseDir, "db", "snapshots", $"{snapshotName}.db");
+                string snapshotPath = Path.Combine(AppState.SystemBaseDir, "db", "snapshots", $"{safeName}.db");
                 if (!File.Exists(snapshotPath))
                     return new { status = "Error", message = $"Snapshot file not found: {snapshotPath}" };
 
                 await PandasUniverseManager.Instance.ExecuteAsync(u =>
                 {
                     var restoredUniverse = DataUniverseIO.FromSqlite(snapshotPath);
-                    // Clear current and import all from restored
                     u.ClearAll();
                     
                     foreach (var tableName in restoredUniverse.TableNames)
@@ -629,7 +630,195 @@ namespace Claude4Net.Tools
                     }
                 });
 
-                return new { status = "Success", message = $"DataUniverse restored from snapshot {snapshotName}." };
+                return new { status = "Success", message = $"DataUniverse restored from snapshot {safeName}." };
+            }
+            catch (Exception ex)
+            {
+                return new { status = "Error", error = ex.Message };
+            }
+        }
+    }
+
+    public class PandasAgentMemoryUpsertTool : ITool
+    {
+        public string Name => "pandas_agent_memory_upsert";
+        public string Description => "에이전트 공유 메모리(agent_memory)에 현재 상태를 업데이트하거나 추가합니다. AgentId를 기준으로 Upsert를 수행합니다.";
+
+        public object? InputSchema => new
+        {
+            type = "object",
+            properties = new
+            {
+                agentId = new { type = "string" },
+                role = new { type = "string" },
+                status = new { type = "string" },
+                currentTask = new { type = "string" },
+                sharedContext = new { type = "string" }
+            },
+            required = new[] { "agentId" }
+        };
+
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
+        {
+            var input = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
+            string agentId = input?["agentId"] ?? throw new ArgumentException("agentId is required");
+            string role = input.ContainsKey("role") ? input["role"] : "";
+            string status = input.ContainsKey("status") ? input["status"] : "active";
+            string currentTask = input.ContainsKey("currentTask") ? input["currentTask"] : "";
+            string sharedContext = input.ContainsKey("sharedContext") ? input["sharedContext"] : "";
+            string sessionId = AppState.SessionId;
+            string timestamp = DateTime.Now.ToString("O");
+
+            try
+            {
+                await PandasUniverseManager.Instance.ExecuteAsync(u =>
+                {
+                    var df = u.GetTableOrThrow("agent_memory");
+                    
+                    // Find existing row by AgentId
+                    int existingIdx = -1;
+                    var agentIdCol = df["AgentId"];
+                    for (int i = 0; i < df.RowCount; i++)
+                    {
+                        if (agentIdCol.GetValue(i)?.ToString() == agentId)
+                        {
+                            existingIdx = i;
+                            break;
+                        }
+                    }
+
+                    if (existingIdx >= 0)
+                    {
+                        df[existingIdx, "Role"] = role;
+                        df[existingIdx, "Status"] = status;
+                        df[existingIdx, "CurrentTask"] = currentTask;
+                        df[existingIdx, "SharedContext"] = sharedContext;
+                        df[existingIdx, "LastUpdated"] = timestamp;
+                        df[existingIdx, "SessionId"] = sessionId;
+                    }
+                    else
+                    {
+                        // Insert new row
+                        var rowDict = new Dictionary<string, object?>
+                        {
+                            ["AgentId"] = agentId,
+                            ["Role"] = role,
+                            ["Status"] = status,
+                            ["CurrentTask"] = currentTask,
+                            ["SharedContext"] = sharedContext,
+                            ["LastUpdated"] = timestamp,
+                            ["SessionId"] = sessionId
+                        };
+                        
+                        string tmpFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+                        File.WriteAllText(tmpFile, "[" + JsonSerializer.Serialize(rowDict) + "]");
+                        try
+                        {
+                            var newRowDf = JsonIO.ReadJson(tmpFile);
+                            var updatedDf = TeruTeruPandas.Core.DataFrameJoinExtensions.Concat(new[] { df, newRowDf }, 0);
+                            u.AddOrUpdateTable("agent_memory", updatedDf);
+                        }
+                        finally { if (File.Exists(tmpFile)) File.Delete(tmpFile); }
+                    }
+                });
+                return new { status = "Success", message = $"Agent memory updated for '{agentId}'." };
+            }
+            catch (Exception ex)
+            {
+                return new { status = "Error", error = ex.Message };
+            }
+        }
+    }
+
+    public class PandasAgentMemoryQueryTool : ITool
+    {
+        public string Name => "pandas_agent_memory_query";
+        public string Description => "에이전트 공유 메모리에서 특정 조건(SQL)으로 데이터를 조회합니다.";
+
+        public object? InputSchema => new
+        {
+            type = "object",
+            properties = new
+            {
+                sql = new { type = "string", description = "조회할 SQL 문 (기본값: SELECT * FROM agent_memory)" }
+            }
+        };
+
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
+        {
+            var input = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
+            string sql = (input != null && input.ContainsKey("sql")) ? input["sql"] : "SELECT * FROM agent_memory";
+
+            try
+            {
+                var result = await PandasUniverseManager.Instance.ExecuteAsync(u =>
+                {
+                    var df = u.SqlExecute(sql);
+                    return new { status = "Success", rowCount = df.RowCount, data = df.ToString() };
+                });
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return new { status = "Error", error = ex.Message };
+            }
+        }
+    }
+
+    public class PandasAgentMemoryClearTool : ITool
+    {
+        public string Name => "pandas_agent_memory_clear";
+        public string Description => "에이전트 공유 메모리를 비웁니다. session 파라미터를 제공하면 현재 세션의 데이터만 삭제합니다.";
+
+        public object? InputSchema => new
+        {
+            type = "object",
+            properties = new
+            {
+                scope = new { type = "string", @enum = new[] { "session", "all" }, description = "삭제 범위 (session: 현재 세션만, all: 전체 삭제)" }
+            }
+        };
+
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
+        {
+            var input = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
+            string scope = (input != null && input.ContainsKey("scope")) ? input["scope"] : "session";
+
+            try
+            {
+                await PandasUniverseManager.Instance.ExecuteAsync(u =>
+                {
+                    if (scope == "all")
+                    {
+                        u.ClearAll();
+                        // Re-create baseline tables since ClearAll removes everything
+                        // Note: EnsureBaselineTablesAsync is async and runs in background normally, 
+                        // but here we are inside an ExecuteAsync block.
+                    }
+                    else
+                    {
+                        var df = u.GetTableOrThrow("agent_memory");
+                        var sessionId = AppState.SessionId;
+                        var sessionIdCol = df["SessionId"];
+                        var indicesToKeep = new List<int>();
+                        for (int i = 0; i < df.RowCount; i++)
+                        {
+                            if (sessionIdCol.GetValue(i)?.ToString() != sessionId)
+                            {
+                                indicesToKeep.Add(i);
+                            }
+                        }
+
+                        var newColumns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>();
+                        foreach (var colName in df.Columns)
+                        {
+                            newColumns[colName] = df[colName].Reorder(indicesToKeep.ToArray());
+                        }
+                        var newDf = new DataFrame(newColumns, df.Index.Reorder(indicesToKeep.ToArray()));
+                        u.AddOrUpdateTable("agent_memory", newDf);
+                    }
+                });
+                return new { status = "Success", message = $"Agent memory cleared (Scope: {scope})." };
             }
             catch (Exception ex)
             {

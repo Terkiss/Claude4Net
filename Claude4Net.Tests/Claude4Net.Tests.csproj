@@ -20,6 +20,7 @@
     <ProjectReference Include="..\Claude4Net.SDK\Claude4Net.SDK.csproj" />
     <ProjectReference Include="..\Claude4Net.Runtime\Claude4Net.Runtime.csproj" />
     <ProjectReference Include="..\Claude4Net.Tools\Claude4Net.Tools.csproj" />
+    <ProjectReference Include="..\Claude4Net.MyPlugins\Claude4Net.MyPlugins.csproj" />
   </ItemGroup>
 
 </Project>

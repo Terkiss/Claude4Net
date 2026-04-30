@@ -421,10 +421,11 @@ namespace Claude4Net.Runtime
                             var dict = new Dictionary<string, object>
                             {
                                 { "Timestamp", timestamp },
-                                { "Role", AppState.ActiveProvider },
+                                { "AgentId", AppState.SessionId },
                                 { "ToolName", toolName },
                                 { "IsError", result.IsError },
-                                { "ErrorReason", result.IsError ? (result.Content?.ToString() ?? "Error") : "" }
+                                { "ErrorReason", result.IsError ? (result.Content?.ToString() ?? "Error") : "" },
+                                { "Payload", result.Content?.ToString() ?? "" }
                             };
                             telemetryList.Add(JsonSerializer.Serialize(dict));
                         }
