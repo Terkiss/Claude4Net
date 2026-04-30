@@ -10,7 +10,7 @@
 | --- | --- | --- | --- |
 | D01 | Baseline, Project Safety, Build/Test Standards | In Progress | P001-P002 |
 | D02 | TeruTeruPandas Memory Sharing | Pending | |
-| D03 | Sandboxing/Permission State Machine | Pending | |
+| D03 | Sandboxing/Permission State Machine | In Progress | PathSafetyEvaluator refactor/test |
 | D04 | Diagnostics, Source Guard, Masking | In Progress | |
 | D05 | SmartRouter | Pending | |
 | D06 | Resources-Oriented Skills | Pending | |
@@ -25,6 +25,13 @@
 - [x] Initial workspace audit
 - [x] Verify existing implementation of !doctor and !env masking (part of D04 but baseline for diagnostics)
 - [ ] Establish build/test baseline
+
+### D03: Sandboxing & Permissions
+- [x] Extract path safety logic into PathSafetyEvaluator
+- [x] Implement PathSafetyResult enum
+- [x] Refactor ToolOrchestrator to use PathSafetyEvaluator
+- [x] Enforce manual approval for outside-access in YOLO mode
+- [x] Add PathSafetyTests and verify all tests pass
 
 ### D04: Diagnostics & Source Guard
 - [x] !doctor command implementation

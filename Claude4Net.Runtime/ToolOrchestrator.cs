@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Claude4Net.SDK;
@@ -74,36 +75,30 @@ namespace Claude4Net.Runtime
                               AppState.CurrentPermissionMode == PermissionMode.BypassPermissions;
                 
                 bool isSensitive = IsSensitiveTool(tool.Name);
-                int safetyLevel = GetPathSafetyLevel(request.Input);
-
-                // Safety Levels: 0 = Dangerous/Illegal, 1 = Safe (System), 2 = Safe (Workspace), 3 = Not Applicable
+                
+                var evaluator = new PathSafetyEvaluator();
+                var safetyResult = evaluator.EvaluateInputSafety(request.Input);
 
                 // --- STRICT WORKSPACE SANDBOXING ---
-                if (safetyLevel == 0) // Outside everything
+                if (safetyResult == PathSafetyResult.Outside) // Outside everything
                 {
                     // Even in YOLO mode, we require explicit confirmation for actions outside the sandbox
-                    if (isYolo)
+                    if (_approvalHandler != null)
                     {
-                        if (_approvalHandler != null)
-                        {
-                            AnsiConsole.MarkupLine("[bold red]⚠ SECURITY ALERT: Attempting to access file OUTSIDE the workspace/system sandbox![/]");
-                            AnsiConsole.MarkupLine($"[yellow]Tool:[/] {tool.Name}");
-                            AnsiConsole.MarkupLine($"[yellow]YOLO status:[/] Downgraded to 'Manual Approval' for safety.");
-                            
-                            bool approved = await _approvalHandler.RequestApprovalAsync(tool.Name, jsonInput);
-                            if (!approved) return new ToolUseResult { ToolUseId = request.Id, Content = "User denied outside-access. Security policy enforced.", IsError = true };
-                        }
-                        else
-                        {
-                            return new ToolUseResult { ToolUseId = request.Id, Content = "Security Error: Outside access requested but no approval handler available. Denied.", IsError = true };
-                        }
+                        AnsiConsole.MarkupLine("[bold red]⚠ SECURITY ALERT: Attempting to access file OUTSIDE the workspace/system sandbox![/]");
+                        AnsiConsole.MarkupLine($"[yellow]Tool:[/] {tool.Name}");
+                        AnsiConsole.MarkupLine($"[yellow]YOLO status:[/] {(isYolo ? "Downgraded to 'Manual Approval' for safety." : "Manual Approval Required.")}");
+                        
+                        bool approved = await _approvalHandler.RequestApprovalAsync(tool.Name, jsonInput);
+                        if (!approved) return new ToolUseResult { ToolUseId = request.Id, Content = "User denied outside-access. Security policy enforced.", IsError = true };
                     }
                     else
                     {
-                        return new ToolUseResult { ToolUseId = request.Id, Content = "Security Error: Access denied. Target is outside workspace. Use /setworkspace or !yolo (requires approval for outside-access).", IsError = true };
+                        string modeInfo = isYolo ? " (YOLO mode does not bypass sandbox without approval handler)" : "";
+                        return new ToolUseResult { ToolUseId = request.Id, Content = $"Security Error: Outside access requested but no approval handler available. Denied.{modeInfo}", IsError = true };
                     }
                 }
-                else if (safetyLevel == 2) // Workspace
+                else if (safetyResult == PathSafetyResult.Workspace) // Workspace
                 {
                     if (string.IsNullOrEmpty(AppState.CurrentCwd))
                         return new ToolUseResult { ToolUseId = request.Id, Content = "Error: Workspace not set. Use /setworkspace <path> first.", IsError = true };
@@ -114,7 +109,7 @@ namespace Claude4Net.Runtime
                         if (!approved) return new ToolUseResult { ToolUseId = request.Id, Content = "User denied permission.", IsError = true };
                     }
                 }
-                // safetyLevel == 1 (System) is allowed for internal agent functions (Skills/db)
+                // safetyResult == SafeSystem or NotApplicable is allowed for internal agent functions (Skills/db)
 
                 var result = await tool.ExecuteAsync(jsonInput, context, ct);
                 return new ToolUseResult { ToolUseId = request.Id, Content = result, IsError = false };
@@ -133,142 +128,6 @@ namespace Claude4Net.Runtime
         {
             var sensitivePrefixes = new[] { "bash", "write", "edit", "delete", "shell", "sh" };
             return sensitivePrefixes.Any(p => name.ToLower().Contains(p));
-        }
-
-        private int GetPathSafetyLevel(object? input)
-        {
-            if (input == null) return 3;
-
-            try
-            {
-                var json = JsonSerializer.Serialize(input);
-                using var doc = JsonDocument.Parse(json);
-                return CheckElementSafety(doc.RootElement);
-            }
-            catch { return 0; } 
-        }
-
-        private int CheckElementSafety(JsonElement element)
-        {
-            int minSafety = 3;
-
-            if (element.ValueKind == JsonValueKind.Object)
-            {
-                foreach (var prop in element.EnumerateObject())
-                {
-                    int s;
-                    // Special handling for command strings in bash/shell tools
-                    if (prop.Name.Equals("command", StringComparison.OrdinalIgnoreCase) || 
-                        prop.Name.Equals("sql", StringComparison.OrdinalIgnoreCase))
-                    {
-                        s = CheckCommandSafety(prop.Value.GetString());
-                    }
-                    else
-                    {
-                        s = CheckElementSafety(prop.Value);
-                    }
-                    if (s < minSafety) minSafety = s;
-                }
-            }
-            else if (element.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var item in element.EnumerateArray())
-                {
-                    int s = CheckElementSafety(item);
-                    if (s < minSafety) minSafety = s;
-                }
-            }
-            else if (element.ValueKind == JsonValueKind.String)
-            {
-                int s = EvaluateSinglePathSafety(element.GetString());
-                if (s < minSafety) minSafety = s;
-            }
-
-            return minSafety;
-        }
-
-        private int CheckCommandSafety(string? cmd)
-        {
-            if (string.IsNullOrWhiteSpace(cmd)) return 3;
-
-            // Heuristic: If it contains .. or starts with a root (/, C:\, etc.) anywhere after space or at start
-            // This prevents "cat /etc/passwd" or "ls ../../"
-            string[] tokens = cmd.Split(new[] { ' ', '\t', '|', '>', '<', '&', ';' }, StringSplitOptions.RemoveEmptyEntries);
-            foreach (var token in tokens)
-            {
-                if (token.StartsWith("/")) continue; // Ignore CLI flags (Windows treats '/' as rooted path)
-
-                string t = token.Trim('\'', '\"');
-                if (t.Contains("..") || Path.IsPathRooted(t))
-                {
-                    // Check if the rooted path happens to be inside our safe zones
-                    int s = EvaluateSinglePathSafety(t);
-                    if (s == 0) return 0;
-                }
-            }
-            return 2; // Assume workspace-safe if no explicit escape found
-        }
-
-        private int EvaluateSinglePathSafety(string? targetPath)
-        {
-            if (string.IsNullOrWhiteSpace(targetPath)) return 3;
-
-            try
-            {
-                // Handle URI format (file:///)
-                if (targetPath.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
-                {
-                    targetPath = new Uri(targetPath).LocalPath;
-                }
-
-                // If it doesn't look like a path (no slashes or dots), assume safe content
-                if (!targetPath.Contains(Path.DirectorySeparatorChar) && 
-                    !targetPath.Contains(Path.AltDirectorySeparatorChar) && 
-                    !targetPath.Contains("..")) return 3;
-
-                string fullPath = Path.GetFullPath(targetPath);
-                
-                bool isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
-                var comparison = isWindows ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-
-                // 1. Check Restricted System Storage (db and Skills only)
-                string sysPath = Path.GetFullPath(AppState.SystemBaseDir);
-                string normSys = sysPath.EndsWith(Path.DirectorySeparatorChar) ? sysPath : sysPath + Path.DirectorySeparatorChar;
-
-                if (fullPath.StartsWith(normSys, comparison) || fullPath.Equals(sysPath, comparison))
-                {
-                    // Within system dir, but we ONLY allow specific sub-folders for the agent
-                    if (fullPath.Contains($"{Path.DirectorySeparatorChar}db{Path.DirectorySeparatorChar}") || 
-                        fullPath.Contains($"{Path.DirectorySeparatorChar}Skills{Path.DirectorySeparatorChar}") ||
-                        fullPath.EndsWith($"{Path.DirectorySeparatorChar}db") ||
-                        fullPath.EndsWith($"{Path.DirectorySeparatorChar}Skills"))
-                    {
-                        return 1; // Safe System Access
-                    }
-                    return 0; // Dangerous System Access (trying to touch app files)
-                }
-
-                // 2. Check User Workspace
-                if (!string.IsNullOrEmpty(AppState.CurrentCwd))
-                {
-                    string wsPath = Path.GetFullPath(AppState.CurrentCwd);
-                    string normWs = wsPath.EndsWith(Path.DirectorySeparatorChar) ? wsPath : wsPath + Path.DirectorySeparatorChar;
-                    
-                    if (fullPath.StartsWith(normWs, comparison) || fullPath.Equals(wsPath, comparison))
-                    {
-                        if (AppState.CurrentPermissionMode != PermissionMode.Yolo)
-                        {
-                            if (fullPath.Contains($"{Path.DirectorySeparatorChar}.git{Path.DirectorySeparatorChar}") || 
-                                fullPath.Contains($"{Path.DirectorySeparatorChar}.gemini{Path.DirectorySeparatorChar}"))
-                                return 0;
-                        }
-                        return 2; // Safe Workspace Access
-                    }
-                }
-
-                return 0; // Outside
-            }
-            catch { return 0; } 
         }
 
         public async Task<List<ToolUseResult>> ExecuteBatchAsync(IEnumerable<ToolUseRequest> requests, object context, CancellationToken ct = default)

@@ -5,5 +5,7 @@
   <Project Path="Claude4Net.Discord/Claude4Net.Discord.csproj" />
   <Project Path="Claude4Net.Runtime/Claude4Net.Runtime.csproj" />
   <Project Path="Claude4Net.SDK/Claude4Net.SDK.csproj" />
+  <Project Path="Claude4Net.Tests/Claude4Net.Tests.csproj" />
   <Project Path="Claude4Net.Tools/Claude4Net.Tools.csproj" />
+  <Project Path="Claude4Net.MyPlugins/Claude4Net.MyPlugins.csproj" />
 </Solution>

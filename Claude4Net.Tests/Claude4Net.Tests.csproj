@@ -13,10 +13,12 @@
     <PackageReference Include="xunit" Version="2.5.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
+    <PackageReference Include="Moq" Version="4.20.70" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Claude4Net.SDK\Claude4Net.SDK.csproj" />
+    <ProjectReference Include="..\Claude4Net.Runtime\Claude4Net.Runtime.csproj" />
     <ProjectReference Include="..\Claude4Net.Tools\Claude4Net.Tools.csproj" />
   </ItemGroup>
 

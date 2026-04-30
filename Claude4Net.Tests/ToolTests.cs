@@ -5,14 +5,17 @@ using System.Text.Json;
 using System.IO;
 using System;
 using System.Collections.Generic;
+using Claude4Net.SDK;
 
 namespace Claude4Net.Tests
 {
+    [Collection("AppState")]
     public class ToolTests
     {
         [Fact]
         public async Task LsTool_ShouldListFiles()
         {
+            AppState.CurrentCwd = Environment.CurrentDirectory;
             // Arrange
             var tool = new LsTool();
             var arguments = JsonSerializer.Serialize(new { path = "." });
@@ -30,6 +33,7 @@ namespace Claude4Net.Tests
         [Fact]
         public async Task BashTool_ShouldExecuteEcho()
         {
+            AppState.CurrentCwd = Environment.CurrentDirectory;
             // Arrange
             var tool = new BashTool();
             var arguments = JsonSerializer.Serialize(new { command = "echo Hello" });
