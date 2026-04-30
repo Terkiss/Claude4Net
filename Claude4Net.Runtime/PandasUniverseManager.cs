@@ -50,13 +50,16 @@ namespace Claude4Net.Runtime
             // 3. 트랜잭션 큐 초기화 (순차 처리를 위해 Unbounded 사용)
             _transactionQueue = Channel.CreateUnbounded<Func<DataUniverse, Task>>();
 
-            // 4. 백그라운드 큐 처리 루프 시작
+            // 4. Ensure baseline tables (agent_memory, agent_trajectories) exist
+            _ = EnsureBaselineTablesAsync();
+
+            // 5. 백그라운드 큐 처리 루프 시작
             _ = ProcessQueueAsync();
 
-            // 5. 10분 단위 자동 저장 백그라운드 루프 시작
+            // 6. 10분 단위 자동 저장 백그라운드 루프 시작
             _ = AutoSaveLoopAsync();
 
-            // 6. 앱 강제 종료 감지 시 남은 데이터 저장 보장
+            // 7. 앱 강제 종료 감지 시 남은 데이터 저장 보장
             AppDomain.CurrentDomain.ProcessExit += (s, e) =>
             {
                 if (_isDirty)
@@ -65,6 +68,38 @@ namespace Claude4Net.Runtime
                     try { _universe.ToSqlite(_dbPath, overwrite: true); } catch { }
                 }
             };
+        }
+
+        private async Task EnsureBaselineTablesAsync()
+        {
+            await ExecuteAsync(u =>
+            {
+                if (!u.ContainsTable("agent_memory"))
+                {
+                    var columns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>
+                    {
+                        ["Timestamp"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                        ["Keywords"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                        ["UserPrompt"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                        ["AgentResponse"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0])
+                    };
+                    u.AddOrUpdateTable("agent_memory", new DataFrame(columns));
+                }
+
+                if (!u.ContainsTable("agent_trajectories"))
+                {
+                    var columns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>
+                    {
+                        ["Id"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                        ["Timestamp"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                        ["AgentId"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                        ["Action"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                        ["Result"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                        ["Payload"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0])
+                    };
+                    u.AddOrUpdateTable("agent_trajectories", new DataFrame(columns));
+                }
+            });
         }
 
         private async Task AutoSaveLoopAsync()

@@ -550,4 +550,91 @@ namespace Claude4Net.Tools
             }
         }
     }
+
+    public class PandasSnapshotTool : ITool
+    {
+        public string Name => "pandas_snapshot";
+        public string Description => "지정된 이름으로 현재 DataUniverse의 전체 스냅샷(SQLite 파일)을 생성합니다.";
+
+        public object? InputSchema => new
+        {
+            type = "object",
+            properties = new
+            {
+                snapshotName = new { type = "string", description = "스냅샷 파일의 이름 (예: checkpoint_1)" }
+            },
+            required = new[] { "snapshotName" }
+        };
+
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
+        {
+            var input = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
+            string snapshotName = input?["snapshotName"] ?? throw new ArgumentException("snapshotName is required");
+
+            try
+            {
+                string snapshotDir = Path.Combine(AppState.SystemBaseDir, "db", "snapshots");
+                if (!Directory.Exists(snapshotDir)) Directory.CreateDirectory(snapshotDir);
+                string snapshotPath = Path.Combine(snapshotDir, $"{snapshotName}.db");
+
+                await PandasUniverseManager.Instance.ExecuteAsync(u =>
+                {
+                    u.ToSqlite(snapshotPath, overwrite: true);
+                });
+
+                return new { status = "Success", message = $"Snapshot saved to {snapshotPath}" };
+            }
+            catch (Exception ex)
+            {
+                return new { status = "Error", error = ex.Message };
+            }
+        }
+    }
+
+    public class PandasRestoreTool : ITool
+    {
+        public string Name => "pandas_restore";
+        public string Description => "이전에 저장된 스냅샷(SQLite 파일)으로부터 DataUniverse를 복구합니다. 현재 데이터는 덮어씌워집니다.";
+
+        public object? InputSchema => new
+        {
+            type = "object",
+            properties = new
+            {
+                snapshotName = new { type = "string", description = "복구할 스냅샷 파일의 이름" }
+            },
+            required = new[] { "snapshotName" }
+        };
+
+        public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
+        {
+            var input = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
+            string snapshotName = input?["snapshotName"] ?? throw new ArgumentException("snapshotName is required");
+
+            try
+            {
+                string snapshotPath = Path.Combine(AppState.SystemBaseDir, "db", "snapshots", $"{snapshotName}.db");
+                if (!File.Exists(snapshotPath))
+                    return new { status = "Error", message = $"Snapshot file not found: {snapshotPath}" };
+
+                await PandasUniverseManager.Instance.ExecuteAsync(u =>
+                {
+                    var restoredUniverse = DataUniverseIO.FromSqlite(snapshotPath);
+                    // Clear current and import all from restored
+                    u.ClearAll();
+                    
+                    foreach (var tableName in restoredUniverse.TableNames)
+                    {
+                        u.AddTable(tableName, restoredUniverse.GetTableOrThrow(tableName));
+                    }
+                });
+
+                return new { status = "Success", message = $"DataUniverse restored from snapshot {snapshotName}." };
+            }
+            catch (Exception ex)
+            {
+                return new { status = "Error", error = ex.Message };
+            }
+        }
+    }
 }
