@@ -58,6 +58,12 @@ services.AddSingleton<GeminiProvider>(sp =>
     return new GeminiProvider(httpClient, sp.GetRequiredService<IToolRegistry>());
 });
 services.AddSingleton<GeminiCliProvider>();
+services.AddSingleton<IEmbeddingProvider, GeminiEmbeddingProvider>(sp => 
+{
+    var clientFactory = sp.GetRequiredService<IHttpClientFactory>();
+    var httpClient = clientFactory.CreateClient("Gemini");
+    return new GeminiEmbeddingProvider(httpClient);
+});
 services.AddSingleton<OllamaProvider>(sp => 
 {
     var clientFactory = sp.GetRequiredService<IHttpClientFactory>();
@@ -83,7 +89,9 @@ var mainCts = new CancellationTokenSource();
 // ESC Key Monitor Task
 _ = Task.Run(() =>
 {
-    while (true)
+    if (Console.IsInputRedirected) return; // Cannot monitor keys on redirected input
+
+    while (!mainCts.Token.IsCancellationRequested)
     {
         if (Console.KeyAvailable)
         {
@@ -103,31 +111,39 @@ var discordService = serviceProvider.GetRequiredService<DiscordListenerService>(
 _ = discordService.StartAsync();
 
 // CLI Producer Task
-_ = Task.Run(async () =>
+var producerTask = Task.Run(async () =>
 {
     var cliOutput = new CliOutputHandler();
-    while (true)
+    while (!mainCts.Token.IsCancellationRequested)
     {
         try
         {
             if (CliUserApprovalHandler.PendingApproval == null)
                 Console.Write("> ");
                 
-            string? input = Console.ReadLine();
+            string? rawInput = Console.ReadLine();
+            if (rawInput == null) 
+            {
+                // EOF reached (e.g. piped input ended)
+                mainCts.Cancel();
+                break;
+            }
+
+            string input = rawInput.Trim();
 
             if (CliUserApprovalHandler.PendingApproval != null)
             {
                 var tcs = CliUserApprovalHandler.PendingApproval;
                 CliUserApprovalHandler.PendingApproval = null;
-                tcs.TrySetResult(input ?? "");
+                tcs.TrySetResult(input);
                 continue;
             }
 
-            // 붙여넣기(Paste)로 인한 멀티라인(개행) 폭탄 방어 로직
-            if (input != null)
+            // 붙여넣기(Paste)로 인한 멀티라인(개행) 폭탄 방어 로직 (리다이렉션 시 스킵)
+            if (!Console.IsInputRedirected)
             {
                 var sb = new System.Text.StringBuilder(input);
-                System.Threading.Thread.Sleep(15); // 붙여넣기 판별을 위한 짧은 딜레이
+                System.Threading.Thread.Sleep(15); 
                 while (Console.KeyAvailable)
                 {
                     string? nextLine = Console.ReadLine();
@@ -145,14 +161,23 @@ _ = Task.Run(async () =>
 
             if (input.StartsWith("!") || input.StartsWith("/"))
             {
-                string cmdName = input.Split(' ')[0];
-                string cmdArgs = input.Contains(' ') ? input.Substring(input.IndexOf(' ') + 1) : "";
+                string[] parts = input.Split(' ', 2);
+                string cmdName = parts[0];
+                string cmdArgs = parts.Length > 1 ? parts[1] : "";
 
                 var cmd = CommandRegistry.FindCommand(cmdName);
                 if (cmd != null && cmd.Handler != null)
                 {
                     var res = await cmd.Handler(cmdArgs, serviceProvider);
                     AnsiConsole.MarkupLine(res);
+                    Console.Out.Flush(); // Ensure message is sent
+                    
+                    // Explicitly handle exit command to break loops
+                    if (cmd.Name == "exit")
+                    {
+                        mainCts.Cancel();
+                        break;
+                    }
                     continue;
                 }
             }
@@ -168,35 +193,37 @@ _ = Task.Run(async () =>
 });
 
 // Agent Consumer Loop
-while (true)
+while (!mainCts.Token.IsCancellationRequested)
 {
-    // Reset CTS for each new agent loop cycle if needed, 
-    // or manage it per-request within AgentLoop.
-    if (mainCts.IsCancellationRequested) 
-    {
-        mainCts = new CancellationTokenSource();
-    }
-
     var agent = new AgentLoop(
         serviceProvider.GetRequiredService<ToolOrchestrator>(), 
         serviceProvider, 
         broker,
-        serviceProvider.GetRequiredService<ISmartRouter>());
+        serviceProvider.GetRequiredService<ISmartRouter>(),
+        serviceProvider.GetRequiredService<IEmbeddingProvider>());
     
     try 
     {
         await agent.ListenAsync(mainCts.Token);
     }
-    catch (OperationCanceledException)
-    {
-        // Handled within loop or reset for next
-    }
+    catch (OperationCanceledException) { }
 }
+
+// Wait for producer to finish its logic (especially /exit output)
+await producerTask;
+
+AnsiConsole.MarkupLine("[grey]Exiting main loop...[/]");
+Console.Out.Flush();
+System.Threading.Thread.Sleep(500); // Give time for OS to flush buffers before process termination
+
+
 
 // --- 3. Helper Classes ---
 public class CliOutputHandler : IOutputHandler
 {
     public Task WriteAsync(string text) => Task.CompletedTask;
+
+    public Task CompleteAsync(string finalMessage) => Task.CompletedTask;
 
     public Task SendFileAsync(string filePath, string? text = null)
     {

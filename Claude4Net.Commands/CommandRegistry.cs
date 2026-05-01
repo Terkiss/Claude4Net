@@ -223,8 +223,11 @@ namespace Claude4Net.Commands
                 string newPath = Path.GetFullPath(combined);
                 
                 if (Directory.Exists(newPath)) {
-                    // Check if newPath is still within or equal to the root workspace
-                    if (newPath.StartsWith(AppState.CurrentCwd, StringComparison.OrdinalIgnoreCase)) {
+                    // Check if newPath is still within or equal to the root workspace using normalized boundaries
+                    string normalizedWorkspace = AppState.CurrentCwd.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                    string normalizedNewPath = newPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
+                    if (normalizedNewPath.StartsWith(normalizedWorkspace, StringComparison.OrdinalIgnoreCase)) {
                         Environment.CurrentDirectory = newPath;
                         return Task.FromResult($"[green]Directory changed to:[/] {Markup.Escape(newPath)}");
                     }
@@ -253,7 +256,7 @@ namespace Claude4Net.Commands
                 }
 
                 foreach(System.Collections.DictionaryEntry de in visible) {
-                    string key = de.Key.ToString() ?? "";
+                    string key = de.Key?.ToString() ?? "Unknown";
                     string val = de.Value?.ToString() ?? "";
                     
                     string maskedVal = SourceGuard.MaskValue(val, key);
@@ -289,8 +292,6 @@ namespace Claude4Net.Commands
             }},
 
             new Command { Name = "exit", Description = "Exit the application", Handler = (a, sp) => {
-                // Return a clear message first
-                Task.Run(async () => { await Task.Delay(500); Environment.Exit(0); });
                 return Task.FromResult("[bold yellow]System is shutting down... Goodbye![/]");
             }},
 
@@ -303,6 +304,8 @@ namespace Claude4Net.Commands
                 if (parts.Length == 0) return Task.FromResult("Usage: /coordinate <list|start|status|phase|gate|approve|reject>");
 
                 string sub = parts[0].ToLowerInvariant();
+                var store = CoordinatorStore.Instance;
+
                 switch (sub)
                 {
                     case "list":
@@ -314,12 +317,16 @@ namespace Claude4Net.Commands
                         return Task.FromResult(table.ToString());
 
                     case "start":
-                        if (parts.Length < 3) return Task.FromResult("Usage: /coordinate start <id> <title>");
+                        if (parts.Length < 3) return Task.FromResult("Usage: /coordinate start <id> <title> [description]");
                         string id = parts[1];
-                        string title = string.Join(" ", parts.Skip(2));
-                        var newTask = new CoordinateTask { Id = id, Title = title };
-                        if (!AppState.Tasks.TryAdd(id, newTask)) return Task.FromResult($"[red]Error:[/] Task with ID '{id}' already exists.");
-                        return Task.FromResult($"[green]Task '{title}' started with ID '{id}'. Phase: Planning[/]");
+                        string title = parts[2];
+                        string desc = parts.Length > 3 ? string.Join(" ", parts.Skip(3)) : title;
+                        try {
+                            store.CreateTask(id, title, desc);
+                            return Task.FromResult($"[green]Task '{title}' started with ID '{id}'. Phase: Planning[/]");
+                        } catch (Exception ex) {
+                            return Task.FromResult($"[red]Error:[/] {ex.Message}");
+                        }
 
                     case "status":
                         if (parts.Length < 2) return Task.FromResult("Usage: /coordinate status <id>");
@@ -327,55 +334,47 @@ namespace Claude4Net.Commands
                         
                         var sb = new System.Text.StringBuilder();
                         sb.AppendLine($"[bold cyan]Task Details: {task.Title} ({task.Id})[/]");
+                        sb.AppendLine($"  [bold]Description:[/] {task.Description}");
                         sb.AppendLine($"  [bold]Phase:[/] {task.CurrentPhase}");
                         sb.AppendLine($"  [bold]Review:[/] {task.ReviewStatus}");
                         sb.AppendLine($"  [bold]Created:[/] {task.CreatedAt}");
                         sb.AppendLine($"  [bold]Gates:[/]");
                         if (!task.Gates.Any()) sb.AppendLine("    (No gates defined)");
                         foreach(var g in task.Gates) sb.AppendLine($"    - {(g.IsPassed ? "[green]✔[/]" : "[red]✘[/]")} {g.Name}: {g.Comments}");
+                        
+                        sb.AppendLine($"  [bold]History (Last 3):[/]");
+                        foreach(var h in task.History.AsEnumerable().Reverse().Take(3)) sb.AppendLine($"    - {h}");
+
                         return Task.FromResult(sb.ToString());
 
                     case "phase":
                         if (parts.Length < 3) return Task.FromResult("Usage: /coordinate phase <id> <Planning|Execution|Verification|Completed>");
-                        if (!AppState.Tasks.TryGetValue(parts[1], out var phSt) || phSt is not CoordinateTask phTask) return Task.FromResult($"[red]Error:[/] Task '{parts[1]}' not found.");
                         if (Enum.TryParse<CoordinatePhase>(parts[2], true, out var newPhase)) {
-                            phTask.CurrentPhase = newPhase;
-                            phTask.LastUpdatedAt = DateTime.Now;
-                            phTask.History.Add($"Phase changed to {newPhase} at {phTask.LastUpdatedAt}");
-                            return Task.FromResult($"[green]Task '{phTask.Id}' phase updated to {newPhase}.[/]");
+                            string res = store.TransitionPhase(parts[1], newPhase);
+                            return Task.FromResult(res.StartsWith("Error") ? $"[red]{res}[/]" : $"[green]{res}[/]");
                         }
                         return Task.FromResult($"[red]Error:[/] Invalid phase '{parts[2]}'.");
 
                     case "gate":
                         if (parts.Length < 4) return Task.FromResult("Usage: /coordinate gate <id> <name> <true|false> [comments]");
-                        if (!AppState.Tasks.TryGetValue(parts[1], out var gSt) || gSt is not CoordinateTask gTask) return Task.FromResult($"[red]Error:[/] Task '{parts[1]}' not found.");
-                        bool passed = bool.Parse(parts[3]);
-                        string gName = parts[2];
-                        string comments = parts.Length > 4 ? string.Join(" ", parts.Skip(4)) : "";
-                        
-                        var gate = gTask.Gates.FirstOrDefault(x => x.Name.Equals(gName, StringComparison.OrdinalIgnoreCase));
-                        if (gate == null) {
-                            gate = new CoordinateGate { Name = gName };
-                            gTask.Gates.Add(gate);
+                        if (bool.TryParse(parts[3], out bool passed)) {
+                            string? gComments = parts.Length > 4 ? string.Join(" ", parts.Skip(4)) : null;
+                            string res = store.UpdateGate(parts[1], parts[2], passed, gComments);
+                            return Task.FromResult(res.StartsWith("Error") ? $"[red]{res}[/]" : $"[green]{res}[/]");
                         }
-                        gate.IsPassed = passed;
-                        gate.Comments = comments;
-                        gate.UpdatedAt = DateTime.Now;
-                        return Task.FromResult($"[green]Gate '{gName}' updated for task '{gTask.Id}'.[/]");
+                        return Task.FromResult($"[red]Error:[/] Invalid boolean value '{parts[3]}'.");
 
                     case "approve":
                         if (parts.Length < 2) return Task.FromResult("Usage: /coordinate approve <id> [comments]");
-                        if (!AppState.Tasks.TryGetValue(parts[1], out var aSt) || aSt is not CoordinateTask aTask) return Task.FromResult($"[red]Error:[/] Task '{parts[1]}' not found.");
-                        aTask.ReviewStatus = ReviewerDecision.Approved;
-                        aTask.History.Add($"Approved at {DateTime.Now}: {string.Join(" ", parts.Skip(2))}");
-                        return Task.FromResult($"[green]Task '{aTask.Id}' approved.[/]");
+                        string aComments = parts.Length > 2 ? string.Join(" ", parts.Skip(2)) : "Approved via CLI";
+                        string aRes = store.SetReview(parts[1], ReviewerDecision.Approved, aComments);
+                        return Task.FromResult(aRes.StartsWith("Error") ? $"[red]{aRes}[/]" : $"[green]{aRes}[/]");
 
                     case "reject":
                         if (parts.Length < 2) return Task.FromResult("Usage: /coordinate reject <id> [comments]");
-                        if (!AppState.Tasks.TryGetValue(parts[1], out var rSt) || rSt is not CoordinateTask rTask) return Task.FromResult($"[red]Error:[/] Task '{parts[1]}' not found.");
-                        rTask.ReviewStatus = ReviewerDecision.Rejected;
-                        rTask.History.Add($"Rejected at {DateTime.Now}: {string.Join(" ", parts.Skip(2))}");
-                        return Task.FromResult($"[yellow]Task '{rTask.Id}' rejected.[/]");
+                        string rComments = parts.Length > 2 ? string.Join(" ", parts.Skip(2)) : "Rejected via CLI";
+                        string rRes = store.SetReview(parts[1], ReviewerDecision.Rejected, rComments);
+                        return Task.FromResult(rRes.StartsWith("Error") ? $"[red]{rRes}[/]" : $"[yellow]{rRes}[/]");
 
                     default:
                         return Task.FromResult($"[red]Unknown subcommand:[/] {sub}");

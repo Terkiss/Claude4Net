@@ -19,6 +19,7 @@ namespace Claude4Net.Api
         private const string BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
         private readonly List<object> _conversationHistory = new();
         private readonly IToolRegistry _toolRegistry;
+        private readonly Dictionary<string, string> _toolCallIdToNameMap = new();
 
         public GeminiProvider(HttpClient httpClient, IToolRegistry toolRegistry) 
         { 
@@ -55,11 +56,14 @@ namespace Claude4Net.Api
                                 if (item.TryGetProperty("type", out var typeProp) && typeProp.GetString() == "tool_result")
                                 {
                                     // Gemini Tool Result Format
+                                    string toolUseId = item.GetProperty("tool_use_id").GetString() ?? "unknown";
+                                    string functionName = _toolCallIdToNameMap.TryGetValue(toolUseId, out var name) ? name : toolUseId;
+
                                     parts.Add(new
                                     {
                                         functionResponse = new
                                         {
-                                            name = item.GetProperty("tool_use_id").GetString() ?? "unknown",
+                                            name = functionName,
                                             response = new { content = item.GetProperty("content").GetString() ?? "" }
                                         }
                                     });
@@ -83,6 +87,7 @@ namespace Claude4Net.Api
 
                         string geminiRole = (parts.Any(p => json.Contains("functionResponse"))) ? "function" : role;
                         _conversationHistory.Add(new { role = geminiRole, parts = parts });
+                        ApplySlidingWindow();
                         return;
                     }
                 }
@@ -93,6 +98,17 @@ namespace Claude4Net.Api
             }
 
             _conversationHistory.Add(message);
+            ApplySlidingWindow();
+        }
+
+        private void ApplySlidingWindow()
+        {
+            const int MAX_HISTORY = 16; // Approx 8 turns
+            if (_conversationHistory.Count > MAX_HISTORY)
+            {
+                int toRemove = _conversationHistory.Count - MAX_HISTORY;
+                _conversationHistory.RemoveRange(0, toRemove);
+            }
         }
 
         public IReadOnlyList<object> GetHistory() => _conversationHistory.AsReadOnly();
@@ -161,6 +177,7 @@ namespace Claude4Net.Api
             var fullText = new StringBuilder();
             var toolCalls = new List<ToolUseRequest>();
             var assistantParts = new List<object>();
+            int toolCallIndex = 0;
 
             while (await reader.ReadLineAsync() is { } line)
             {
@@ -200,7 +217,11 @@ namespace Claude4Net.Api
                             else if (part.TryGetProperty("functionCall", out var funcCall))
                             {
                                 string callName = funcCall.GetProperty("name").GetString()!;
-                                var call = new ToolUseRequest { Id = callName, Name = callName, Input = funcCall.GetProperty("args") };
+                                string callId = $"{callName}_{toolCallIndex++}";
+                                var call = new ToolUseRequest { Id = callId, Name = callName, Input = funcCall.GetProperty("args") };
+                                
+                                _toolCallIdToNameMap[callId] = callName;
+                                
                                 toolCalls.Add(call);
                                 assistantParts.Add(new { functionCall = new { name = callName, args = call.Input } });
                                 yield return new LLMStreamEvent { Type = LLMStreamEventType.ToolCallStart, ToolCall = call };

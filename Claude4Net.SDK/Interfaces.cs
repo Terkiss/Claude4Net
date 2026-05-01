@@ -76,4 +76,9 @@ namespace Claude4Net.SDK
         void AddMessage(object message);
         IReadOnlyList<object> GetHistory();
     }
+
+    public interface IEmbeddingProvider
+    {
+        Task<float[]> GetEmbeddingAsync(string text, System.Threading.CancellationToken ct = default);
+    }
 }

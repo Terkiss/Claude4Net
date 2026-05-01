@@ -90,12 +90,26 @@ namespace Claude4Net.Api
                 }
                 else if (evt.Type == "message_stop")
                 {
+                    var assistantContent = new List<object>();
+                    if (!string.IsNullOrEmpty(finalResult.Text))
+                    {
+                        assistantContent.Add(new { type = "text", text = finalResult.Text });
+                    }
+
                     foreach (var kvp in toolCallsMap)
                     {
                         kvp.Value.Input = JsonSerializer.Deserialize<JsonElement>(toolInputsMap[kvp.Key].ToString());
                         finalResult.ToolCalls.Add(kvp.Value);
+                        assistantContent.Add(new 
+                        { 
+                            type = "tool_use", 
+                            id = kvp.Value.Id, 
+                            name = kvp.Value.Name, 
+                            input = kvp.Value.Input 
+                        });
                     }
-                    _messageHistory.Add(new { role = "assistant", content = new[] { new { type = "text", text = finalResult.Text } } });
+
+                    _messageHistory.Add(new { role = "assistant", content = assistantContent.ToArray() });
                     yield return new LLMStreamEvent { Type = LLMStreamEventType.Completed, FinalResponse = finalResult };
                 }
             }

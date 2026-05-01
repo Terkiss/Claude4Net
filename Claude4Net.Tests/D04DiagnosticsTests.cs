@@ -8,6 +8,7 @@ using System.Collections.Generic;
 
 namespace Claude4Net.Tests
 {
+    [Collection("AppState")]
     public class D04DiagnosticsTests
     {
         [Fact]

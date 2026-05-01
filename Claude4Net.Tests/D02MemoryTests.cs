@@ -11,6 +11,7 @@ using TeruTeruPandas.Core;
 
 namespace Claude4Net.Tests
 {
+    [Collection("AppState")]
     public class D02MemoryTests
     {
         [Fact]

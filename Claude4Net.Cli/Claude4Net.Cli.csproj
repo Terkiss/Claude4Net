@@ -22,6 +22,14 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <!-- 리소스 폴더를 출력 디렉토리로 복사 -->
+  <ItemGroup>
+    <Content Include="..\.resources\**\*.*">
+      <Link>.resources\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <!-- 빌드 후 '순수 플러그인 진입점'만 plugins 폴더로 이동/복사 -->
   <Target Name="CopyPlugins" AfterTargets="AfterBuild">
     <Message Text="[Auto-Build] Deploying Agent Plugins..." Importance="high" />

@@ -137,11 +137,11 @@ public class DataFrame : IDisposable
                 throw new ArgumentException("Boolean mask length must match DataFrame row count");
 
             var indices = mask.GetTrueIndices();
-            return TakeRows(indices);
+            return Reorder(indices);
         }
     }
 
-    private DataFrame TakeRows(int[] indices)
+    public DataFrame Reorder(int[] indices)
     {
         var newColumns = new Dictionary<string, IColumn>();
         foreach (var columnName in _columnNames)
@@ -151,6 +151,11 @@ public class DataFrame : IDisposable
 
         var newIndex = _index.Reorder(indices);
         return new DataFrame(newColumns, newIndex);
+    }
+
+    public DataFrame Clear()
+    {
+        return Reorder(new int[0]);
     }
 
     // Loc 인덱서(pandas 스타일)

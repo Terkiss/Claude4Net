@@ -280,6 +280,55 @@ public static class SimdOperations
         return double.CreateChecked(sum) / array.Length;
     }
 
+    /// <summary>
+    /// SIMD Dot Product (Generic)
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static T DotProduct<T>(ReadOnlySpan<T> left, ReadOnlySpan<T> right) where T : struct, INumber<T>
+    {
+        if (left.Length != right.Length)
+            throw new ArgumentException("Array lengths must match");
+
+        int vectorSize = Vector<T>.Count;
+        int vectorizedLength = left.Length - (left.Length % vectorSize);
+        var sumVec = Vector<T>.Zero;
+
+        for (int i = 0; i < vectorizedLength; i += vectorSize)
+        {
+            var leftVec = new Vector<T>(left.Slice(i, vectorSize));
+            var rightVec = new Vector<T>(right.Slice(i, vectorSize));
+            sumVec += leftVec * rightVec;
+        }
+
+        T totalSum = T.Zero;
+        for (int i = 0; i < vectorSize; i++)
+        {
+            totalSum += sumVec[i];
+        }
+
+        for (int i = vectorizedLength; i < left.Length; i++)
+        {
+            totalSum += left[i] * right[i];
+        }
+
+        return totalSum;
+    }
+
+    /// <summary>
+    /// SIMD Cosine Similarity
+    /// </summary>
+    public static double CosineSimilarity(ReadOnlySpan<float> left, ReadOnlySpan<float> right)
+    {
+        if (left.Length != right.Length || left.IsEmpty || right.IsEmpty) return 0.0;
+
+        float dot = DotProduct(left, right);
+        float magLeft = MathF.Sqrt(DotProduct(left, left));
+        float magRight = MathF.Sqrt(DotProduct(right, right));
+
+        if (magLeft == 0 || magRight == 0) return 0;
+        return (double)(dot / (magLeft * magRight));
+    }
+
     // --- Legacy / Wrapper Support ---
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

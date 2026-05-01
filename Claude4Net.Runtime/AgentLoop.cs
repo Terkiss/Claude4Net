@@ -11,6 +11,8 @@ using System.Text.Json;
 using Claude4Net.Api;
 using System.Diagnostics;
 using System.IO;
+using System.Text.RegularExpressions;
+using TeruTeruPandas.Core;
 
 namespace Claude4Net.Runtime
 {
@@ -20,13 +22,15 @@ namespace Claude4Net.Runtime
         private readonly IServiceProvider _serviceProvider;
         private readonly IInputBroker _broker;
         private readonly ISmartRouter _router;
+        private readonly IEmbeddingProvider? _embedding;
 
-        public AgentLoop(ToolOrchestrator orchestrator, IServiceProvider serviceProvider, IInputBroker broker, ISmartRouter router)
+        public AgentLoop(ToolOrchestrator orchestrator, IServiceProvider serviceProvider, IInputBroker broker, ISmartRouter router, IEmbeddingProvider? embedding = null)
         {
             _orchestrator = orchestrator;
             _serviceProvider = serviceProvider;
             _broker = broker;
             _router = router;
+            _embedding = embedding;
         }
 
         public async Task ListenAsync(CancellationToken ct = default)
@@ -50,6 +54,11 @@ namespace Claude4Net.Runtime
                             Console.Write("\n> ");
                             continue;
                         }
+                        
+                        // Update SELF_HEAL_GUIDE
+                        SelfHealingService.Instance.UpdateGuide(diagnosis);
+                        AnsiConsole.MarkupLine("[bold green]SELF_HEAL_GUIDE.md updated successfully.[/]");
+
                         finalPrompt = "당신의 최근 궤적 통계 진단서입니다.\n\n" + diagnosis + "\n\n이 데이터 기반 실패 통계를 바탕으로 작업 방식을 성찰 및 재설계하고 자율적으로 `Skills` 폴더 내에 마크다운 파일(예: `Skills/SKILL.md`)을 생성/업데이트하여 피드백 루프를 완성하세요. Skills 폴더가 없다면 우선 생성하십시오. 가이드라인은 반드시 마크다운 포맷으로 구체적으로 작성하세요. 업데이트 후 핵심 변경사항을 한국어로 보고하세요.";
                     }
                     else
@@ -85,9 +94,17 @@ namespace Claude4Net.Runtime
                         _ => _serviceProvider.GetRequiredService<ClaudeService>()
                     };
 
-                    AnsiConsole.MarkupLine($"[grey]Routing:[/] [bold cyan]{decision.SelectedProvider}[/] ([italic]{decision.SelectedModel}[/]) - [grey]{decision.Reason}[/]");
+                    AnsiConsole.MarkupLine($"[grey]Routing:[/] [bold cyan]{decision.SelectedProvider}[/] ([italic]{decision.SelectedModel}[/]) - [grey]{decision.Reason ?? "Auto"}[/]");
 
-                    await RunAsync(finalPrompt, context.Output, provider, decision.SelectedModel, ct);
+                    // --- [RAG Retrieval] ---
+                    string relevantContext = await RetrieveRelevantMemoriesAsync(finalPrompt);
+                    if (!string.IsNullOrEmpty(relevantContext))
+                    {
+                        AnsiConsole.MarkupLine("[bold blue]🧠 Context Retrieved:[/] Found relevant past interactions in agent_memory.");
+                    }
+                    string promptWithContext = relevantContext + finalPrompt;
+
+                    await RunAsync(promptWithContext, context.Output, provider, decision.SelectedModel, ct);
 
                     Console.Write("\n> ");
                 }
@@ -97,6 +114,77 @@ namespace Claude4Net.Runtime
                     AnsiConsole.Console.Write(new Markup($"[bold red][[Agent]] Consumer Error:[/] {Markup.Escape(ex.Message)}\n"));
                 }
             }
+        }
+
+        private async Task<string> RetrieveRelevantMemoriesAsync(string userPrompt)
+        {
+            float[]? targetVector = null;
+            if (_embedding != null)
+            {
+                try { targetVector = await _embedding.GetEmbeddingAsync(userPrompt); } catch { }
+            }
+
+            return await PandasUniverseManager.Instance.ExecuteAsync(u =>
+            {
+                if (!u.ContainsTable("agent_memory")) return "";
+                var df = u.GetTableOrThrow("agent_memory");
+                if (df.RowCount == 0) return "";
+
+                DataFrame topMemories;
+
+                // Only use semantic search if we have a valid target vector and the column exists
+                if (targetVector != null && targetVector.Length > 0 && df.Columns.Contains("Embedding"))
+                {
+                    // Semantic Search using Cosine Similarity
+                    // (Internal CalculateSimilarities handles null/mismatched row vectors by returning -1.0)
+                    topMemories = df.OrderByDescendingCosineSimilarity("Embedding", targetVector).Head(3);
+                    
+                    // If no good semantic matches found (all similarities <= 0), fallback to keywords
+                    var topSim = topMemories.Columns.Contains("Similarity") ? (double)(topMemories["Similarity"].GetValue(0) ?? -1.0) : -1.0;
+                    if (topSim <= 0)
+                    {
+                        topMemories = SearchByKeywords(df, userPrompt);
+                    }
+                }
+                else
+                {
+                    // Fallback to Keyword Matching
+                    topMemories = SearchByKeywords(df, userPrompt);
+                }
+
+                if (topMemories.RowCount == 0) return "";
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("\n[시스템 주의: 과거 상호작용 기록 중 현재 요청과 관련된 내용이 발견되었습니다. 참고하십시오.]");
+                for (int i = 0; i < topMemories.RowCount; i++)
+                {
+                    sb.AppendLine($"--- 기록 (인덱스: {i}) ---");
+                    sb.AppendLine($"요청: {topMemories["UserPrompt"].GetValue(i)}");
+                    sb.AppendLine($"대응: {topMemories["AgentResponse"].GetValue(i)}");
+                }
+                sb.AppendLine("--------------------------------------------------------------------------\n");
+                return sb.ToString();
+            });
+        }
+
+        private DataFrame SearchByKeywords(DataFrame df, string userPrompt)
+        {
+            var keywordsStr = ExtractKeywords(userPrompt);
+            if (string.IsNullOrEmpty(keywordsStr)) return df.Head(0);
+            var currentKeywords = keywordsStr.Split(',', StringSplitOptions.RemoveEmptyEntries);
+
+            var scored = new List<(int idx, int score)>();
+            for (int i = 0; i < df.RowCount; i++)
+            {
+                var recordKeywordsStr = df.Columns.Contains("Keywords") ? df["Keywords"].GetValue(i)?.ToString() ?? "" : "";
+                var recordKeywords = recordKeywordsStr.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                int score = recordKeywords.Intersect(currentKeywords).Count();
+                if (score > 0) scored.Add((i, score));
+            }
+
+            if (!scored.Any()) return df.Head(0);
+            var indices = scored.OrderByDescending(x => x.score).ThenByDescending(x => x.idx).Take(3).Select(x => x.idx).ToArray();
+            return df.Reorder(indices);
         }
 
         private async Task<string> GenerateReflectionSummaryAsync()
@@ -112,12 +200,14 @@ namespace Claude4Net.Runtime
                 var toolNames = new List<string>();
                 var isErrors = new List<bool>();
                 var errorReasons = new List<string>();
+                var categories = new List<string>();
 
                 for (int i = 0; i < df.RowCount; i++)
                 {
                     toolNames.Add(df["ToolName"].GetValue(i)?.ToString() ?? "");
                     isErrors.Add(df["IsError"].GetValue(i)?.ToString() == "True");
                     errorReasons.Add(df["ErrorReason"].GetValue(i)?.ToString() ?? "");
+                    categories.Add(df.Columns.Any(c => c == "Category") ? df["Category"].GetValue(i)?.ToString() ?? "Unknown" : "Unknown");
                 }
 
                 var stats = toolNames.Distinct().Select(tn =>
@@ -134,6 +224,16 @@ namespace Claude4Net.Runtime
                 foreach (var s in stats)
                 {
                     sb.AppendLine($"- {s.ToolName} : {s.Total}회 시도, {s.Fails}회 실패 (실패율 {s.Rate * 100:0.1}%)");
+                }
+
+                var failCategories = categories.Where(c => c != "Success" && c != "Unknown")
+                                               .GroupBy(c => c)
+                                               .OrderByDescending(g => g.Count());
+                
+                if (failCategories.Any())
+                {
+                    sb.AppendLine("\n실패 카테고리 분포:");
+                    foreach (var c in failCategories) sb.AppendLine($" - {c.Key}: {c.Count()}회");
                 }
 
                 var topErrors = errorReasons.Where(e => !string.IsNullOrWhiteSpace(e) && e.Length > 3)
@@ -153,40 +253,40 @@ namespace Claude4Net.Runtime
 
         private async Task<bool> HandleSystemCommand(InputContext context, CancellationToken ct)
         {
-            string cmd = context.Text.Trim().ToLower();
-            if (!cmd.StartsWith("!")) return false;
+            string text = context.Text.Trim();
+            if (!(text.StartsWith("!") || text.StartsWith("/"))) return false;
 
-            string[] parts = cmd.Split(' ', 2);
-            string baseCmd = parts[0];
+            string[] parts = text.Split(' ', 2);
+            string baseCmd = parts[0].TrimStart('!', '/').ToLowerInvariant();
 
             switch (baseCmd)
             {
-                case "!build":
+                case "build":
                     AnsiConsole.MarkupLine("[bold blue]Building project...[/]");
                     // Logic to invoke dotnet build etc.
                     await context.Output.WriteAsync("Build triggered.");
                     return true;
 
-                case "!test":
+                case "test":
                     AnsiConsole.MarkupLine("[bold blue]Running tests...[/]");
                     await context.Output.WriteAsync("Test suite execution started.");
                     return true;
 
-                case "!clean":
+                case "clean":
                     AnsiConsole.MarkupLine("[bold blue]Cleaning solution...[/]");
                     await context.Output.WriteAsync("Solution clean started.");
                     return true;
 
-                case "!clear":
+                case "clear":
                     Console.Clear();
                     AnsiConsole.MarkupLine("[bold green]Console cleared.[/]");
                     return true;
 
-                case "!exit":
-                case "!quit":
-                    AnsiConsole.MarkupLine("[bold yellow]System is shutting down safely...[/]");
+                case "exit":
+                case "quit":
+                    AnsiConsole.MarkupLine("[bold yellow]System is shutting down safely... Goodbye![/]");
                     await context.Output.WriteAsync("Agent is going offline.");
-                    Environment.Exit(0);
+                    // No Environment.Exit(0) here. Rely on cancellation or top-level logic.
                     return true;
 
                 case "!login":
@@ -317,6 +417,7 @@ namespace Claude4Net.Runtime
 
             var sw = Stopwatch.StartNew();
             bool hasError = false;
+            string lastTurnResponse = "";
 
             while (!ct.IsCancellationRequested && turnCount < MAX_TURNS)
             {
@@ -358,7 +459,8 @@ namespace Claude4Net.Runtime
 
                     if (turnTextBuilder.Length > 0)
                     {
-                        await output.WriteAsync(turnTextBuilder.ToString());
+                        lastTurnResponse = turnTextBuilder.ToString();
+                        await output.WriteAsync(lastTurnResponse);
                     }
                 }
                 catch (Exception ex)
@@ -425,13 +527,17 @@ namespace Claude4Net.Runtime
                         foreach (var result in batchResults)
                         {
                             string toolName = toolCalls.FirstOrDefault(t => t.Id == result.ToolUseId)?.Name ?? "unknown_tool";
+                            string errorText = result.IsError ? (result.Content?.ToString() ?? "Error") : "";
+                            string category = result.IsError ? ErrorClassifier.Classify(toolName, errorText).ToString() : "Success";
+                            
                             var dict = new Dictionary<string, object>
                             {
                                 { "Timestamp", timestamp },
                                 { "AgentId", AppState.SessionId },
                                 { "ToolName", toolName },
                                 { "IsError", result.IsError },
-                                { "ErrorReason", result.IsError ? (result.Content?.ToString() ?? "Error") : "" },
+                                { "ErrorReason", errorText },
+                                { "Category", category },
                                 { "Payload", result.Content?.ToString() ?? "" }
                             };
                             telemetryList.Add(JsonSerializer.Serialize(dict));
@@ -457,7 +563,10 @@ namespace Claude4Net.Runtime
                                     u.AddTable("agent_trajectories", newRowDf, "Auto-collected AI execution trajectories for self-reflection.");
                                 }
                             }
-                            catch { }
+                            catch (Exception ex)
+                            {
+                                AnsiConsole.Console.Write(new Markup($"[bold red][[Telemetry]] Error:[/] {Markup.Escape(ex.Message)}\n"));
+                            }
                             finally { if (File.Exists(tmpFile)) File.Delete(tmpFile); }
                             return null!;
                         });
@@ -472,13 +581,78 @@ namespace Claude4Net.Runtime
                 break;
             }
 
+            await output.CompleteAsync(lastTurnResponse);
+
             sw.Stop();
             _router.UpdateMetric(provider.Name, sw.Elapsed.TotalMilliseconds, hasError);
+
+            // [RAG Ingestion] Store interaction in agent_memory
+            if (!hasError && !string.IsNullOrEmpty(lastTurnResponse))
+            {
+                var finalRes = lastTurnResponse;
+                var keywords = ExtractKeywords(userPrompt + " " + finalRes);
+                float[]? vector = null;
+                if (_embedding != null)
+                {
+                    try { vector = await _embedding.GetEmbeddingAsync(userPrompt + " " + finalRes); } catch { }
+                }
+                
+                _ = PandasUniverseManager.Instance.ExecuteAsync(u =>
+                {
+                    string tmpFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+                    var memoryRecord = new Dictionary<string, object?>
+                    {
+                        ["AgentId"] = AppState.SessionId,
+                        ["Role"] = "assistant",
+                        ["Status"] = "active",
+                        ["CurrentTask"] = userPrompt.Length > 100 ? userPrompt.Substring(0, 97) + "..." : userPrompt,
+                        ["SharedContext"] = "",
+                        ["LastUpdated"] = DateTime.Now.ToString("O"),
+                        ["SessionId"] = AppState.SessionId,
+                        ["Keywords"] = keywords,
+                        ["UserPrompt"] = userPrompt,
+                        ["AgentResponse"] = finalRes,
+                        ["Embedding"] = (vector != null && vector.Length > 0) ? vector : null
+                    };
+                    
+                    File.WriteAllText(tmpFile, "[" + JsonSerializer.Serialize(memoryRecord) + "]");
+                    try
+                    {
+                        var newRowDf = TeruTeruPandas.IO.JsonIO.ReadJson(tmpFile);
+                        var df = u.GetTableOrThrow("agent_memory");
+                        var updatedDf = TeruTeruPandas.Core.DataFrameJoinExtensions.Concat(new[] { df, newRowDf }, 0);
+                        u.AddOrUpdateTable("agent_memory", updatedDf);
+                    }
+                    catch (Exception ex)
+                    {
+                        AnsiConsole.Console.Write(new Markup($"[bold red][[RAG Storage]] Error:[/] {Markup.Escape(ex.Message)}\n"));
+                    }
+                    finally { if (File.Exists(tmpFile)) File.Delete(tmpFile); }
+                    return null!;
+                });
+            }
 
             if (turnCount >= MAX_TURNS)
             {
                 AnsiConsole.MarkupLine("\n[bold red]🛑 Circuit Breaker Hit![/]");
             }
+        }
+
+        private string ExtractKeywords(string text)
+        {
+            try
+            {
+                var words = Regex.Matches(text.ToLower(), @"\b\w{4,}\b")
+                                 .Cast<Match>()
+                                 .Select(m => m.Value)
+                                 .Where(w => !new[] { "this", "that", "there", "their", "where", "which" }.Contains(w))
+                                 .GroupBy(w => w)
+                                 .OrderByDescending(g => g.Count())
+                                 .Take(10)
+                                 .Select(g => g.Key);
+                return string.Join(",", words);
+            }
+            catch { return ""; }
         }
     }
 }

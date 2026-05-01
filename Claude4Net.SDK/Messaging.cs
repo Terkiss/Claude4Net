@@ -8,6 +8,7 @@ namespace Claude4Net.SDK
     public interface IOutputHandler
     {
         Task WriteAsync(string text);
+        Task CompleteAsync(string finalMessage);
         Task SendFileAsync(string filePath, string? text = null);
     }
 

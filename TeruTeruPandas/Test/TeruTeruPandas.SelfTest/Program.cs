@@ -22,6 +22,45 @@ internal static class Program
         VerifyBooleanIndexingMaskLengthMismatchThrows();
         VerifyBooleanIndexingKeepsNaAndIndex();
         VerifyDisposableContracts();
+        VerifyVectorSimilarity();
+        VerifyDataFrameVectorOrdering();
+    }
+
+    private static void VerifyVectorSimilarity()
+    {
+        var col = new VectorColumn(2);
+        float[] v1 = new[] { 1.0f, 0.0f };
+        float[] v2 = new[] { 0.0f, 1.0f };
+        col.SetValue(0, v1);
+        col.SetValue(1, v2);
+
+        float[] target = new[] { 1.0f, 0.0f };
+        double[] sims = col.CalculateSimilarities(target);
+        Ensure(Math.Abs(sims[0] - 1.0) < 0.001, "Vector: 자기 자신과의 유사도는 1이어야 함");
+        Ensure(Math.Abs(sims[1] - 0.0) < 0.001, "Vector: 직교 벡터와의 유사도는 0이어야 함");
+    }
+
+    private static void VerifyDataFrameVectorOrdering()
+    {
+        var data = new Dictionary<string, IColumn>
+        {
+            ["Id"] = new PrimitiveColumn<int>(new[] { 1, 2, 3 }),
+            ["Embedding"] = new VectorColumn(new[]
+            {
+                new[] { 1.0f, 0.0f }, // Very similar to [1, 0.1]
+                new[] { 0.0f, 1.0f }, // Not similar
+                new[] { 0.5f, 0.5f }  // Somewhat similar
+            })
+        };
+
+        var df = new DataFrame(data);
+        float[] target = new[] { 1.0f, 0.1f };
+
+        var result = df.OrderByDescendingCosineSimilarity("Embedding", target);
+
+        Ensure((int)result["Id"].GetValue(0)! == 1, "Ordering: 가장 유사한 것이 처음에 와야 함");
+        Ensure((int)result["Id"].GetValue(1)! == 3, "Ordering: 다음으로 유사한 것이 두 번째에 와야 함");
+        Ensure((int)result["Id"].GetValue(2)! == 2, "Ordering: 가장 덜 유사한 것이 마지막에 와야 함");
     }
 
     private static void VerifyAddColumnNew()

@@ -45,12 +45,14 @@ namespace Claude4Net.Tests
 
             // Act
             await handler.WriteAsync("Hello World");
+            await handler.CompleteAsync("Final result");
 
             // Assert
             Assert.Equal("Completed", job.Status);
             Assert.Equal(DiscordJobStatus.Completed, job.DiscordStatus);
-            Assert.Equal("Hello World", job.ResponseMessage);
-            mockChannel.Verify(m => m.SendMessageAsync("Hello World", false, null, null, null, null, null, null, null, MessageFlags.None), Times.Once);
+            Assert.Equal("Final result", job.ResponseMessage);
+            // One for the content (WriteAsync), one for the success summary (CompleteAsync)
+            mockChannel.Verify(m => m.SendMessageAsync(It.IsAny<string>(), false, null, null, null, null, null, null, null, MessageFlags.None, null), Times.Exactly(2));
         }
 
         [Fact]
@@ -72,7 +74,7 @@ namespace Claude4Net.Tests
 
             // Assert
             // 3000 chars should be split into 2 messages (1950 + 1050)
-            mockChannel.Verify(m => m.SendMessageAsync(It.IsAny<string>(), false, null, null, null, null, null, null, null, MessageFlags.None), Times.Exactly(2));
+            mockChannel.Verify(m => m.SendMessageAsync(It.IsAny<string>(), false, null, null, null, null, null, null, null, MessageFlags.None, null), Times.Exactly(2));
         }
 
         [Fact]

@@ -27,8 +27,13 @@ namespace Claude4Net.Discord
             // Update job status if tracked
             if (AppState.Tasks.TryGetValue(_jobId, out var task) && task is DiscordJob job)
             {
-                job.Status = "Running";
-                job.DiscordStatus = DiscordJobStatus.Running;
+                if (job.DiscordStatus == DiscordJobStatus.Pending)
+                {
+                    job.StartedAt = DateTime.UtcNow;
+                    job.Status = "Running";
+                    job.DiscordStatus = DiscordJobStatus.Running;
+                }
+                job.LastProgressMessage = text;
             }
 
             // Segmenting: Discord has a 2000 character limit per message
@@ -46,16 +51,35 @@ namespace Claude4Net.Discord
                     string segment = text.Substring(offset, length);
                     await _channel.SendMessageAsync(segment);
                     offset += length;
-                    if (offset < text.Length) await Task.Delay(500); // Small delay between segments
+                    if (offset < text.Length) await Task.Delay(500); 
                 }
             }
+        }
 
+        public async Task CompleteAsync(string finalMessage)
+        {
             if (AppState.Tasks.TryGetValue(_jobId, out var finalTask) && finalTask is DiscordJob finalJob)
             {
                 finalJob.Status = "Completed";
                 finalJob.DiscordStatus = DiscordJobStatus.Completed;
-                finalJob.ResponseMessage = text;
+                finalJob.CompletedAt = DateTime.UtcNow;
+                finalJob.ResponseMessage = finalMessage;
+                
+                // Final Summary
+                await _channel.SendMessageAsync(DiscordResponseFormatter.FormatSuccess("Task finished successfully.", finalJob.Duration));
             }
+        }
+
+        public async Task NotifyFailureAsync(string error)
+        {
+            if (AppState.Tasks.TryGetValue(_jobId, out var task) && task is DiscordJob job)
+            {
+                job.Status = "Failed";
+                job.DiscordStatus = DiscordJobStatus.Failed;
+                job.CompletedAt = DateTime.UtcNow;
+                job.ErrorMessage = error;
+            }
+            await _channel.SendMessageAsync(DiscordResponseFormatter.FormatError(error));
         }
 
         public async Task SendFileAsync(string filePath, string? text = null)
@@ -168,6 +192,9 @@ namespace Claude4Net.Discord
 
                     // Support long-running tasks: Add a reaction to show we've received it
                     try { await message.AddReactionAsync(new global::Discord.Emoji("👀")); } catch { }
+
+                    // Notify Start
+                    await message.Channel.SendMessageAsync(DiscordResponseFormatter.FormatStart(message.Author.Username, cleanText));
 
                     string enrichedText = $"[System Context: Discord Message from @{message.Author.Username} in Channel ID: {message.Channel.Id}]\n{cleanText}";
                     var context = new InputContext(enrichedText, new DiscordOutputHandler(message.Channel, jobId));

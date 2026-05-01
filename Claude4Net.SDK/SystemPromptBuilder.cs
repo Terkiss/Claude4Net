@@ -60,7 +60,17 @@ namespace Claude4Net.SDK
             sb.AppendLine("3. [Verify] 결과 확인 및 필요시 스스로 디버깅하여 재시도.");
             sb.AppendLine();
 
-            // 5. Load Self-Evolved Skills from 'Skills' directory (Inside System Storage)
+            // 5. Self-Healing Guide (Dynamic Analysis from agent_trajectories)
+            string guidePath = Path.Combine(AppState.SystemBaseDir, "SELF_HEAL_GUIDE.md");
+            if (File.Exists(guidePath))
+            {
+                sb.AppendLine("## 🩹 Self-Healing Guide (IMPORTANT)");
+                sb.AppendLine("아래는 당신의 과거 실행 궤적 분석을 통해 도출된 자가 치유 지침입니다. 에러 발생 시 이 가이드를 우선적으로 참조하십시오.");
+                sb.AppendLine(File.ReadAllText(guidePath));
+                sb.AppendLine();
+            }
+
+            // 6. Load Self-Evolved Skills from 'Skills' directory (Inside System Storage)
             string skillsDir = Path.Combine(AppState.SystemBaseDir, "Skills");
             if (Directory.Exists(skillsDir))
             {

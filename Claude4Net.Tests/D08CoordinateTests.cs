@@ -28,9 +28,11 @@ namespace Claude4Net.Tests
             Assert.Contains("T1", listRes);
             Assert.Contains("Planning", listRes);
 
-            // 3. Update Gate
-            string gateRes = await cmd.Handler!("gate T1 DesignDoc true Finalized design", services);
-            Assert.Contains("updated", gateRes);
+            // 3. Update Gates
+            string gateRes1 = await cmd.Handler!("gate T1 DesignDoc true Finalized design", services);
+            Assert.Contains("updated", gateRes1);
+            string gateRes2 = await cmd.Handler!("gate T1 ResourceCheck true Resources verified", services);
+            Assert.Contains("updated", gateRes2);
 
             // 4. Check Status
             string statusRes = await cmd.Handler!("status T1", services);
@@ -39,11 +41,11 @@ namespace Claude4Net.Tests
 
             // 5. Change Phase
             string phaseRes = await cmd.Handler!("phase T1 Execution", services);
-            Assert.Contains("updated to Execution", phaseRes);
+            Assert.Contains("transitioned to Execution", phaseRes);
 
             // 6. Approve
             string approveRes = await cmd.Handler!("approve T1 All good", services);
-            Assert.Contains("approved", approveRes);
+            Assert.Contains("set to Approved", approveRes);
 
             // Verify final state in AppState
             var task = AppState.GetCoordinatedTasks().FirstOrDefault(t => t.Id == "T1");

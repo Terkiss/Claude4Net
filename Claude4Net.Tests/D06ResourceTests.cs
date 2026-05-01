@@ -6,6 +6,7 @@ using Claude4Net.SDK;
 
 namespace Claude4Net.Tests
 {
+    [Collection("AppState")]
     public class D06ResourceTests : IDisposable
     {
         private readonly string _testResourcesDir;
@@ -108,17 +109,30 @@ namespace Claude4Net.Tests
         public void SystemPromptBuilder_IncludesResources()
         {
             // Arrange
-            // We've copied .resources to the bin directory in the previous shell command.
-            var builder = new SystemPromptBuilder();
+            string originalBaseDir = AppState.SystemBaseDir;
+            try
+            {
+                // Create .resources in our test dir
+                string weatherDir = Path.Combine(_testResourcesDir, ".resources", "weather_search");
+                Directory.CreateDirectory(weatherDir);
+                File.WriteAllText(Path.Combine(weatherDir, "checklist.md"), "도시 이름이 영문인지 확인한다");
+                
+                AppState.SystemBaseDir = _testResourcesDir;
+                var builder = new SystemPromptBuilder();
 
-            // Act
-            string prompt = builder.Build("gemini");
+                // Act
+                string prompt = builder.Build("gemini");
 
-            // Assert
-            Assert.Contains("## 🛠️ Plugin-Specific Execution Resources", prompt);
-            Assert.Contains("### [RESOURCE: weather_search]", prompt);
-            Assert.Contains("#### ✅ Checklist", prompt);
-            Assert.Contains("도시 이름이 영문인지 확인한다", prompt);
+                // Assert
+                Assert.Contains("## 🛠️ Plugin-Specific Execution Resources", prompt);
+                Assert.Contains("### [RESOURCE: weather_search]", prompt);
+                Assert.Contains("#### ✅ Checklist", prompt);
+                Assert.Contains("도시 이름이 영문인지 확인한다", prompt);
+            }
+            finally
+            {
+                AppState.SystemBaseDir = originalBaseDir;
+            }
         }
     }
 }

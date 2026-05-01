@@ -86,9 +86,36 @@ namespace Claude4Net.Runtime
                         ["CurrentTask"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
                         ["SharedContext"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
                         ["LastUpdated"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                        ["SessionId"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0])
+                        ["SessionId"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                        ["Keywords"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                        ["UserPrompt"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                        ["AgentResponse"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
+                        ["Embedding"] = new TeruTeruPandas.Core.Column.VectorColumn(0)
                     };
-                    u.AddTable("agent_memory", new DataFrame(columns), "Shared agent state synchronization table.");
+                    u.AddTable("agent_memory", new DataFrame(columns), "Shared agent state and long-term memory for RAG.");
+                }
+                else
+                {
+                    // Migration: Ensure all columns exist
+                    var df = u.GetTableOrThrow("agent_memory");
+                    var requiredCols = new Dictionary<string, Func<int, TeruTeruPandas.Core.Column.IColumn>>
+                    {
+                        ["Keywords"] = (n) => new TeruTeruPandas.Core.Column.StringColumn(Enumerable.Repeat("", n).ToArray()),
+                        ["UserPrompt"] = (n) => new TeruTeruPandas.Core.Column.StringColumn(Enumerable.Repeat("", n).ToArray()),
+                        ["AgentResponse"] = (n) => new TeruTeruPandas.Core.Column.StringColumn(Enumerable.Repeat("", n).ToArray()),
+                        ["Embedding"] = (n) => new TeruTeruPandas.Core.Column.VectorColumn(n)
+                    };
+
+                    bool modified = false;
+                    foreach (var pair in requiredCols)
+                    {
+                        if (!df.Columns.Contains(pair.Key))
+                        {
+                            df.AddColumn(pair.Key, pair.Value(df.RowCount));
+                            modified = true;
+                        }
+                    }
+                    if (modified) u.AddOrUpdateTable("agent_memory", df);
                 }
 
                 if (!u.ContainsTable("agent_trajectories"))
@@ -155,11 +182,11 @@ namespace Claude4Net.Runtime
         /// </summary>
         public async Task ExecuteAsync(Action<DataUniverse> action)
         {
-            await ExecuteAsync<object?>(u =>
+            await ExecuteAsync<object?>((Func<DataUniverse, object?>)(u =>
             {
                 action(u);
-                return Task.FromResult<object?>(null);
-            });
+                return null;
+            }));
         }
 
         /// <summary>
@@ -173,7 +200,13 @@ namespace Claude4Net.Runtime
             {
                 try
                 {
-                    T result = await action(u);
+                    var task = action(u);
+                    if (task == null)
+                    {
+                        tcs.SetException(new InvalidOperationException("Action returned a null task."));
+                        return;
+                    }
+                    T result = await task;
                     _isDirty = true;
                     tcs.SetResult(result);
                 }
@@ -193,8 +226,9 @@ namespace Claude4Net.Runtime
         {
             await ExecuteAsync<object?>(async u =>
             {
-                await action(u);
-                return await Task.FromResult<object?>(null);
+                var task = action(u);
+                if (task != null) await task;
+                return null;
             });
         }
 

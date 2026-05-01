@@ -38,7 +38,7 @@ namespace Claude4Net.SDK
         public static string SessionId { get; private set; } = Guid.NewGuid().ToString();
         
         // The directory where the EXE is located (System storage for Skills, DB, etc.)
-        public static string SystemBaseDir { get; } = AppDomain.CurrentDomain.BaseDirectory;
+        public static string SystemBaseDir { get; set; } = AppDomain.CurrentDomain.BaseDirectory;
         
         // The directory where the USER works (Must be set explicitly)
         public static string? CurrentCwd { get; set; } = null;
