@@ -296,6 +296,90 @@ namespace Claude4Net.Commands
 
             new Command { Name = "reset", Description = "Reset current conversation history", Handler = (a, sp) => {
                 return Task.FromResult("[yellow]Session reset command issued. Provider history will be cleared on next turn.[/]");
+            }},
+
+            new Command { Name = "coordinate", Description = "Orchestrate tasks through Planning -> Execution -> Verification phases", Handler = (a, sp) => {
+                var parts = a.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length == 0) return Task.FromResult("Usage: /coordinate <list|start|status|phase|gate|approve|reject>");
+
+                string sub = parts[0].ToLowerInvariant();
+                switch (sub)
+                {
+                    case "list":
+                        var tasks = AppState.GetCoordinatedTasks().ToList();
+                        if (!tasks.Any()) return Task.FromResult("[grey]No coordinated tasks found.[/]");
+                        var table = new System.Text.StringBuilder();
+                        table.AppendLine("[bold cyan]Coordinated Tasks:[/]");
+                        foreach(var t in tasks) table.AppendLine($"  - [[{t.Id}]] [bold]{t.Title}[/] ({t.CurrentPhase}) - {t.ReviewStatus}");
+                        return Task.FromResult(table.ToString());
+
+                    case "start":
+                        if (parts.Length < 3) return Task.FromResult("Usage: /coordinate start <id> <title>");
+                        string id = parts[1];
+                        string title = string.Join(" ", parts.Skip(2));
+                        var newTask = new CoordinateTask { Id = id, Title = title };
+                        if (!AppState.Tasks.TryAdd(id, newTask)) return Task.FromResult($"[red]Error:[/] Task with ID '{id}' already exists.");
+                        return Task.FromResult($"[green]Task '{title}' started with ID '{id}'. Phase: Planning[/]");
+
+                    case "status":
+                        if (parts.Length < 2) return Task.FromResult("Usage: /coordinate status <id>");
+                        if (!AppState.Tasks.TryGetValue(parts[1], out var st) || st is not CoordinateTask task) return Task.FromResult($"[red]Error:[/] Coordinated task '{parts[1]}' not found.");
+                        
+                        var sb = new System.Text.StringBuilder();
+                        sb.AppendLine($"[bold cyan]Task Details: {task.Title} ({task.Id})[/]");
+                        sb.AppendLine($"  [bold]Phase:[/] {task.CurrentPhase}");
+                        sb.AppendLine($"  [bold]Review:[/] {task.ReviewStatus}");
+                        sb.AppendLine($"  [bold]Created:[/] {task.CreatedAt}");
+                        sb.AppendLine($"  [bold]Gates:[/]");
+                        if (!task.Gates.Any()) sb.AppendLine("    (No gates defined)");
+                        foreach(var g in task.Gates) sb.AppendLine($"    - {(g.IsPassed ? "[green]✔[/]" : "[red]✘[/]")} {g.Name}: {g.Comments}");
+                        return Task.FromResult(sb.ToString());
+
+                    case "phase":
+                        if (parts.Length < 3) return Task.FromResult("Usage: /coordinate phase <id> <Planning|Execution|Verification|Completed>");
+                        if (!AppState.Tasks.TryGetValue(parts[1], out var phSt) || phSt is not CoordinateTask phTask) return Task.FromResult($"[red]Error:[/] Task '{parts[1]}' not found.");
+                        if (Enum.TryParse<CoordinatePhase>(parts[2], true, out var newPhase)) {
+                            phTask.CurrentPhase = newPhase;
+                            phTask.LastUpdatedAt = DateTime.Now;
+                            phTask.History.Add($"Phase changed to {newPhase} at {phTask.LastUpdatedAt}");
+                            return Task.FromResult($"[green]Task '{phTask.Id}' phase updated to {newPhase}.[/]");
+                        }
+                        return Task.FromResult($"[red]Error:[/] Invalid phase '{parts[2]}'.");
+
+                    case "gate":
+                        if (parts.Length < 4) return Task.FromResult("Usage: /coordinate gate <id> <name> <true|false> [comments]");
+                        if (!AppState.Tasks.TryGetValue(parts[1], out var gSt) || gSt is not CoordinateTask gTask) return Task.FromResult($"[red]Error:[/] Task '{parts[1]}' not found.");
+                        bool passed = bool.Parse(parts[3]);
+                        string gName = parts[2];
+                        string comments = parts.Length > 4 ? string.Join(" ", parts.Skip(4)) : "";
+                        
+                        var gate = gTask.Gates.FirstOrDefault(x => x.Name.Equals(gName, StringComparison.OrdinalIgnoreCase));
+                        if (gate == null) {
+                            gate = new CoordinateGate { Name = gName };
+                            gTask.Gates.Add(gate);
+                        }
+                        gate.IsPassed = passed;
+                        gate.Comments = comments;
+                        gate.UpdatedAt = DateTime.Now;
+                        return Task.FromResult($"[green]Gate '{gName}' updated for task '{gTask.Id}'.[/]");
+
+                    case "approve":
+                        if (parts.Length < 2) return Task.FromResult("Usage: /coordinate approve <id> [comments]");
+                        if (!AppState.Tasks.TryGetValue(parts[1], out var aSt) || aSt is not CoordinateTask aTask) return Task.FromResult($"[red]Error:[/] Task '{parts[1]}' not found.");
+                        aTask.ReviewStatus = ReviewerDecision.Approved;
+                        aTask.History.Add($"Approved at {DateTime.Now}: {string.Join(" ", parts.Skip(2))}");
+                        return Task.FromResult($"[green]Task '{aTask.Id}' approved.[/]");
+
+                    case "reject":
+                        if (parts.Length < 2) return Task.FromResult("Usage: /coordinate reject <id> [comments]");
+                        if (!AppState.Tasks.TryGetValue(parts[1], out var rSt) || rSt is not CoordinateTask rTask) return Task.FromResult($"[red]Error:[/] Task '{parts[1]}' not found.");
+                        rTask.ReviewStatus = ReviewerDecision.Rejected;
+                        rTask.History.Add($"Rejected at {DateTime.Now}: {string.Join(" ", parts.Skip(2))}");
+                        return Task.FromResult($"[yellow]Task '{rTask.Id}' rejected.[/]");
+
+                    default:
+                        return Task.FromResult($"[red]Unknown subcommand:[/] {sub}");
+                }
             }}
         };
 

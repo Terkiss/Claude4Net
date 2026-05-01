@@ -37,6 +37,7 @@ services.AddSingleton<ITool, LsTool>();
 string pluginsPath = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "plugins");
 
 // Runtime
+services.AddSingleton<ISmartRouter, SmartRouter>();
 services.AddSingleton<IUserApprovalHandler, CliUserApprovalHandler>();
 services.AddSingleton<ToolOrchestrator>(sp => new ToolOrchestrator(sp.GetServices<ITool>(), sp.GetService<IUserApprovalHandler>(), sp));
 services.AddSingleton<IToolRegistry>(sp => sp.GetRequiredService<ToolOrchestrator>());
@@ -179,7 +180,8 @@ while (true)
     var agent = new AgentLoop(
         serviceProvider.GetRequiredService<ToolOrchestrator>(), 
         serviceProvider, 
-        broker);
+        broker,
+        serviceProvider.GetRequiredService<ISmartRouter>());
     
     try 
     {

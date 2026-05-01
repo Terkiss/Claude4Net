@@ -13,9 +13,9 @@
 | D03 | Sandboxing/Permission State Machine | Completed | P021-P030 |
 | D04 | Diagnostics, Source Guard, Masking | Completed | P031-P040 |
 | D05 | SmartRouter | Pending | |
-| D06 | Resources-Oriented Skills | Pending | |
+| D06 | Resources-Oriented Skills | Completed | P051-P060 |
 | D07 | Discord Async Orchestration | Completed | Async Job models, status tracking, segmenting |
-| D08 | Coordinate (/coordinate) | Pending | |
+| D08 | Coordinate (/coordinate) | Completed | P071-P080 |
 | D09 | Agent Trajectories & Self-Healing | Pending | |
 | D10 | Testing, Documentation, Release | Pending | |
 
@@ -48,6 +48,14 @@
 - [x] No-Phone-Home baseline (Outbound masking)
 - [x] Add D04DiagnosticsTests and verify all tests pass
 
+### D06: Resources-Oriented Skills
+- [x] Define plugin resource directory convention (.resources/)
+- [x] Implement SkillResourceManifest and SkillResourceLoader (SDK)
+- [x] Integrate resources into SystemPromptBuilder
+- [x] Add graceful fallback and caching (hash/last-write)
+- [x] Create sample resource set for weather_search
+- [x] Add D06ResourceTests and verify all tests pass
+
 ### D07: Discord Async Orchestration
 - [x] Implement DiscordJob and DiscordJobStatus models
 - [x] Refactor DiscordListenerService for async job tracking
@@ -55,3 +63,11 @@
 - [x] Add status signals (reactions) for long-running tasks
 - [x] Implement robust token fallback
 - [x] Add DiscordTests and verify (3/3 pass)
+
+### D08: Coordinate & Phase-Gates
+- [x] Define coordinator models (CoordinateTask, Phase, Gate)
+- [x] Update AppState to support task orchestration
+- [x] Implement /coordinate command with list/start/status/phase/gate/approve/reject subcommands
+- [x] Integrate Phase-Gates (Planning -> Execution -> Verification) flow
+- [x] Add D08CoordinateTests and verify all tests pass
+- [x] Fix and sync existing test project references (Discord tests fixed)

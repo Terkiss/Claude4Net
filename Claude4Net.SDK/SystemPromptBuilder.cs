@@ -78,6 +78,58 @@ namespace Claude4Net.SDK
                     }
                 }
             }
+
+            // 6. Load Resource-Oriented Skills (.resources folder)
+            string resourcesDir = Path.Combine(AppState.SystemBaseDir, ".resources");
+            if (Directory.Exists(resourcesDir))
+            {
+                var loader = new SkillResourceLoader(resourcesDir);
+                var pluginDirs = Directory.GetDirectories(resourcesDir);
+                
+                if (pluginDirs.Length > 0)
+                {
+                    sb.AppendLine("## 🛠️ Plugin-Specific Execution Resources");
+                    sb.AppendLine("각 도구(Tool)별로 정의된 실행 프로토콜과 체크리스트입니다. 해당 도구를 사용할 때 반드시 참고하십시오.");
+                    sb.AppendLine();
+
+                    foreach (var dir in pluginDirs)
+                    {
+                        string pluginName = Path.GetFileName(dir);
+                        var manifest = loader.LoadForPlugin(pluginName);
+                        
+                        if (!manifest.IsEmpty)
+                        {
+                            sb.AppendLine($"### [RESOURCE: {pluginName}]");
+                            
+                            if (!string.IsNullOrEmpty(manifest.Checklist))
+                            {
+                                sb.AppendLine("#### ✅ Checklist");
+                                sb.AppendLine(manifest.Checklist);
+                            }
+                            
+                            if (!string.IsNullOrEmpty(manifest.ExecutionProtocol))
+                            {
+                                sb.AppendLine("#### 📜 Execution Protocol");
+                                sb.AppendLine(manifest.ExecutionProtocol);
+                            }
+                            
+                            if (!string.IsNullOrEmpty(manifest.ErrorPlaybook))
+                            {
+                                sb.AppendLine("#### 🚨 Error Playbook");
+                                sb.AppendLine(manifest.ErrorPlaybook);
+                            }
+                            
+                            if (!string.IsNullOrEmpty(manifest.Examples))
+                            {
+                                sb.AppendLine("#### 💡 Examples");
+                                sb.AppendLine(manifest.Examples);
+                            }
+                            
+                            sb.AppendLine();
+                        }
+                    }
+                }
+            }
             
             return sb.ToString();
         }
