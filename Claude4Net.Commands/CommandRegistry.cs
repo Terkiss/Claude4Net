@@ -233,16 +233,30 @@ namespace Claude4Net.Commands
                 return Task.FromResult($"[red]Error:[/] Directory not found: {Markup.Escape(newPath)}");
             }},
 
-            new Command { Name = "env", Description = "List environment variables (Fully Masked)", Handler = (a, sp) => {
+            new Command { Name = "env", Description = "List environment variables (masked, use all/--all for full output)", Handler = (a, sp) => {
                 var sb = new System.Text.StringBuilder();
-                sb.AppendLine("[bold cyan]Environment Variables (All Values Source-Guarded):[/]");
-                var env = Environment.GetEnvironmentVariables();
-                foreach(System.Collections.DictionaryEntry de in env) {
+                bool showAll = a.Trim().Equals("all", StringComparison.OrdinalIgnoreCase)
+                    || a.Trim().Equals("--all", StringComparison.OrdinalIgnoreCase);
+                const int defaultLimit = 20;
+                var env = Environment.GetEnvironmentVariables()
+                    .Cast<System.Collections.DictionaryEntry>()
+                    .OrderBy(de => de.Key?.ToString(), StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                var visible = showAll ? env : env.Take(defaultLimit);
+
+                sb.AppendLine(showAll
+                    ? "[bold cyan]Environment Variables (All Values Source-Guarded):[/]"
+                    : $"[bold cyan]Environment Variables (Top {Math.Min(defaultLimit, env.Count)} of {env.Count}, Source-Guarded):[/]");
+                if (!showAll && env.Count > defaultLimit)
+                {
+                    sb.AppendLine("[grey]Use /env all to show the full list.[/]");
+                }
+
+                foreach(System.Collections.DictionaryEntry de in visible) {
                     string key = de.Key.ToString() ?? "";
                     string val = de.Value?.ToString() ?? "";
                     
-                    // Apply SourceGuard masking to every value
-                    string maskedVal = SourceGuard.MaskValue(val);
+                    string maskedVal = SourceGuard.MaskValue(val, key);
 
                     sb.AppendLine($"  [bold]{Markup.Escape(key)}[/]: {Markup.Escape(maskedVal)}");
                 }

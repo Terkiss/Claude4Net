@@ -49,17 +49,26 @@ namespace Claude4Net.Tests
         {
             // Arrange
             var services = new ServiceCollection().BuildServiceProvider();
-            // Simulate having an API key in environment
-            Environment.SetEnvironmentVariable("CLAUDE_API_KEY", "sk-ant-secret-key-1234567890");
-            
-            // Act
-            var command = CommandRegistry.FindCommand("doctor");
-            Assert.NotNull(command);
-            string result = await command.Handler!("", services);
-            
-            // Assert
-            Assert.Contains("Present", result);
-            Assert.DoesNotContain("sk-ant-secret-key-1234567890", result);
+            string keyName = "CLAUDE_API_KEY";
+            string? originalValue = Environment.GetEnvironmentVariable(keyName);
+            try
+            {
+                // Simulate having an API key in environment
+                Environment.SetEnvironmentVariable(keyName, "sk-ant-secret-key-1234567890");
+                
+                // Act
+                var command = CommandRegistry.FindCommand("doctor");
+                Assert.NotNull(command);
+                string result = await command.Handler!("", services);
+                
+                // Assert
+                Assert.Contains("Present", result);
+                Assert.DoesNotContain("sk-ant-secret-key-1234567890", result);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable(keyName, originalValue);
+            }
         }
 
         [Fact]
@@ -67,18 +76,65 @@ namespace Claude4Net.Tests
         {
             // Arrange
             var services = new ServiceCollection().BuildServiceProvider();
-            Environment.SetEnvironmentVariable("TEST_SECRET_VAR", "secret_value_1234567890");
+            string keyName = "AAAA_TEST_SECRET_VAR";
+            string? originalValue = Environment.GetEnvironmentVariable(keyName);
+            try
+            {
+                Environment.SetEnvironmentVariable(keyName, "secret_value_1234567890");
+                
+                // Act
+                var command = CommandRegistry.FindCommand("env");
+                Assert.NotNull(command);
+                string result = await command.Handler!("", services);
+                
+                // Assert
+                Assert.Contains("AAAA_TEST_SECRET_VAR", result);
+                Assert.DoesNotContain("secret_value_1234567890", result);
+                Assert.Contains("sec...890", result);
+                Assert.Contains("Use /env all", result);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable(keyName, originalValue);
+            }
+        }
+
+        [Fact]
+        public async Task EnvCommand_ShouldSupportAllArgument()
+        {
+            // Arrange
+            var services = new ServiceCollection().BuildServiceProvider();
             
             // Act
             var command = CommandRegistry.FindCommand("env");
             Assert.NotNull(command);
-            string result = await command.Handler!("", services);
+            string result = await command.Handler!("all", services);
             
             // Assert
-            Assert.Contains("TEST_SECRET_VAR", result);
-            Assert.DoesNotContain("secret_value_1234567890", result);
-            // It should be either **** (if pattern matched) or sec...890 (if length > 15)
-            Assert.True(result.Contains("****") || result.Contains("sec...890"));
+            Assert.Contains("Environment Variables (All Values Source-Guarded)", result);
+            Assert.DoesNotContain("Use /env all", result);
+        }
+
+        [Fact]
+        public void SourceGuard_ShouldNotMaskPlainLongText()
+        {
+            // Arrange
+            string input = "ThisIsAPlainLongIdentifierForDocumentationOnly";
+            
+            // Act
+            var result = SourceGuard.Filter(input);
+            string masked = SourceGuard.MaskValue(input);
+            
+            // Assert
+            Assert.True(result.IsClean);
+            Assert.Equal(input, result.FilteredText);
+            Assert.Equal(input, masked);
+        }
+
+        [Fact]
+        public void SourceGuard_ShouldMaskSensitiveKeyContext()
+        {
+            Assert.Equal("lon...lue", SourceGuard.MaskValue("long-but-plain-value", "CUSTOM_TOKEN"));
         }
 
         [Fact]
