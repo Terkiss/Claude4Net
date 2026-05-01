@@ -14,7 +14,7 @@
 | D04 | Diagnostics, Source Guard, Masking | Completed | P031-P040 |
 | D05 | SmartRouter | Pending | |
 | D06 | Resources-Oriented Skills | Pending | |
-| D07 | Discord Async Orchestration | Pending | |
+| D07 | Discord Async Orchestration | Completed | Async Job models, status tracking, segmenting |
 | D08 | Coordinate (/coordinate) | Pending | |
 | D09 | Agent Trajectories & Self-Healing | Pending | |
 | D10 | Testing, Documentation, Release | Pending | |
@@ -47,3 +47,11 @@
 - [x] Source Guard implementation (Filtering pipeline)
 - [x] No-Phone-Home baseline (Outbound masking)
 - [x] Add D04DiagnosticsTests and verify all tests pass
+
+### D07: Discord Async Orchestration
+- [x] Implement DiscordJob and DiscordJobStatus models
+- [x] Refactor DiscordListenerService for async job tracking
+- [x] Implement message segmenting (2000 char limit handling)
+- [x] Add status signals (reactions) for long-running tasks
+- [x] Implement robust token fallback
+- [x] Add DiscordTests and verify (3/3 pass)

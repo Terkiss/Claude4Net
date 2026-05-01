@@ -22,6 +22,7 @@
     <ProjectReference Include="..\Claude4Net.Tools\Claude4Net.Tools.csproj" />
     <ProjectReference Include="..\Claude4Net.MyPlugins\Claude4Net.MyPlugins.csproj" />
     <ProjectReference Include="..\Claude4Net.Commands\Claude4Net.Commands.csproj" />
+    <ProjectReference Include="..\Claude4Net.Discord\Claude4Net.Discord.csproj" />
   </ItemGroup>
 
 </Project>

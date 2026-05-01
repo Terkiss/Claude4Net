@@ -19,12 +19,14 @@ namespace Claude4Net.Runtime
         private readonly ToolOrchestrator _orchestrator;
         private readonly IServiceProvider _serviceProvider;
         private readonly IInputBroker _broker;
+        private readonly ISmartRouter _router;
 
-        public AgentLoop(ToolOrchestrator orchestrator, IServiceProvider serviceProvider, IInputBroker broker)
+        public AgentLoop(ToolOrchestrator orchestrator, IServiceProvider serviceProvider, IInputBroker broker, ISmartRouter router)
         {
             _orchestrator = orchestrator;
             _serviceProvider = serviceProvider;
             _broker = broker;
+            _router = router;
         }
 
         public async Task ListenAsync(CancellationToken ct = default)
@@ -73,18 +75,19 @@ namespace Claude4Net.Runtime
                         continue;
                     }
 
-                    // Resolve current active provider dynamically for every message
-                    ILLMProvider provider;
-                    if (AppState.ActiveProvider == "gemini")
-                        provider = _serviceProvider.GetRequiredService<GeminiProvider>();
-                    else if (AppState.ActiveProvider == "gemini-cli")
-                        provider = _serviceProvider.GetRequiredService<GeminiCliProvider>();
-                    else if (AppState.ActiveProvider == "ollama")
-                        provider = _serviceProvider.GetRequiredService<OllamaProvider>();
-                    else
-                        provider = _serviceProvider.GetRequiredService<ClaudeService>();
+                    // Smart Routing
+                    var decision = _router.Route(finalPrompt);
+                    ILLMProvider provider = decision.SelectedProvider switch
+                    {
+                        "gemini" => _serviceProvider.GetRequiredService<GeminiProvider>(),
+                        "gemini-cli" => _serviceProvider.GetRequiredService<GeminiCliProvider>(),
+                        "ollama" => _serviceProvider.GetRequiredService<OllamaProvider>(),
+                        _ => _serviceProvider.GetRequiredService<ClaudeService>()
+                    };
 
-                    await RunAsync(finalPrompt, context.Output, provider, ct);
+                    AnsiConsole.MarkupLine($"[grey]Routing:[/] [bold cyan]{decision.SelectedProvider}[/] ([italic]{decision.SelectedModel}[/]) - [grey]{decision.Reason}[/]");
+
+                    await RunAsync(finalPrompt, context.Output, provider, decision.SelectedModel, ct);
 
                     Console.Write("\n> ");
                 }
@@ -305,12 +308,15 @@ namespace Claude4Net.Runtime
             return false;
         }
 
-        public async Task RunAsync(string userPrompt, IOutputHandler output, ILLMProvider provider, CancellationToken ct = default)
+        public async Task RunAsync(string userPrompt, IOutputHandler output, ILLMProvider provider, string model, CancellationToken ct = default)
         {
             string currentPrompt = userPrompt;
             bool isFirstTurn = true;
             int turnCount = 0;
             const int MAX_TURNS = 200;
+
+            var sw = Stopwatch.StartNew();
+            bool hasError = false;
 
             while (!ct.IsCancellationRequested && turnCount < MAX_TURNS)
             {
@@ -323,7 +329,7 @@ namespace Claude4Net.Runtime
                     string providerName = Markup.Escape(provider.Name);
                     AnsiConsole.Markup($"[grey]Thinking... ({providerName} T{turnCount}) [/]");
 
-                    await foreach (var evt in provider.StreamQueryAsync(isFirstTurn ? currentPrompt : "Proceed based on previous tool results.", model: AppState.ActiveModel, ct: ct))
+                    await foreach (var evt in provider.StreamQueryAsync(isFirstTurn ? currentPrompt : "Proceed based on previous tool results.", model: model, ct: ct))
                     {
                         if (evt.Type == LLMStreamEventType.TextDelta && !string.IsNullOrEmpty(evt.Delta))
                         {
@@ -357,6 +363,7 @@ namespace Claude4Net.Runtime
                 }
                 catch (Exception ex)
                 {
+                    hasError = true;
                     string errorMsg = $"Error ({provider.Name}): {ex.Message}";
                     AnsiConsole.Console.Write(new Markup($"\n[bold red]{Markup.Escape(errorMsg)}[/]\n"));
                     await output.WriteAsync(errorMsg);
@@ -464,6 +471,9 @@ namespace Claude4Net.Runtime
 
                 break;
             }
+
+            sw.Stop();
+            _router.UpdateMetric(provider.Name, sw.Elapsed.TotalMilliseconds, hasError);
 
             if (turnCount >= MAX_TURNS)
             {

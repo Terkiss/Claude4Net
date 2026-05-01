@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="Discord.Net" Version="3.19.1" />
+    <PackageReference Include="Spectre.Console" Version="0.55.0" />
   </ItemGroup>
 
   <ItemGroup>

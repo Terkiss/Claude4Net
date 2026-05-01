@@ -1,6 +1,7 @@
 using Discord;
 using Discord.WebSocket;
 using Claude4Net.SDK;
+using Spectre.Console;
 using System.Threading.Tasks;
 using System;
 using System.IO;
@@ -11,8 +12,51 @@ namespace Claude4Net.Discord
     public class DiscordOutputHandler : IOutputHandler
     {
         private readonly ISocketMessageChannel _channel;
-        public DiscordOutputHandler(ISocketMessageChannel channel) => _channel = channel;
-        public async Task WriteAsync(string text) => await _channel.SendMessageAsync(text);
+        private readonly string _jobId;
+
+        public DiscordOutputHandler(ISocketMessageChannel channel, string jobId)
+        {
+            _channel = channel;
+            _jobId = jobId;
+        }
+
+        public async Task WriteAsync(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return;
+
+            // Update job status if tracked
+            if (AppState.Tasks.TryGetValue(_jobId, out var task) && task is DiscordJob job)
+            {
+                job.Status = "Running";
+                job.DiscordStatus = DiscordJobStatus.Running;
+            }
+
+            // Segmenting: Discord has a 2000 character limit per message
+            const int limit = 1950;
+            if (text.Length <= limit)
+            {
+                await _channel.SendMessageAsync(text);
+            }
+            else
+            {
+                int offset = 0;
+                while (offset < text.Length)
+                {
+                    int length = Math.Min(limit, text.Length - offset);
+                    string segment = text.Substring(offset, length);
+                    await _channel.SendMessageAsync(segment);
+                    offset += length;
+                    if (offset < text.Length) await Task.Delay(500); // Small delay between segments
+                }
+            }
+
+            if (AppState.Tasks.TryGetValue(_jobId, out var finalTask) && finalTask is DiscordJob finalJob)
+            {
+                finalJob.Status = "Completed";
+                finalJob.DiscordStatus = DiscordJobStatus.Completed;
+                finalJob.ResponseMessage = text;
+            }
+        }
 
         public async Task SendFileAsync(string filePath, string? text = null)
         {
@@ -35,7 +79,8 @@ namespace Claude4Net.Discord
             _broker = broker;
             _client = new DiscordSocketClient(new DiscordSocketConfig
             {
-                GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.MessageContent
+                GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.MessageContent,
+                AlwaysDownloadUsers = false
             });
 
             _client.MessageReceived += OnMessageReceived;
@@ -58,9 +103,14 @@ namespace Claude4Net.Discord
         public async Task StartAsync()
         {
             string? token = AuthManager.GetDiscordApiKey();
-            if (string.IsNullOrEmpty(token) || token.Trim().Equals("test", StringComparison.OrdinalIgnoreCase))
+            
+            // Graceful Fallback for missing/test tokens
+            if (string.IsNullOrEmpty(token) || 
+                token.Trim().Equals("test", StringComparison.OrdinalIgnoreCase) ||
+                token.Trim().StartsWith("YOUR_", StringComparison.OrdinalIgnoreCase))
             {
-                LogToFile($"[Discord] Discord API Key is '{(token ?? "null")}'. Skipping initialization.");
+                LogToFile("[Discord] Discord API Token is missing or invalid. Listener will stay idle.");
+                AnsiConsole.MarkupLine("[yellow]⚠ Discord token missing. Discord integration disabled.[/]");
                 return;
             }
 
@@ -70,29 +120,57 @@ namespace Claude4Net.Discord
                 await _client.StartAsync();
                 LogToFile("[Discord] Discord Listener Service started.");
             }
-            catch (Exception ex) { LogToFile($"[Discord] Failed to start: {ex.Message}"); }
+            catch (Exception ex) 
+            { 
+                LogToFile($"[Discord] Critical failure during login: {ex.Message}");
+                AnsiConsole.MarkupLine($"[bold red]Discord Error:[/] {Markup.Escape(ex.Message)}");
+            }
         }
 
         private async Task OnMessageReceived(SocketMessage message)
         {
             if (message.Author.IsBot) return;
 
-            if (message.MentionedUsers.Any(u => u.Id == _client.CurrentUser.Id))
+            bool isMentioned = message.MentionedUsers.Any(u => u.Id == _client.CurrentUser.Id);
+            bool isPrivate = message.Channel is IPrivateChannel;
+
+            if (isMentioned || isPrivate)
             {
                 string cleanText = message.Content;
-                foreach (var user in message.MentionedUsers)
+                if (isMentioned)
                 {
-                    if (user.Id == _client.CurrentUser.Id)
-                        cleanText = cleanText.Replace($"<@{user.Id}>", "").Replace($"<@!{user.Id}>", "").Trim();
+                    foreach (var user in message.MentionedUsers)
+                    {
+                        if (user.Id == _client.CurrentUser.Id)
+                            cleanText = cleanText.Replace($"<@{user.Id}>", "").Replace($"<@!{user.Id}>", "").Trim();
+                    }
                 }
 
                 if (!string.IsNullOrWhiteSpace(cleanText))
                 {
                     LogToFile($"[Discord] Input received from {message.Author.Username}: {cleanText}");
                     
-                    // Respond back via Discord Channel
+                    // Create Async Job Model
+                    var guildId = (message.Channel as IGuildChannel)?.GuildId ?? 0;
+                    var jobId = $"discord-{guildId}-{message.Channel.Id}-{message.Id}";
+                    
+                    var job = new DiscordJob
+                    {
+                        Id = jobId,
+                        GuildId = guildId,
+                        ChannelId = message.Channel.Id,
+                        MessageId = message.Id,
+                        Status = "Pending",
+                        DiscordStatus = DiscordJobStatus.Pending
+                    };
+                    
+                    AppState.Tasks[jobId] = job;
+
+                    // Support long-running tasks: Add a reaction to show we've received it
+                    try { await message.AddReactionAsync(new global::Discord.Emoji("👀")); } catch { }
+
                     string enrichedText = $"[System Context: Discord Message from @{message.Author.Username} in Channel ID: {message.Channel.Id}]\n{cleanText}";
-                    var context = new InputContext(enrichedText, new DiscordOutputHandler(message.Channel));
+                    var context = new InputContext(enrichedText, new DiscordOutputHandler(message.Channel, jobId));
                     _broker.TryWrite(context);
                 }
             }
@@ -101,8 +179,11 @@ namespace Claude4Net.Discord
 
         public async Task StopAsync()
         {
-            await _client.StopAsync();
-            await _client.LogoutAsync();
+            if (_client.LoginState == LoginState.LoggedIn)
+            {
+                await _client.StopAsync();
+                await _client.LogoutAsync();
+            }
             LogToFile("[Discord] Discord Listener Service stopped.");
         }
     }
