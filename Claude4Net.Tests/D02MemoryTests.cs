@@ -57,6 +57,50 @@ namespace Claude4Net.Tests
         }
 
         [Fact]
+        public async Task AgentMemoryClear_PolicyTests()
+        {
+            var upsertTool = new PandasAgentMemoryUpsertTool();
+            var clearTool = new PandasAgentMemoryClearTool();
+            var manager = PandasUniverseManager.Instance;
+
+            // 1. Setup: Add some data and another table
+            await upsertTool.ExecuteAsync(JsonSerializer.Serialize(new { agentId = "agent1", status = "testing" }), new object());
+            await manager.ExecuteAsync(u => 
+            {
+                var otherDf = new DataFrame(new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>
+                {
+                    ["col1"] = new TeruTeruPandas.Core.Column.StringColumn(new[] { "val1" })
+                });
+                u.AddOrUpdateTable("other_table", otherDf);
+            });
+
+            // 2. Test scope="all"
+            await clearTool.ExecuteAsync(JsonSerializer.Serialize(new { scope = "all" }), new object());
+
+            await manager.ExecuteAsync(u =>
+            {
+                // agent_memory should exist but be empty
+                Assert.True(u.ContainsTable("agent_memory"));
+                Assert.Equal(0, u.GetTableOrThrow("agent_memory").RowCount);
+
+                // agent_trajectories should still exist
+                Assert.True(u.ContainsTable("agent_trajectories"));
+
+                // other_table should still exist (proves u.ClearAll() was not used)
+                Assert.True(u.ContainsTable("other_table"), "Other tables should be preserved");
+            });
+
+            // 3. Test upsert works after clear
+            await upsertTool.ExecuteAsync(JsonSerializer.Serialize(new { agentId = "agent2", status = "after_clear" }), new object());
+            await manager.ExecuteAsync(u =>
+            {
+                var df = u.GetTableOrThrow("agent_memory");
+                Assert.Equal(1, df.RowCount);
+                Assert.Equal("agent2", df["AgentId"].GetValue(0)?.ToString());
+            });
+        }
+
+        [Fact]
         public async Task SnapshotAndRestore_ShouldWorkSafely()
         {
             var snapshotTool = new PandasSnapshotTool();

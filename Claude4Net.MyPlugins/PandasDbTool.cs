@@ -786,57 +786,39 @@ namespace Claude4Net.Tools
 
             try
             {
-                await PandasUniverseManager.Instance.ExecuteAsync(async u =>
+                await PandasUniverseManager.Instance.ExecuteAsync(u =>
                 {
+                    var df = u.GetTableOrThrow("agent_memory");
+                    int[] indicesToKeep;
+
                     if (scope == "all")
                     {
-                        u.ClearAll();
-                        // Re-create baseline tables immediately
-                        var memoryColumns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>
-                        {
-                            ["AgentId"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                            ["Role"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                            ["Status"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                            ["CurrentTask"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                            ["SharedContext"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                            ["LastUpdated"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                            ["SessionId"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0])
-                        };
-                        u.AddTable("agent_memory", new DataFrame(memoryColumns), "Shared agent state synchronization table.");
-
-                        var trajectoryColumns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>
-                        {
-                            ["Timestamp"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                            ["AgentId"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                            ["ToolName"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                            ["IsError"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                            ["ErrorReason"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                            ["Payload"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0])
-                        };
-                        u.AddTable("agent_trajectories", new DataFrame(trajectoryColumns), "Execution history for self-reflection and auditing.");
+                        // Clear all rows
+                        indicesToKeep = new int[0];
                     }
                     else
                     {
-                        var df = u.GetTableOrThrow("agent_memory");
+                        // Clear only current session
                         var sessionId = AppState.SessionId;
                         var sessionIdCol = df["SessionId"];
-                        var indicesToKeep = new List<int>();
+                        var list = new List<int>();
                         for (int i = 0; i < df.RowCount; i++)
                         {
                             if (sessionIdCol.GetValue(i)?.ToString() != sessionId)
                             {
-                                indicesToKeep.Add(i);
+                                list.Add(i);
                             }
                         }
-
-                        var newColumns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>();
-                        foreach (var colName in df.Columns)
-                        {
-                            newColumns[colName] = df[colName].Reorder(indicesToKeep.ToArray());
-                        }
-                        var newDf = new DataFrame(newColumns, df.Index.Reorder(indicesToKeep.ToArray()));
-                        u.AddOrUpdateTable("agent_memory", newDf);
+                        indicesToKeep = list.ToArray();
                     }
+
+                    var newColumns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>();
+                    foreach (var colName in df.Columns)
+                    {
+                        newColumns[colName] = df[colName].Reorder(indicesToKeep);
+                    }
+                    var newDf = new DataFrame(newColumns, df.Index.Reorder(indicesToKeep));
+                    u.AddOrUpdateTable("agent_memory", newDf);
                 });
                 return new { status = "Success", message = $"Agent memory cleared (Scope: {scope})." };
             }
