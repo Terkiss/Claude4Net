@@ -2,22 +2,31 @@
 
 ## Overview
 - Start Date: 2024-05-22
-- Status: In Progress
+- Current Base Commit: `446c4ec` (Stabilization: D05-D11 integration and CLI loop fix)
+- Status: In Progress (Stabilization Phase)
 - Target: Complete D01 to D10 (10,000 steps)
 
 ## Domain Status
 | Domain | Description | Status | Completion Range |
 | --- | --- | --- | --- |
-| D01 | Baseline, Project Safety, Build/Test Standards | Completed | P001-P005 |
-| D02 | TeruTeruPandas Memory Sharing | Completed | P011-P020 |
-| D03 | Sandboxing/Permission State Machine | Completed | P021-P030 |
-| D04 | Diagnostics, Source Guard, Masking | Completed | P031-P040 |
-| D05 | SmartRouter | Pending | |
-| D06 | Resources-Oriented Skills | Completed | P051-P060 |
-| D07 | Discord Async Orchestration | Completed | Async Job models, status tracking, segmenting |
-| D08 | Coordinate (/coordinate) | Completed | P071-P080 |
-| D09 | Agent Trajectories & Self-Healing | Pending | |
-| D10 | Testing, Documentation, Release | Pending | |
+| D01 | Baseline, Project Safety, Build/Test Standards | Partial | P001-P005 (Need release gate/docs) |
+| D02 | TeruTeruPandas Memory Sharing | Mostly Complete | P011-P020 (RAG baseline, need migration/perf) |
+| D03 | Sandboxing/Permission State Machine | Mostly Complete | P021-P030 (Evaluator complete, need audit logs) |
+| D04 | Diagnostics, Source Guard, Masking | Mostly Complete | P031-P040 (SourceGuard complete, need diag refine) |
+| D05 | SmartRouter | Mostly Complete | P041-P050 (Circuit breaker exist, need cost report) |
+| D06 | Resources-Oriented Skills | Mostly Complete | P051-P060 (Loader exist, need templates/docs) |
+| D07 | Discord Async Orchestration | Partial | P061-P070 (Chunking exist, need approval flow) |
+| D08 | Coordinate (/coordinate) | Partial | P071-P080 (Phase/gate model exist, need evidence) |
+| D09 | Agent Trajectories & Self-Healing | Partial | P081-P090 (Guide baseline exist, need retry policy) |
+| D10 | Testing, Documentation, Release | Pending/Partial | P091-P100 (Tests exist, need release suite) |
+
+## Official Verification Commands
+```powershell
+dotnet build -p:UseAppHost=false
+dotnet build -p:UseAppHost=false -warnaserror:CS8600,CS8601,CS8602,CS8603,CS8604,CS8618,CS8620,CS8625
+dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false
+'/exit' | dotnet .\Claude4Net.Cli\bin\Debug\net10.0\Claude4Net.Cli.dll
+```
 
 ## Detailed Progress
 
@@ -25,49 +34,54 @@
 - [x] Initial workspace audit
 - [x] Verify existing implementation of !doctor and !env masking
 - [x] Establish build/test baseline (dotnet build/test success)
+- [ ] Finalize release gate documentation
 
 ### D02: TeruTeruPandas Memory Sharing
 - [x] Align schemas for `agent_memory` and `agent_trajectories`
 - [x] Implement `PandasAgentMemoryUpsertTool`, `QueryTool`, `ClearTool`
-- [x] Secure `PandasSnapshotTool` and `PandasRestoreTool` (Path.GetFileName validation)
-- [x] Update `AgentLoop` telemetry to match new schema
-- [x] Add `D02MemoryTests` and verify all tests pass
+- [x] Secure `PandasSnapshotTool` and `PandasRestoreTool`
+- [x] Implement memory schema migration logic
+- [x] Add D02MemoryTests and D11RAGTests baseline
 
 ### D03: Sandboxing & Permissions
 - [x] Extract path safety logic into PathSafetyEvaluator
 - [x] Implement PathSafetyResult enum
 - [x] Refactor ToolOrchestrator to use PathSafetyEvaluator
 - [x] Enforce manual approval for outside-access in YOLO mode
-- [x] Add PathSafetyTests and verify all tests pass
+- [x] Add PathSafetyTests and verify Unix path detection
 
 ### D04: Diagnostics & Source Guard
-- [x] !doctor command implementation
-- [x] Sensitive info masking in !env
-- [x] SecurityUtils for masking
-- [x] Source Guard implementation (Filtering pipeline)
+- [x] !doctor command implementation (Runtime, OS, Keys, DB, Plugins)
+- [x] Comprehensive sensitive info masking in !env (Pattern + Key based)
+- [x] Source Guard filtering pipeline (API Key, Discord, Bearer, Connection String)
 - [x] No-Phone-Home baseline (Outbound masking)
-- [x] Add D04DiagnosticsTests and verify all tests pass
+
+### D05: SmartRouter
+- [x] Implement SmartRouter with EMA latency tracking
+- [x] Intent-based routing logic
+- [x] Circuit breaker and fallback chain
+- [x] Add D05SmartRouterTests
 
 ### D06: Resources-Oriented Skills
 - [x] Define plugin resource directory convention (.resources/)
-- [x] Implement SkillResourceManifest and SkillResourceLoader (SDK)
-- [x] Integrate resources into SystemPromptBuilder
-- [x] Add graceful fallback and caching (hash/last-write)
-- [x] Create sample resource set for weather_search
-- [x] Add D06ResourceTests and verify all tests pass
+- [x] Implement SkillResourceLoader and integrate with SystemPromptBuilder
+- [x] Add build logic to copy resources to output directory
+- [x] Add D06ResourceTests
 
 ### D07: Discord Async Orchestration
 - [x] Implement DiscordJob and DiscordJobStatus models
-- [x] Refactor DiscordListenerService for async job tracking
-- [x] Implement message segmenting (2000 char limit handling)
-- [x] Add status signals (reactions) for long-running tasks
-- [x] Implement robust token fallback
-- [x] Add DiscordTests and verify (3/3 pass)
+- [x] Refactor DiscordListenerService with output chunking
+- [x] Separate WriteAsync from CompleteAsync for status clarity
+- [x] Add DiscordTests (3/3 pass)
 
 ### D08: Coordinate & Phase-Gates
 - [x] Define coordinator models (CoordinateTask, Phase, Gate)
-- [x] Update AppState to support task orchestration
-- [x] Implement /coordinate command with list/start/status/phase/gate/approve/reject subcommands
-- [x] Integrate Phase-Gates (Planning -> Execution -> Verification) flow
-- [x] Add D08CoordinateTests and verify all tests pass
-- [x] Fix and sync existing test project references (Discord tests fixed)
+- [x] Implement /coordinate command and CoordinatorStore
+- [x] Planning -> Execution -> Verification flow baseline
+- [x] Add D08CoordinateTests
+
+### D09: Agent Trajectories & Self-Healing
+- [x] Implement SelfHealingService and ErrorClassifier
+- [x] Automatic SELF_HEAL_GUIDE update logic via !reflect
+- [x] Baseline trajectory collection in AgentLoop
+- [x] Add D09SelfHealingTests
