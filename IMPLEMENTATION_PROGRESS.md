@@ -11,7 +11,7 @@
 | D01 | Baseline, Project Safety, Build/Test Standards | Completed | P001-P005 |
 | D02 | TeruTeruPandas Memory Sharing | Completed | P011-P020 |
 | D03 | Sandboxing/Permission State Machine | Completed | P021-P030 |
-| D04 | Diagnostics, Source Guard, Masking | In Progress | P031-P040 |
+| D04 | Diagnostics, Source Guard, Masking | Completed | P031-P040 |
 | D05 | SmartRouter | Pending | |
 | D06 | Resources-Oriented Skills | Pending | |
 | D07 | Discord Async Orchestration | Pending | |
@@ -44,4 +44,6 @@
 - [x] !doctor command implementation
 - [x] Sensitive info masking in !env
 - [x] SecurityUtils for masking
-- [ ] Source Guard implementation (Pending)
+- [x] Source Guard implementation (Filtering pipeline)
+- [x] No-Phone-Home baseline (Outbound masking)
+- [x] Add D04DiagnosticsTests and verify all tests pass

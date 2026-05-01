@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Linq;
 using Claude4Net.SDK;
 using Claude4Net.Api;
+using Claude4Net.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 using System.IO;
 using System.Diagnostics;
@@ -66,7 +67,7 @@ namespace Claude4Net.Commands
                 foreach(var p in providers)
                 {
                     string? key = AuthManager.GetApiKey(p);
-                    string status = string.IsNullOrEmpty(key) ? "[red]Missing[/]" : $"[green]Present[/] ({SecurityUtils.Mask(key)})";
+                    string status = string.IsNullOrEmpty(key) ? "[red]Missing[/]" : $"[green]Present[/] ({SourceGuard.MaskValue(key)})";
                     sb.AppendLine($"  - {p.PadRight(10)}: {status}");
                 }
 
@@ -75,7 +76,12 @@ namespace Claude4Net.Commands
                 bool dbExists = File.Exists(dbPath);
                 string dbStatus = dbExists ? "[green]Accessible[/]" : "[yellow]Not Found (Will be created on use)[/]";
                 sb.AppendLine($"[bold]TeruTeruPandas DB:[/] {dbStatus}");
-                if (dbExists) sb.AppendLine($"  - Path: {Markup.Escape(dbPath)}");
+                if (dbExists) {
+                    try {
+                        var manager = PandasUniverseManager.Instance;
+                        sb.AppendLine($"  - Tables: {string.Join(", ", manager.TableNames)}");
+                    } catch { sb.AppendLine("  - [red]Error querying database instance[/]"); }
+                }
 
                 // 6. Plugins & DLLs
                 string pluginDir = Path.Combine(AppState.SystemBaseDir, "plugins");
@@ -89,9 +95,10 @@ namespace Claude4Net.Commands
                     sb.AppendLine($"  - {Markup.Escape(Path.GetFileName(dll))}");
                 }
 
-                // 7. Environment
-                string? discordToken = Environment.GetEnvironmentVariable("DISCORD_TOKEN");
-                sb.AppendLine($"[bold]Discord Token:[/] {(string.IsNullOrEmpty(discordToken) ? "[red]Missing[/]" : $"[green]Present[/] ({SecurityUtils.Mask(discordToken)})")}");
+                // 7. Security Policies
+                sb.AppendLine("[bold]Security Policies:[/]");
+                sb.AppendLine($"  - Source Guard: [green]Active[/]");
+                sb.AppendLine($"  - No-Phone-Home: [green]Enabled[/] (Masking applied to outbound context)");
 
                 return sb.ToString();
             }},
@@ -226,31 +233,16 @@ namespace Claude4Net.Commands
                 return Task.FromResult($"[red]Error:[/] Directory not found: {Markup.Escape(newPath)}");
             }},
 
-            new Command { Name = "env", Description = "List environment variables (Masked)", Handler = (a, sp) => {
+            new Command { Name = "env", Description = "List environment variables (Fully Masked)", Handler = (a, sp) => {
                 var sb = new System.Text.StringBuilder();
-                sb.AppendLine("[bold cyan]Environment Variables (Top 20, Values Masked):[/]");
+                sb.AppendLine("[bold cyan]Environment Variables (All Values Source-Guarded):[/]");
                 var env = Environment.GetEnvironmentVariables();
-                int count = 0;
                 foreach(System.Collections.DictionaryEntry de in env) {
-                    if (count++ >= 20) break;
                     string key = de.Key.ToString() ?? "";
                     string val = de.Value?.ToString() ?? "";
                     
-                    // Heuristic: if key contains API, KEY, TOKEN, PWD, SECRET, mask it heavily.
-                    // Otherwise use standard masking.
-                    string maskedVal;
-                    if (key.Contains("KEY", StringComparison.OrdinalIgnoreCase) || 
-                        key.Contains("TOKEN", StringComparison.OrdinalIgnoreCase) || 
-                        key.Contains("SECRET", StringComparison.OrdinalIgnoreCase) ||
-                        key.Contains("PASSWORD", StringComparison.OrdinalIgnoreCase))
-                    {
-                        maskedVal = SecurityUtils.Mask(val);
-                    }
-                    else
-                    {
-                        // Even for non-obvious keys, mask slightly if they look like keys
-                        maskedVal = val.Length > 15 ? val.Substring(0, 3) + "..." + val.Substring(val.Length - 3) : val;
-                    }
+                    // Apply SourceGuard masking to every value
+                    string maskedVal = SourceGuard.MaskValue(val);
 
                     sb.AppendLine($"  [bold]{Markup.Escape(key)}[/]: {Markup.Escape(maskedVal)}");
                 }

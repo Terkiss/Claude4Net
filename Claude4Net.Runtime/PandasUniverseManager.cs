@@ -21,6 +21,8 @@ namespace Claude4Net.Runtime
         private readonly Channel<Func<DataUniverse, Task>> _transactionQueue;
         private bool _isDirty = false;
 
+        public IEnumerable<string> TableNames => _universe.TableNames;
+
         private PandasUniverseManager()
         {
             // 1. 실행파일 경로 아래 db/memory.db 경로 확정
