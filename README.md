@@ -65,6 +65,7 @@ dotnet run --project Claude4Net.Cli
 ```bash
 > !login gemini YOUR_GOOGLE_API_KEY
 > !login claude YOUR_ANTHROPIC_API_KEY
+> !login discord YOUR_DISCORD_BOT_TOKEN
 ```
 
 ---

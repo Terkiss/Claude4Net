@@ -30,6 +30,7 @@ dotnet run --project Claude4Net.Cli
 - **Gemini 등록**: `!login gemini <YOUR_API_KEY>`
 - **Claude 등록**: `!login claude <YOUR_API_KEY>`
 - **Ollama 등록**: `!login ollama http://localhost:11434`
+- **Discord 등록**: `!login discord <YOUR_BOT_TOKEN>` (디스코드 봇 연동 시 필요)
 - **Gemini CLI (무료 모드)**: `!login geminicli` (별도 키 없이 로컬 설치된 gemini-cli 활용)
 
 ---
