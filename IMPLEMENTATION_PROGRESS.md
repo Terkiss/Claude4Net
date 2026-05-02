@@ -19,6 +19,10 @@
 | D08 | Coordinate (/coordinate) | Partial | P071-P080 (Phase/gate model exist, need evidence) |
 | D09 | Agent Trajectories & Self-Healing | Partial | P081-P090 (Guide baseline exist, need retry policy) |
 | D10 | Testing, Documentation, Release | Pending/Partial | P091-P100 (Tests exist, need release suite) |
+| K001 | Workspace Hygiene | Completed | Temp logs removed |
+| K002 | Progress SSOT | Completed | P001-P005 updated |
+| K003 | Release Gate | Completed | --smoke-exit verification baseline |
+| K004 | D10 Docs | Pending | |
 
 ## Official Verification Commands
 ```powershell
@@ -85,3 +89,10 @@ dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false
 - [x] Automatic SELF_HEAL_GUIDE update logic via !reflect
 - [x] Baseline trajectory collection in AgentLoop
 - [x] Add D09SelfHealingTests
+
+### K003: Release Gate Baseline
+- [x] Create `scripts/verify-release.ps1` with strict error handling
+- [x] Add `--smoke-exit` non-interactive CLI verification path in `Program.cs`
+- [x] Verify DLL-direct CLI smoke test with shutdown message
+- [x] Establish `Documents/RELEASE_GATE.md` checklist
+- [x] Verified 55/55 tests pass under strict nullable rules

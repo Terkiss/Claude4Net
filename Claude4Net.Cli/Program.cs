@@ -74,6 +74,24 @@ services.AddSingleton<OllamaProvider>(sp =>
 
 var serviceProvider = services.BuildServiceProvider();
 
+// --- Non-interactive Smoke Test Path ---
+if (args.Contains("--smoke-exit"))
+{
+    var cmd = CommandRegistry.FindCommand("/exit");
+    if (cmd != null && cmd.Handler != null)
+    {
+        var res = await cmd.Handler("", serviceProvider);
+        Console.WriteLine(res);
+        Console.Out.Flush();
+        return 0;
+    }
+    else
+    {
+        Console.Error.WriteLine("Error: /exit command not found in Registry.");
+        return 1;
+    }
+}
+
 // Load initial dynamic plugins using RAM-bound Byte Array Loader
 var orchestrator = serviceProvider.GetRequiredService<ToolOrchestrator>();
 orchestrator.ReloadDynamicPlugins(pluginsPath);
@@ -86,62 +104,122 @@ AnsiConsole.MarkupLine("[grey]Tip: Press [bold white]ESC[/] during execution to 
 var broker = serviceProvider.GetRequiredService<IInputBroker>();
 var mainCts = new CancellationTokenSource();
 
-// ESC Key Monitor Task
-_ = Task.Run(() =>
+if (Console.IsInputRedirected)
 {
-    if (Console.IsInputRedirected) return; // Cannot monitor keys on redirected input
-
-    while (!mainCts.Token.IsCancellationRequested)
-    {
-        if (Console.KeyAvailable)
-        {
-            var key = Console.ReadKey(true);
-            if (key.Key == ConsoleKey.Escape)
-            {
-                mainCts.Cancel();
-                AnsiConsole.MarkupLine("\n[bold red]✖ Cancellation requested via ESC.[/]");
-            }
-        }
-        Thread.Sleep(100);
-    }
-});
-
-// Start Discord Listener
-var discordService = serviceProvider.GetRequiredService<DiscordListenerService>();
-_ = discordService.StartAsync();
-
-// CLI Producer Task
-var producerTask = Task.Run(async () =>
-{
+    // --- Redirected Input Path (Piped) ---
     var cliOutput = new CliOutputHandler();
-    while (!mainCts.Token.IsCancellationRequested)
+    string? rawLine;
+    while (!mainCts.Token.IsCancellationRequested && (rawLine = Console.ReadLine()) != null)
     {
-        try
+        string input = rawLine.Trim();
+        if (string.IsNullOrWhiteSpace(input)) continue;
+
+        if (input.StartsWith("!") || input.StartsWith("/"))
         {
-            if (CliUserApprovalHandler.PendingApproval == null)
-                Console.Write("> ");
+            string cmdName = input.Split(' ')[0];
+            string cmdArgs = input.Contains(' ') ? input.Substring(input.IndexOf(' ') + 1) : "";
+
+            var cmd = CommandRegistry.FindCommand(cmdName);
+            if (cmd != null && cmd.Handler != null)
+            {
+                var res = await cmd.Handler(cmdArgs, serviceProvider);
+                AnsiConsole.MarkupLine(res);
+                Console.Out.Flush();
                 
-            string? rawInput = Console.ReadLine();
-            if (rawInput == null) 
-            {
-                // EOF reached (e.g. piped input ended)
-                mainCts.Cancel();
-                break;
-            }
-
-            string input = rawInput.Trim();
-
-            if (CliUserApprovalHandler.PendingApproval != null)
-            {
-                var tcs = CliUserApprovalHandler.PendingApproval;
-                CliUserApprovalHandler.PendingApproval = null;
-                tcs.TrySetResult(input);
+                if (cmd.Name == "exit")
+                {
+                    mainCts.Cancel();
+                    break;
+                }
                 continue;
             }
+        }
 
-            // 붙여넣기(Paste)로 인한 멀티라인(개행) 폭탄 방어 로직 (리다이렉션 시 스킵)
-            if (!Console.IsInputRedirected)
+        // Process as normal prompt via AgentLoop
+        var router = serviceProvider.GetRequiredService<ISmartRouter>();
+        var decision = router.Route(input);
+        ILLMProvider provider = decision.SelectedProvider switch
+        {
+            "gemini" => serviceProvider.GetRequiredService<GeminiProvider>(),
+            "gemini-cli" => serviceProvider.GetRequiredService<GeminiCliProvider>(),
+            "ollama" => serviceProvider.GetRequiredService<OllamaProvider>(),
+            _ => serviceProvider.GetRequiredService<ClaudeService>()
+        };
+
+        var agent = new AgentLoop(
+            serviceProvider.GetRequiredService<ToolOrchestrator>(), 
+            serviceProvider, 
+            broker,
+            router,
+            serviceProvider.GetRequiredService<IEmbeddingProvider>());
+            
+        try
+        {
+            await agent.RunAsync(input, cliOutput, provider, decision.SelectedModel, mainCts.Token);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[bold red]Error:[/] {Markup.Escape(ex.Message)}");
+        }
+    }
+}
+else
+{
+    // --- Interactive Terminal Path (Producer-Consumer) ---
+    
+    // ESC Key Monitor Task
+    _ = Task.Run(() =>
+    {
+        while (!mainCts.Token.IsCancellationRequested)
+        {
+            if (Console.KeyAvailable)
             {
+                var key = Console.ReadKey(true);
+                if (key.Key == ConsoleKey.Escape)
+                {
+                    mainCts.Cancel();
+                    AnsiConsole.MarkupLine("\n[bold red]✖ Cancellation requested via ESC.[/]");
+                }
+            }
+            Thread.Sleep(100);
+        }
+    });
+
+    // Start Discord Listener
+    var discordService = serviceProvider.GetRequiredService<DiscordListenerService>();
+    _ = discordService.StartAsync();
+
+    // CLI Producer Task
+    var producerTask = Task.Run(async () =>
+    {
+        var cliOutput = new CliOutputHandler();
+        while (!mainCts.Token.IsCancellationRequested)
+        {
+            try
+            {
+                if (CliUserApprovalHandler.PendingApproval == null)
+                    Console.Write("> ");
+                    
+                string? rawInput = Console.ReadLine();
+                if (rawInput == null) 
+                {
+                    // EOF reached (e.g. piped input ended)
+                    mainCts.Cancel();
+                    break;
+                }
+
+                string input = rawInput.Trim();
+
+                if (CliUserApprovalHandler.PendingApproval != null)
+                {
+                    var tcs = CliUserApprovalHandler.PendingApproval;
+                    CliUserApprovalHandler.PendingApproval = null;
+                    tcs.TrySetResult(input);
+                    continue;
+                }
+
+                // 붙여넣기(Paste)로 인한 멀티라인(개행) 폭탄 방어 로직
                 var sb = new System.Text.StringBuilder(input);
                 System.Threading.Thread.Sleep(15); 
                 while (Console.KeyAvailable)
@@ -155,66 +233,64 @@ var producerTask = Task.Run(async () =>
                     System.Threading.Thread.Sleep(15);
                 }
                 input = sb.ToString();
-            }
 
-            if (string.IsNullOrWhiteSpace(input)) continue;
+                if (string.IsNullOrWhiteSpace(input)) continue;
 
-            if (input.StartsWith("!") || input.StartsWith("/"))
-            {
-                string[] parts = input.Split(' ', 2);
-                string cmdName = parts[0];
-                string cmdArgs = parts.Length > 1 ? parts[1] : "";
-
-                var cmd = CommandRegistry.FindCommand(cmdName);
-                if (cmd != null && cmd.Handler != null)
+                if (input.StartsWith("!") || input.StartsWith("/"))
                 {
-                    var res = await cmd.Handler(cmdArgs, serviceProvider);
-                    AnsiConsole.MarkupLine(res);
-                    Console.Out.Flush(); // Ensure message is sent
-                    
-                    // Explicitly handle exit command to break loops
-                    if (cmd.Name == "exit")
+                    string[] parts = input.Split(' ', 2);
+                    string cmdName = parts[0];
+                    string cmdArgs = parts.Length > 1 ? parts[1] : "";
+
+                    var cmd = CommandRegistry.FindCommand(cmdName);
+                    if (cmd != null && cmd.Handler != null)
                     {
-                        mainCts.Cancel();
-                        break;
+                        var res = await cmd.Handler(cmdArgs, serviceProvider);
+                        AnsiConsole.MarkupLine(res);
+                        Console.Out.Flush();
+                        
+                        if (cmd.Name == "exit")
+                        {
+                            mainCts.Cancel();
+                            break;
+                        }
+                        continue;
                     }
-                    continue;
                 }
+
+                broker.TryWrite(new InputContext(input, cliOutput));
             }
-
-            // Push to broker with CLI context
-            broker.TryWrite(new InputContext(input, cliOutput));
+            catch (Exception ex)
+            {
+                AnsiConsole.Console.Write(new Markup($"[bold red][[CLI]] Error:[/] {Markup.Escape(ex.Message)}\n"));
+            }
         }
-        catch (Exception ex)
-        {
-            AnsiConsole.Console.Write(new Markup($"[bold red][[CLI]] Error:[/] {Markup.Escape(ex.Message)}\n"));
-        }
-    }
-});
+    });
 
-// Agent Consumer Loop
-while (!mainCts.Token.IsCancellationRequested)
-{
-    var agent = new AgentLoop(
-        serviceProvider.GetRequiredService<ToolOrchestrator>(), 
-        serviceProvider, 
-        broker,
-        serviceProvider.GetRequiredService<ISmartRouter>(),
-        serviceProvider.GetRequiredService<IEmbeddingProvider>());
-    
-    try 
+    // Agent Consumer Loop
+    while (!mainCts.Token.IsCancellationRequested)
     {
-        await agent.ListenAsync(mainCts.Token);
+        var agent = new AgentLoop(
+            serviceProvider.GetRequiredService<ToolOrchestrator>(), 
+            serviceProvider, 
+            broker,
+            serviceProvider.GetRequiredService<ISmartRouter>(),
+            serviceProvider.GetRequiredService<IEmbeddingProvider>());
+        
+        try 
+        {
+            await agent.ListenAsync(mainCts.Token);
+        }
+        catch (OperationCanceledException) { }
     }
-    catch (OperationCanceledException) { }
-}
 
-// Wait for producer to finish its logic (especially /exit output)
-await producerTask;
+    await producerTask;
+}
 
 AnsiConsole.MarkupLine("[grey]Exiting main loop...[/]");
 Console.Out.Flush();
-System.Threading.Thread.Sleep(500); // Give time for OS to flush buffers before process termination
+System.Threading.Thread.Sleep(200);
+return 0;
 
 
 
