@@ -91,7 +91,7 @@ namespace Claude4Net.Tests
         }
 
         [Fact]
-        public void DiscordJob_CompleteAsync_Protection_Works()
+        public async Task DiscordJob_CompleteAsync_Protection_Works()
         {
             // Arrange
             var job = new DiscordJob { Id = "test-protection", DiscordStatus = DiscordJobStatus.Denied };
@@ -100,8 +100,7 @@ namespace Claude4Net.Tests
 
             // Act
             // CompleteAsync should not change status if it's already Denied
-            var task = handler.CompleteAsync("Some message");
-            task.Wait();
+            await handler.CompleteAsync("Some message");
 
             // Assert
             Assert.Equal(DiscordJobStatus.Denied, job.DiscordStatus);

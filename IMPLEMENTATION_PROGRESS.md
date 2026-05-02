@@ -2,9 +2,9 @@
 
 ## Overview
 - Start Date: 2024-05-22
-- Current Base Commit: `9bfe05c` (K003 Release Gate and CLI smoke verification)
-- Status: In Progress (Stabilization Phase)
-- Target: Complete D01-D10 baseline and clear all findings.
+- Current Base Commit: `889c4be` (K012 Final Handoff stable baseline)
+- Status: Stable Baseline (K012 Complete)
+- Target: Maintain the D01-D10 baseline and handle post-release fixes without reopening completed milestones.
 
 ## Domain Status
 
@@ -31,6 +31,7 @@
 | K009 | D05 Smart Router Ops | Completed | Cost-awareness, EMA tracking, Exponential backoff |
 | K010 | D03/D04 Security Hardening | Completed | Audit logging, Refined masking, !doctor diagnostics |
 | K011 | Performance & Release Confidence | Completed | Embedding cache, AgentLoop optimization, 76/76 pass |
+| K012 | Final Stabilization and Handoff | Completed | Security audit, user manual, handoff docs, 76/76 pass |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
