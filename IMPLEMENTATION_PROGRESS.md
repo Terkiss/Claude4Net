@@ -2,14 +2,14 @@
 
 ## Overview
 - Start Date: 2024-05-22
-- Current Base Commit: `446c4ec` (Stabilization: D05-D11 integration and CLI loop fix)
+- Current Base Commit: `9bfe05c` (K003 Release Gate and CLI smoke verification)
 - Status: In Progress (Stabilization Phase)
 - Target: Complete D01 to D10 (10,000 steps)
 
 ## Domain Status
 | Domain | Description | Status | Completion Range |
 | --- | --- | --- | --- |
-| D01 | Baseline, Project Safety, Build/Test Standards | Partial | P001-P005 (Need release gate/docs) |
+| D01 | Baseline, Project Safety, Build/Test Standards | Mostly Complete | P001-P005 (Release gate/docs baseline complete) |
 | D02 | TeruTeruPandas Memory Sharing | Mostly Complete | P011-P020 (RAG baseline, need migration/perf) |
 | D03 | Sandboxing/Permission State Machine | Mostly Complete | P021-P030 (Evaluator complete, need audit logs) |
 | D04 | Diagnostics, Source Guard, Masking | Mostly Complete | P031-P040 (SourceGuard complete, need diag refine) |
@@ -18,18 +18,15 @@
 | D07 | Discord Async Orchestration | Partial | P061-P070 (Chunking exist, need approval flow) |
 | D08 | Coordinate (/coordinate) | Partial | P071-P080 (Phase/gate model exist, need evidence) |
 | D09 | Agent Trajectories & Self-Healing | Partial | P081-P090 (Guide baseline exist, need retry policy) |
-| D10 | Testing, Documentation, Release | Pending/Partial | P091-P100 (Tests exist, need release suite) |
+| D10 | Testing, Documentation, Release | Completed | P091-P100 (Release suite & docs complete) |
 | K001 | Workspace Hygiene | Completed | Temp logs removed |
 | K002 | Progress SSOT | Completed | P001-P005 updated |
 | K003 | Release Gate | Completed | --smoke-exit verification baseline |
-| K004 | D10 Docs | Pending | |
+| K004 | D10 Docs | Completed | Official Docs & Operations manual |
 
 ## Official Verification Commands
 ```powershell
-dotnet build -p:UseAppHost=false
-dotnet build -p:UseAppHost=false -warnaserror:CS8600,CS8601,CS8602,CS8603,CS8604,CS8618,CS8620,CS8625
-dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false
-'/exit' | dotnet .\Claude4Net.Cli\bin\Debug\net10.0\Claude4Net.Cli.dll
+.\scripts\verify-release.ps1
 ```
 
 ## Detailed Progress
