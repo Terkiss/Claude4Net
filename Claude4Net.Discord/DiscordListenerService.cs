@@ -40,7 +40,7 @@ namespace Claude4Net.Discord
             const int limit = 1950;
             if (text.Length <= limit)
             {
-                await _channel.SendMessageAsync(text);
+                await DiscordRetryUtils.ExecuteWithRetryAsync(() => _channel.SendMessageAsync(text));
             }
             else
             {
@@ -49,7 +49,7 @@ namespace Claude4Net.Discord
                 {
                     int length = Math.Min(limit, text.Length - offset);
                     string segment = text.Substring(offset, length);
-                    await _channel.SendMessageAsync(segment);
+                    await DiscordRetryUtils.ExecuteWithRetryAsync(() => _channel.SendMessageAsync(segment));
                     offset += length;
                     if (offset < text.Length) await Task.Delay(500); 
                 }
@@ -60,13 +60,19 @@ namespace Claude4Net.Discord
         {
             if (AppState.Tasks.TryGetValue(_jobId, out var finalTask) && finalTask is DiscordJob finalJob)
             {
+                // P1 Fix: Don't overwrite Denied or Expired status
+                if (finalJob.DiscordStatus == DiscordJobStatus.Denied || finalJob.DiscordStatus == DiscordJobStatus.Expired)
+                {
+                    return;
+                }
+
                 finalJob.Status = "Completed";
                 finalJob.DiscordStatus = DiscordJobStatus.Completed;
                 finalJob.CompletedAt = DateTime.UtcNow;
                 finalJob.ResponseMessage = finalMessage;
                 
                 // Final Summary
-                await _channel.SendMessageAsync(DiscordResponseFormatter.FormatSuccess("Task finished successfully.", finalJob.Duration));
+                await DiscordRetryUtils.ExecuteWithRetryAsync(() => _channel.SendMessageAsync(DiscordResponseFormatter.FormatSuccess("Task finished successfully.", finalJob.Duration)));
             }
         }
 
@@ -79,14 +85,14 @@ namespace Claude4Net.Discord
                 job.CompletedAt = DateTime.UtcNow;
                 job.ErrorMessage = error;
             }
-            await _channel.SendMessageAsync(DiscordResponseFormatter.FormatError(error));
+            await DiscordRetryUtils.ExecuteWithRetryAsync(() => _channel.SendMessageAsync(DiscordResponseFormatter.FormatError(error)));
         }
 
         public async Task SendFileAsync(string filePath, string? text = null)
         {
             if (File.Exists(filePath))
             {
-                await _channel.SendFileAsync(filePath, text);
+                await DiscordRetryUtils.ExecuteWithRetryAsync(() => _channel.SendFileAsync(filePath, text));
             }
         }
     }
@@ -172,6 +178,48 @@ namespace Claude4Net.Discord
 
                 if (!string.IsNullOrWhiteSpace(cleanText))
                 {
+                    // P2 Fix: Job Status Query Command
+                    if (cleanText.StartsWith("!job ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var targetId = cleanText.Substring(5).Trim();
+                        if (AppState.Tasks.TryGetValue(targetId, out var t) && t is DiscordJob jobInfo)
+                        {
+                            var embed = new EmbedBuilder()
+                                .WithTitle($"Job Status: {targetId}")
+                                .AddField("Status", $"`{jobInfo.DiscordStatus}`", true)
+                                .AddField("Internal Status", $"`{jobInfo.Status}`", true)
+                                .AddField("Created", $"{jobInfo.CreatedAt:HH:mm:ss}", true)
+                                .WithColor(jobInfo.DiscordStatus switch {
+                                    DiscordJobStatus.Completed => global::Discord.Color.Green,
+                                    DiscordJobStatus.Failed or DiscordJobStatus.Denied or DiscordJobStatus.Expired => global::Discord.Color.Red,
+                                    DiscordJobStatus.WaitingApproval => global::Discord.Color.Gold,
+                                    _ => global::Discord.Color.Blue
+                                });
+
+                            if (jobInfo.StartedAt.HasValue)
+                                embed.AddField("Started", $"{jobInfo.StartedAt:HH:mm:ss}", true);
+                            
+                            if (jobInfo.CompletedAt.HasValue)
+                                embed.AddField("Finished", $"{jobInfo.CompletedAt:HH:mm:ss}", true);
+
+                            if (!string.IsNullOrEmpty(jobInfo.ApprovalRequiredTool))
+                                embed.AddField("Approval Required For", $"`{jobInfo.ApprovalRequiredTool}`");
+
+                            if (jobInfo.ApprovedByUserId.HasValue)
+                                embed.AddField("Approved By", $"<@{jobInfo.ApprovedByUserId}> at {jobInfo.ApprovedAt:HH:mm:ss}");
+
+                            if (!string.IsNullOrEmpty(jobInfo.ErrorMessage))
+                                embed.AddField("Error", $"```\n{jobInfo.ErrorMessage}\n```");
+
+                            await DiscordRetryUtils.ExecuteWithRetryAsync(() => message.Channel.SendMessageAsync(embed: embed.Build()));
+                        }
+                        else
+                        {
+                            await DiscordRetryUtils.ExecuteWithRetryAsync(() => message.Channel.SendMessageAsync($"❌ Job `{targetId}` not found."));
+                        }
+                        return;
+                    }
+
                     LogToFile($"[Discord] Input received from {message.Author.Username}: {cleanText}");
                     
                     // Create Async Job Model
@@ -191,13 +239,14 @@ namespace Claude4Net.Discord
                     AppState.Tasks[jobId] = job;
 
                     // Support long-running tasks: Add a reaction to show we've received it
-                    try { await message.AddReactionAsync(new global::Discord.Emoji("👀")); } catch { }
+                    try { await DiscordRetryUtils.ExecuteWithRetryAsync(() => message.AddReactionAsync(new global::Discord.Emoji("👀"))); } catch { }
 
                     // Notify Start
-                    await message.Channel.SendMessageAsync(DiscordResponseFormatter.FormatStart(message.Author.Username, cleanText));
+                    await DiscordRetryUtils.ExecuteWithRetryAsync(() => message.Channel.SendMessageAsync(DiscordResponseFormatter.FormatStart(message.Author.Username, cleanText)));
 
                     string enrichedText = $"[System Context: Discord Message from @{message.Author.Username} in Channel ID: {message.Channel.Id}]\n{cleanText}";
-                    var context = new InputContext(enrichedText, new DiscordOutputHandler(message.Channel, jobId));
+                    var approvalHandler = new DiscordApprovalHandler(_client, message.Channel, message.Id, jobId);
+                    var context = new InputContext(enrichedText, new DiscordOutputHandler(message.Channel, jobId), approvalHandler);
                     _broker.TryWrite(context);
                 }
             }

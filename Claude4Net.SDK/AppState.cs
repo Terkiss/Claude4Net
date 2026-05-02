@@ -50,6 +50,9 @@ namespace Claude4Net.SDK
         public static string ActiveModel { get; set; } = "gemini-3-flash-preview";
         public static ConcurrentDictionary<string, TaskStateBase> Tasks { get; } = new();
 
+        // Discord Security
+        public static HashSet<ulong> DiscordAllowedApproverIds { get; } = new();
+
         public static IEnumerable<CoordinateTask> GetCoordinatedTasks() => 
             Tasks.Values.OfType<CoordinateTask>();
         

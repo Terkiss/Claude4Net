@@ -12,7 +12,7 @@ namespace Claude4Net.SDK
         Task SendFileAsync(string filePath, string? text = null);
     }
 
-    public record InputContext(string Text, IOutputHandler Output);
+    public record InputContext(string Text, IOutputHandler Output, IUserApprovalHandler? Approval = null);
 
     public interface IInputBroker
     {

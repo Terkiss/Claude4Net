@@ -15,7 +15,7 @@
 | D04 | Diagnostics, Source Guard, Masking | Mostly Complete | P031-P040 (SourceGuard complete, need diag refine) |
 | D05 | SmartRouter | Mostly Complete | P041-P050 (Circuit breaker exist, need cost report) |
 | D06 | Resources-Oriented Skills | Mostly Complete | P051-P060 (Loader exist, need templates/docs) |
-| D07 | Discord Async Orchestration | Partial | P061-P070 (Chunking exist, need approval flow) |
+| D07 | Discord Async Orchestration | Completed | P061-P070 (Approval flow, retry logic, multi-handler complete) |
 | D08 | Coordinate (/coordinate) | Partial | P071-P080 (Phase/gate model exist, need evidence) |
 | D09 | Agent Trajectories & Self-Healing | Partial | P081-P090 (Guide baseline exist, need retry policy) |
 | D10 | Testing, Documentation, Release | Completed | P091-P100 (Release suite & docs complete) |
@@ -23,6 +23,7 @@
 | K002 | Progress SSOT | Completed | P001-P005 updated |
 | K003 | Release Gate | Completed | --smoke-exit verification baseline |
 | K004 | D10 Docs | Completed | Official Docs & Operations manual |
+| K005 | D07 Discord Approval | Completed | Button-based approval, permission check, retry utils |
 
 ## Official Verification Commands
 ```powershell
@@ -70,10 +71,13 @@
 - [x] Add D06ResourceTests
 
 ### D07: Discord Async Orchestration
-- [x] Implement DiscordJob and DiscordJobStatus models
+- [x] Implement DiscordJob and DiscordJobStatus models (Extended with Approval states)
 - [x] Refactor DiscordListenerService with output chunking
-- [x] Separate WriteAsync from CompleteAsync for status clarity
-- [x] Add DiscordTests (3/3 pass)
+- [x] Implement `DiscordApprovalHandler` using Button interactions
+- [x] Implement `DiscordRetryUtils` for robust API calls
+- [x] Separate `IUserApprovalHandler` per request context (CLI/Discord)
+- [x] Add DiscordApprovalTests (4/4 pass)
+- [x] Total 59/59 tests pass
 
 ### D08: Coordinate & Phase-Gates
 - [x] Define coordinator models (CoordinateTask, Phase, Gate)

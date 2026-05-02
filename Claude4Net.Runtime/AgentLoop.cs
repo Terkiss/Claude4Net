@@ -67,7 +67,7 @@ namespace Claude4Net.Runtime
                         string? routedCommand = QueryRouter.Route(context.Text);
 
                         // --- [System Command Interception] ---
-                        var effectiveContext = routedCommand != null ? new InputContext(routedCommand, context.Output) : context;
+                        var effectiveContext = routedCommand != null ? new InputContext(routedCommand, context.Output, context.Approval) : context;
                         if (await HandleSystemCommand(effectiveContext, ct))
                         {
                             Console.Write("\n> ");
@@ -104,7 +104,7 @@ namespace Claude4Net.Runtime
                     }
                     string promptWithContext = relevantContext + finalPrompt;
 
-                    await RunAsync(promptWithContext, context.Output, provider, decision.SelectedModel, ct);
+                    await RunAsync(promptWithContext, context.Output, provider, decision.SelectedModel, context.Approval, ct);
 
                     Console.Write("\n> ");
                 }
@@ -408,7 +408,7 @@ namespace Claude4Net.Runtime
             return false;
         }
 
-        public async Task RunAsync(string userPrompt, IOutputHandler output, ILLMProvider provider, string model, CancellationToken ct = default)
+        public async Task RunAsync(string userPrompt, IOutputHandler output, ILLMProvider provider, string model, IUserApprovalHandler? approval = null, CancellationToken ct = default)
         {
             string currentPrompt = userPrompt;
             bool isFirstTurn = true;
@@ -481,7 +481,7 @@ namespace Claude4Net.Runtime
                         AnsiConsole.MarkupLine($"[grey]🛠️  [bold yellow]Tool Call:[/] {Markup.Escape(tc.Name)}[/]");
                     }
 
-                    var batchResults = await _orchestrator.ExecuteBatchAsync(toolCalls, new { }, ct);
+                    var batchResults = await _orchestrator.ExecuteBatchAsync(toolCalls, new { }, approval, ct);
 
                     var toolResults = new List<object>();
                     foreach (var result in batchResults)

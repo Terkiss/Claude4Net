@@ -62,7 +62,7 @@ namespace Claude4Net.Runtime
                 (t.Aliases != null && t.Aliases.Any(a => a.Equals(name, StringComparison.OrdinalIgnoreCase))));
         }
 
-        public async Task<ToolUseResult> ExecuteToolAsync(ToolUseRequest request, object context, CancellationToken ct = default)
+        public async Task<ToolUseResult> ExecuteToolAsync(ToolUseRequest request, object context, IUserApprovalHandler? overrideHandler = null, CancellationToken ct = default)
         {
             var tool = GetTool(request.Name);
             if (tool == null) return new ToolUseResult { ToolUseId = request.Id, Content = $"Error: Tool '{request.Name}' not found.", IsError = true };
@@ -79,19 +79,21 @@ namespace Claude4Net.Runtime
                 var evaluator = new PathSafetyEvaluator();
                 var safetyResult = evaluator.EvaluateInputSafety(request.Input);
 
+                var activeApprovalHandler = overrideHandler ?? _approvalHandler;
+
                 // --- STRICT WORKSPACE SANDBOXING ---
                 if (safetyResult == PathSafetyResult.Outside) // Outside everything
                 {
                     if (isYolo)
                     {
                         // In YOLO mode, we allow manual approval for actions outside the sandbox
-                        if (_approvalHandler != null)
+                        if (activeApprovalHandler != null)
                         {
                             AnsiConsole.MarkupLine("[bold red]⚠ SECURITY ALERT: Attempting to access file OUTSIDE the workspace/system sandbox![/]");
                             AnsiConsole.MarkupLine($"[yellow]Tool:[/] {tool.Name}");
                             AnsiConsole.MarkupLine("[yellow]YOLO status:[/] Downgraded to 'Manual Approval' for safety.");
                             
-                            bool approved = await _approvalHandler.RequestApprovalAsync(tool.Name, jsonInput);
+                            bool approved = await activeApprovalHandler.RequestApprovalAsync(tool.Name, jsonInput);
                             if (!approved) return new ToolUseResult { ToolUseId = request.Id, Content = "User denied outside-access. Security policy enforced.", IsError = true };
                         }
                         else
@@ -110,9 +112,9 @@ namespace Claude4Net.Runtime
                     if (string.IsNullOrEmpty(AppState.CurrentCwd))
                         return new ToolUseResult { ToolUseId = request.Id, Content = "Error: Workspace not set. Use /setworkspace <path> first.", IsError = true };
 
-                    if (!isYolo && isSensitive && _approvalHandler != null)
+                    if (!isYolo && isSensitive && activeApprovalHandler != null)
                     {
-                        bool approved = await _approvalHandler.RequestApprovalAsync(tool.Name, jsonInput);
+                        bool approved = await activeApprovalHandler.RequestApprovalAsync(tool.Name, jsonInput);
                         if (!approved) return new ToolUseResult { ToolUseId = request.Id, Content = "User denied permission.", IsError = true };
                     }
                 }
@@ -137,7 +139,7 @@ namespace Claude4Net.Runtime
             return sensitivePrefixes.Any(p => name.ToLower().Contains(p));
         }
 
-        public async Task<List<ToolUseResult>> ExecuteBatchAsync(IEnumerable<ToolUseRequest> requests, object context, CancellationToken ct = default)
+        public async Task<List<ToolUseResult>> ExecuteBatchAsync(IEnumerable<ToolUseRequest> requests, object context, IUserApprovalHandler? overrideHandler = null, CancellationToken ct = default)
         {
             var results = new List<ToolUseResult>();
             var concurrentRequests = new List<ToolUseRequest>();
@@ -159,7 +161,7 @@ namespace Claude4Net.Runtime
             // Execute concurrency-safe tools in parallel
             if (concurrentRequests.Any())
             {
-                var concurrentTasks = concurrentRequests.Select(req => ExecuteToolAsync(req, context, ct));
+                var concurrentTasks = concurrentRequests.Select(req => ExecuteToolAsync(req, context, overrideHandler, ct));
                 var concurrentResults = await Task.WhenAll(concurrentTasks);
                 results.AddRange(concurrentResults);
             }
@@ -168,7 +170,7 @@ namespace Claude4Net.Runtime
             foreach (var req in sequentialRequests)
             {
                 if (ct.IsCancellationRequested) break;
-                var result = await ExecuteToolAsync(req, context, ct);
+                var result = await ExecuteToolAsync(req, context, overrideHandler, ct);
                 results.Add(result);
             }
 

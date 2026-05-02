@@ -11,6 +11,7 @@ using Claude4Net.Tools;
 using Claude4Net.Commands;
 using Claude4Net.Discord;
 using System.IO;
+using System.Threading;
 
 // --- 1. DI Setup ---
 var services = new ServiceCollection();
@@ -32,9 +33,6 @@ services.AddSingleton<ITool, FileReadTool>();
 services.AddSingleton<ITool, FileWriteTool>();
 services.AddSingleton<ITool, FileEditTool>();
 services.AddSingleton<ITool, LsTool>();
-
-// --- Dynamic Plugin Loader (Now handled inside ToolOrchestrator) ---
-string pluginsPath = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "plugins");
 
 // Runtime
 services.AddSingleton<ISmartRouter, SmartRouter>();
@@ -93,6 +91,7 @@ if (args.Contains("--smoke-exit"))
 }
 
 // Load initial dynamic plugins using RAM-bound Byte Array Loader
+string pluginsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "plugins");
 var orchestrator = serviceProvider.GetRequiredService<ToolOrchestrator>();
 orchestrator.ReloadDynamicPlugins(pluginsPath);
 
@@ -108,6 +107,7 @@ if (Console.IsInputRedirected)
 {
     // --- Redirected Input Path (Piped) ---
     var cliOutput = new CliOutputHandler();
+    var cliApproval = serviceProvider.GetRequiredService<IUserApprovalHandler>();
     string? rawLine;
     while (!mainCts.Token.IsCancellationRequested && (rawLine = Console.ReadLine()) != null)
     {
@@ -155,7 +155,7 @@ if (Console.IsInputRedirected)
             
         try
         {
-            await agent.RunAsync(input, cliOutput, provider, decision.SelectedModel, mainCts.Token);
+            await agent.RunAsync(input, cliOutput, provider, decision.SelectedModel, cliApproval, mainCts.Token);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
@@ -194,6 +194,7 @@ else
     var producerTask = Task.Run(async () =>
     {
         var cliOutput = new CliOutputHandler();
+        var cliApproval = serviceProvider.GetRequiredService<IUserApprovalHandler>();
         while (!mainCts.Token.IsCancellationRequested)
         {
             try
@@ -221,7 +222,7 @@ else
 
                 // 붙여넣기(Paste)로 인한 멀티라인(개행) 폭탄 방어 로직
                 var sb = new System.Text.StringBuilder(input);
-                System.Threading.Thread.Sleep(15); 
+                Thread.Sleep(15); 
                 while (Console.KeyAvailable)
                 {
                     string? nextLine = Console.ReadLine();
@@ -230,7 +231,7 @@ else
                         sb.AppendLine();
                         sb.Append(nextLine);
                     }
-                    System.Threading.Thread.Sleep(15);
+                    Thread.Sleep(15);
                 }
                 input = sb.ToString();
 
@@ -258,7 +259,7 @@ else
                     }
                 }
 
-                broker.TryWrite(new InputContext(input, cliOutput));
+                broker.TryWrite(new InputContext(input, cliOutput, cliApproval));
             }
             catch (Exception ex)
             {
@@ -289,7 +290,7 @@ else
 
 AnsiConsole.MarkupLine("[grey]Exiting main loop...[/]");
 Console.Out.Flush();
-System.Threading.Thread.Sleep(200);
+Thread.Sleep(200);
 return 0;
 
 
@@ -308,33 +309,5 @@ public class CliOutputHandler : IOutputHandler
         
         AnsiConsole.Console.Write(new Markup($"[bold blue][[CLI]][/] File available at: [underlined]{Markup.Escape(filePath)}[/]\n"));
         return Task.CompletedTask;
-    }
-}
-
-public class CliUserApprovalHandler : IUserApprovalHandler
-{
-    public static System.Threading.Tasks.TaskCompletionSource<string>? PendingApproval;
-
-    public async Task<bool> RequestApprovalAsync(string tool, string args)
-    {
-        AnsiConsole.MarkupLine($"[yellow]Request:[/] [bold]{Markup.Escape(tool)}[/] {Markup.Escape(args)}");
-        
-        while (true)
-        {
-            AnsiConsole.Markup("[bold white]Allow execution? (y/n): [/]");
-            
-            var tcs = new System.Threading.Tasks.TaskCompletionSource<string>();
-            PendingApproval = tcs;
-
-            string input = await tcs.Task;
-            input = input.Trim().ToLower();
-            
-            if (string.IsNullOrEmpty(input)) continue;
-
-            if (input.StartsWith("y")) return true;
-            if (input.StartsWith("n")) return false;
-
-            AnsiConsole.MarkupLine("[red]Invalid input. Please type 'y' for yes or 'n' for no.[/]");
-        }
     }
 }

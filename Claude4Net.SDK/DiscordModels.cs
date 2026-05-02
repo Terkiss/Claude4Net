@@ -6,8 +6,11 @@ namespace Claude4Net.SDK
     {
         Pending,
         Running,
+        WaitingApproval,
         Completed,
-        Failed
+        Failed,
+        Denied,
+        Expired
     }
 
     public class DiscordJob : TaskStateBase
@@ -22,6 +25,13 @@ namespace Claude4Net.SDK
         public string? ResponseMessage { get; set; }
         public string? ErrorMessage { get; set; }
         public string? LastProgressMessage { get; set; }
+        
+        // Approval Info
+        public string? ApprovalRequiredTool { get; set; }
+        public string? ApprovalArguments { get; set; }
+        public ulong? ApprovedByUserId { get; set; }
+        public DateTime? ApprovedAt { get; set; }
+        public ulong? ApprovalMessageId { get; set; }
         
         public DiscordJob()
         {
