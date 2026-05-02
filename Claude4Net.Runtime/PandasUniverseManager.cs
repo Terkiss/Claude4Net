@@ -145,6 +145,21 @@ namespace Claude4Net.Runtime
                 };
                 u.AddTable("agent_trajectories", new DataFrame(columns), "Execution history for self-reflection and auditing.");
             }
+
+            if (!u.ContainsTable("audit_logs"))
+            {
+                var columns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>
+                {
+                    ["Timestamp"] = new TeruTeruPandas.Core.Column.StringColumn(0),
+                    ["User"] = new TeruTeruPandas.Core.Column.StringColumn(0),
+                    ["ToolName"] = new TeruTeruPandas.Core.Column.StringColumn(0),
+                    ["Input"] = new TeruTeruPandas.Core.Column.StringColumn(0),
+                    ["SafetyResult"] = new TeruTeruPandas.Core.Column.StringColumn(0),
+                    ["Approved"] = new TeruTeruPandas.Core.Column.StringColumn(0),
+                    ["Status"] = new TeruTeruPandas.Core.Column.StringColumn(0)
+                };
+                u.AddTable("audit_logs", new DataFrame(columns), "Security audit trail for sensitive operations.");
+            }
         }
 
         private async Task AutoSaveLoopAsync()

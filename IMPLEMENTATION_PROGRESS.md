@@ -11,8 +11,8 @@
 | --- | --- | --- | --- |
 | D01 | Baseline, Project Safety, Build/Test Standards | Mostly Complete | P001-P005 (Release gate/docs baseline complete) |
 | D02 | TeruTeruPandas Memory Sharing | Completed | P011-P020 (RAG, Migration, Memory Ops complete) |
-| D03 | Sandboxing/Permission State Machine | Mostly Complete | P021-P030 (Evaluator complete, need audit logs) |
-| D04 | Diagnostics, Source Guard, Masking | Mostly Complete | P031-P040 (SourceGuard complete, need diag refine) |
+| D03 | Sandboxing/Permission State Machine | Completed | P021-P030 (Evaluator & Audit logging complete) |
+| D04 | Diagnostics, Source Guard, Masking | Completed | P031-P040 (Refined masking & Doctor diagnostics complete) |
 | D05 | SmartRouter | Completed | P041-P050 (Cost-aware routing, Provider health monitoring complete) |
 | D06 | Resources-Oriented Skills | Mostly Complete | P051-P060 (Loader exist, need templates/docs) |
 | D07 | Discord Async Orchestration | Completed | P061-P070 (Approval flow, retry logic, multi-handler complete) |
@@ -28,6 +28,8 @@
 | K007 | D09 Self-Healing Quality | Completed | Regex-based taxonomy, Retry library, !prune command |
 | K008 | D02 Memory Ops | Completed | Schema migration, RAG stability, Dimension safety |
 | K009 | D05 Smart Router Ops | Completed | Cost-awareness, EMA tracking, Exponential backoff |
+| K010 | D03/D04 Security Hardening | Completed | Audit logging, Refined masking, !doctor diagnostics |
+
 
 ## Official Verification Commands
 ```powershell
@@ -58,13 +60,17 @@
 - [x] Implement PathSafetyResult enum
 - [x] Refactor ToolOrchestrator to use PathSafetyEvaluator
 - [x] Enforce manual approval for outside-access in YOLO mode
+- [x] Detailed Audit Logging for sensitive tool calls (audit_logs table)
+- [x] !audit command to view recent security events
 - [x] Add PathSafetyTests and verify Unix path detection
 
 ### D04: Diagnostics & Source Guard
-- [x] !doctor command implementation (Runtime, OS, Keys, DB, Plugins)
+- [x] !doctor command implementation (Runtime, OS, Keys, DB, Integrity)
 - [x] Comprehensive sensitive info masking in !env (Pattern + Key based)
-- [x] Source Guard filtering pipeline (API Key, Discord, Bearer, Connection String)
+- [x] Source Guard filtering pipeline (API Key, AWS, SSH, Bearer, etc.)
 - [x] No-Phone-Home baseline (Outbound masking)
+- [x] Added K010SecurityTests for audit and masking validation
+- [x] Total 74/74 tests pass
 
 ### D05: SmartRouter
 - [x] Implement SmartRouter with EMA latency tracking

@@ -48,7 +48,7 @@ namespace Claude4Net.Commands
                 sb.AppendLine("[bold cyan]🩺 Claude4Net-App Diagnostics[/]");
                 sb.AppendLine(new string('-', 40));
 
-                // 1. .NET Runtime / SDK
+                // 1. .NET Runtime / OS
                 sb.AppendLine($"[bold]Runtime:[/] {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}");
                 sb.AppendLine($"[bold]OS:[/] {System.Runtime.InteropServices.RuntimeInformation.OSDescription}");
                 
@@ -57,9 +57,18 @@ namespace Claude4Net.Commands
                 sb.AppendLine($"[bold]Current Workspace (CWD):[/] {Markup.Escape(AppState.CurrentCwd ?? "[red]NOT SET[/]")}");
                 sb.AppendLine($"[bold]Permission Mode:[/] {AppState.CurrentPermissionMode}");
 
-                // 3. Active Provider / Model
-                sb.AppendLine($"[bold]Active Provider:[/] {Markup.Escape(AppState.ActiveProvider)}");
-                sb.AppendLine($"[bold]Active Model:[/] {Markup.Escape(AppState.ActiveModel)}");
+                // 3. Provider & Router Status (Integrated with SmartRouter)
+                sb.AppendLine("[bold]Provider & Routing Health:[/]");
+                var router = sp.GetService<ISmartRouter>();
+                if (router != null)
+                {
+                    foreach(var m in router.GetMetrics())
+                    {
+                        string statusColor = m.Status == ProviderHealthStatus.Healthy ? "green" : m.Status == ProviderHealthStatus.CircuitBroken ? "red" : "yellow";
+                        sb.AppendLine($"  - [bold]{m.ProviderName.PadRight(10)}[/]: [[[{statusColor}]{m.Status}[/]]] Latency: {m.LatencyEma:F0}ms, Cost: {m.AccumulatedCost:F2}");
+                    }
+                }
+                else sb.AppendLine("  - [red]SmartRouter service not available[/]");
 
                 // 4. API Keys (Existence & Masking)
                 sb.AppendLine("[bold]API Keys Status:[/]");
@@ -71,36 +80,70 @@ namespace Claude4Net.Commands
                     sb.AppendLine($"  - {p.PadRight(10)}: {status}");
                 }
 
-                // 5. TeruTeruPandas memory.db
+                // 5. TeruTeruPandas memory.db Integrity
                 string dbPath = Path.Combine(AppState.SystemBaseDir, "db", "memory.db");
                 bool dbExists = File.Exists(dbPath);
-                string dbStatus = dbExists ? "[green]Accessible[/]" : "[yellow]Not Found (Will be created on use)[/]";
-                sb.AppendLine($"[bold]TeruTeruPandas DB:[/] {dbStatus}");
+                sb.AppendLine($"[bold]TeruTeruPandas DB:[/] {(dbExists ? "[green]Accessible[/]" : "[yellow]Not Found[/]")}");
                 if (dbExists) {
                     try {
                         var manager = PandasUniverseManager.Instance;
-                        sb.AppendLine($"  - Tables: {string.Join(", ", manager.TableNames)}");
+                        var tables = manager.TableNames.ToList();
+                        sb.AppendLine($"  - Tables: {string.Join(", ", tables)}");
+                        
+                        // Integrity check: baseline tables must exist
+                        string[] baseline = { "agent_memory", "agent_trajectories", "audit_logs" };
+                        foreach(var b in baseline)
+                            if (!tables.Contains(b)) sb.AppendLine($"    [red]⚠ Missing baseline table: {b}[/]");
                     } catch { sb.AppendLine("  - [red]Error querying database instance[/]"); }
                 }
 
-                // 6. Plugins & DLLs
+                // 5. Audit Log Summary
+                try {
+                    await PandasUniverseManager.Instance.ExecuteAsync(u => {
+                        if (u.ContainsTable("audit_logs")) {
+                            var df = u.GetTableOrThrow("audit_logs");
+                            sb.AppendLine($"[bold]Security Audit:[/] {df.RowCount} logs recorded");
+                            if (df.RowCount > 0) {
+                                var lastStatus = df["Status"].GetValue(df.RowCount - 1);
+                                sb.AppendLine($"  - Last Op Status: {lastStatus}");
+                            }
+                        }
+                        return null!;
+                    });
+                } catch { }
+
+                // 6. Plugins
                 string pluginDir = Path.Combine(AppState.SystemBaseDir, "plugins");
                 if (!Directory.Exists(pluginDir)) Directory.CreateDirectory(pluginDir);
-                
                 var dlls = Directory.GetFiles(pluginDir, "*.dll");
-                sb.AppendLine($"[bold]Plugins Directory:[/] {Markup.Escape(pluginDir)}");
-                sb.AppendLine($"[bold]Loaded Plugins:[/] {dlls.Length} found");
-                foreach(var dll in dlls)
-                {
-                    sb.AppendLine($"  - {Markup.Escape(Path.GetFileName(dll))}");
-                }
-
-                // 7. Security Policies
-                sb.AppendLine("[bold]Security Policies:[/]");
-                sb.AppendLine($"  - Source Guard: [green]Active[/]");
-                sb.AppendLine($"  - No-Phone-Home: [green]Enabled[/] (Masking applied to outbound context)");
+                sb.AppendLine($"[bold]Plugins:[/] {dlls.Length} loaded from {Markup.Escape(pluginDir)}");
 
                 return sb.ToString();
+            }},
+
+            new Command { Name = "audit", Description = "Show recent security audit logs", Handler = async (a, sp) => {
+                return await PandasUniverseManager.Instance.ExecuteAsync(u => {
+                    if (!u.ContainsTable("audit_logs")) return "[yellow]Audit logs table not found.[/]";
+                    var df = u.GetTableOrThrow("audit_logs");
+                    if (df.RowCount == 0) return "[grey]No audit logs found.[/]";
+                    
+                    int count = 10;
+                    if (int.TryParse(a, out int requestedCount)) count = requestedCount;
+                    
+                    var sb = new System.Text.StringBuilder();
+                    sb.AppendLine($"[bold cyan]Latest {Math.Min(count, df.RowCount)} Security Audit Logs:[/]");
+                    int start = Math.Max(0, df.RowCount - count);
+                    for (int i = df.RowCount - 1; i >= start; i--)
+                    {
+                        string ts = df["Timestamp"].GetValue(i)?.ToString() ?? "";
+                        string tool = df["ToolName"].GetValue(i)?.ToString() ?? "";
+                        string safety = df["SafetyResult"].GetValue(i)?.ToString() ?? "";
+                        string status = df["Status"].GetValue(i)?.ToString() ?? "";
+                        string color = status.Contains("Success") ? "green" : "red";
+                        sb.AppendLine($"[[{ts}]] [bold]{tool.PadRight(15)}[/] Safety: {safety.PadRight(10)} Status: [{color}]{status}[/]");
+                    }
+                    return sb.ToString();
+                });
             }},
 
             new Command { Name = "login", Description = "Log in to a provider (gemini, claude, ollama, gemini-cli)", Handler = async (args, sp) => {
