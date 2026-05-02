@@ -8,7 +8,8 @@ namespace Claude4Net.SDK
         Healthy,
         Degraded,
         Unhealthy,
-        CircuitBroken
+        CircuitBroken,
+        CircuitBreakerHalfOpen
     }
 
     public class ProviderMetric
@@ -20,6 +21,8 @@ namespace Claude4Net.SDK
         public int SuccessCount { get; set; }
         public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
         public double CostScore { get; set; } // 0.0 (Cheap) to 1.0 (Expensive)
+        public double AccumulatedCost { get; set; } // Track cumulative usage cost
+        public DateTime? CircuitBreakerResetTime { get; set; } // For exponential backoff
     }
 
     public enum RoutingIntent

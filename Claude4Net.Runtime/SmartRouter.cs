@@ -11,6 +11,7 @@ namespace Claude4Net.Runtime
         private readonly ConcurrentDictionary<string, ProviderMetric> _metrics = new();
         private const double Alpha = 0.3; // EMA smoothing factor
         private const int CircuitBreakerThreshold = 5;
+        private static readonly TimeSpan BaseBackoff = TimeSpan.FromSeconds(30);
 
         public SmartRouter()
         {
@@ -28,13 +29,26 @@ namespace Claude4Net.Runtime
                 LatencyEma = 1000, // Initial guess 1s
                 Status = ProviderHealthStatus.Healthy,
                 CostScore = costScore,
+                AccumulatedCost = 0,
                 LastUpdated = DateTime.UtcNow
             };
         }
 
         public RoutingDecision Route(string prompt, RoutingIntent intent = RoutingIntent.Auto)
         {
-            var healthyProviders = _metrics.Values
+            var now = DateTime.UtcNow;
+            var candidates = _metrics.Values.ToList();
+
+            // Check for Half-Open transition
+            foreach (var m in candidates.Where(m => m.Status == ProviderHealthStatus.CircuitBroken))
+            {
+                if (m.CircuitBreakerResetTime.HasValue && now >= m.CircuitBreakerResetTime.Value)
+                {
+                    m.Status = ProviderHealthStatus.CircuitBreakerHalfOpen;
+                }
+            }
+
+            var healthyProviders = candidates
                 .Where(m => m.Status != ProviderHealthStatus.CircuitBroken && m.Status != ProviderHealthStatus.Unhealthy)
                 .ToList();
 
@@ -70,7 +84,7 @@ namespace Claude4Net.Runtime
             {
                 SelectedProvider = top.Metric.ProviderName,
                 SelectedModel = DefaultModelFor(top.Metric.ProviderName, intent),
-                Reason = $"Selected {top.Metric.ProviderName} for {intent} intent (Score: {top.Score:F2}, Latency: {top.Metric.LatencyEma:F0}ms)",
+                Reason = $"Selected {top.Metric.ProviderName} for {intent} intent (Score: {top.Score:F2}, Latency: {top.Metric.LatencyEma:F0}ms, Health: {top.Metric.Status})",
                 FallbackChain = scored.Skip(1).Select(x => x.Metric.ProviderName).ToList()
             };
         }
@@ -82,11 +96,15 @@ namespace Claude4Net.Runtime
             // 1. Latency Penalty (Normalize: 100ms = -1 point)
             score -= (m.LatencyEma / 100.0);
 
-            // 2. Cost Weight
+            // 2. Base Cost Weight
             double costWeight = (intent == RoutingIntent.CostEffective) ? 50.0 : 10.0;
             score -= (m.CostScore * costWeight);
 
-            // 3. Intent Alignment
+            // 3. Accumulated Cost Penalty (Cost-Aware Routing)
+            // Penalty increases as accumulated cost grows to balance load/budget
+            score -= (m.AccumulatedCost * 0.5);
+
+            // 4. Intent Alignment
             switch (intent)
             {
                 case RoutingIntent.LargeModel:
@@ -102,8 +120,9 @@ namespace Claude4Net.Runtime
                     break;
             }
 
-            // 4. Health status penalty
+            // 5. Health status penalty
             if (m.Status == ProviderHealthStatus.Degraded) score -= 40.0;
+            if (m.Status == ProviderHealthStatus.CircuitBreakerHalfOpen) score -= 60.0; // Probe carefully
 
             return score;
         }
@@ -126,6 +145,7 @@ namespace Claude4Net.Runtime
                     ProviderName = provider, 
                     LatencyEma = latencyMs, 
                     Status = isError ? ProviderHealthStatus.Degraded : ProviderHealthStatus.Healthy,
+                    AccumulatedCost = isError ? 0 : (latencyMs / 1000.0), // Simplified cost estimate
                     LastUpdated = DateTime.UtcNow
                 },
                 (name, old) =>
@@ -138,18 +158,30 @@ namespace Claude4Net.Runtime
                         old.ErrorCount++;
                         old.SuccessCount = 0;
                         if (old.ErrorCount >= CircuitBreakerThreshold)
+                        {
                             old.Status = ProviderHealthStatus.CircuitBroken;
+                            // Exponential backoff: Base * 2^(errorCount - threshold)
+                            int backoffFactor = Math.Min(old.ErrorCount - CircuitBreakerThreshold, 6);
+                            old.CircuitBreakerResetTime = DateTime.UtcNow.Add(BaseBackoff.Multiply(Math.Pow(2, backoffFactor)));
+                        }
                         else
+                        {
                             old.Status = ProviderHealthStatus.Degraded;
+                        }
                     }
                     else
                     {
                         old.SuccessCount++;
-                        if (old.SuccessCount >= 3) // Recovery
+                        // Successful call on Half-Open or Healthy
+                        if (old.Status == ProviderHealthStatus.CircuitBreakerHalfOpen || old.SuccessCount >= 3)
                         {
                             old.ErrorCount = 0;
                             old.Status = ProviderHealthStatus.Healthy;
+                            old.CircuitBreakerResetTime = null;
                         }
+
+                        // Add to accumulated cost (mock logic: cost proportional to latency and base score)
+                        old.AccumulatedCost += (old.CostScore * (latencyMs / 1000.0));
                     }
                     old.LastUpdated = DateTime.UtcNow;
                     return old;

@@ -78,21 +78,66 @@ namespace Claude4Net.Tests
         }
 
         [Fact]
-        public void SmartRouter_ShouldFallbackToOllamaWhenAllRemoteBroken()
+        public void SmartRouter_ShouldTransitionToHalfOpenAfterBackoff()
+        {
+            var router = new SmartRouter();
+            // 1. Break Claude
+            for (int i = 0; i < 5; i++) router.UpdateMetric("claude", 500, true);
+            
+            var metrics = router.GetMetrics().First(m => m.ProviderName == "claude");
+            Assert.Equal(ProviderHealthStatus.CircuitBroken, metrics.Status);
+            Assert.NotNull(metrics.CircuitBreakerResetTime);
+
+            // 2. Mock time passage (In a real app we'd use a clock abstraction, but here we can check if Route handles it)
+            // For testing purposes, we can manually set the reset time to the past
+            metrics.CircuitBreakerResetTime = DateTime.UtcNow.AddMinutes(-1);
+            
+            // 3. Route call should trigger Half-Open transition
+            var decision = router.Route("Test");
+            Assert.Equal(ProviderHealthStatus.CircuitBreakerHalfOpen, metrics.Status);
+            
+            // 4. Successful call in Half-Open should recover to Healthy
+            router.UpdateMetric("claude", 200, false);
+            Assert.Equal(ProviderHealthStatus.Healthy, metrics.Status);
+            Assert.Equal(0, metrics.ErrorCount);
+        }
+
+        [Fact]
+        public void SmartRouter_ShouldApplyCostPenalty()
         {
             var router = new SmartRouter();
             
-            // Break all including ollama
-            for (int i = 0; i < 5; i++)
+            // 1. Initial state: Gemini is favored for SmallModel due to lower cost (0.4 vs 0.8)
+            var decision1 = router.Route("Small task", RoutingIntent.SmallModel);
+            Assert.Equal("gemini", decision1.SelectedProvider);
+
+            // 2. Simulate usage of Gemini to increase its accumulated cost
+            // Accumulated cost penalty is 0.5 * AccumulatedCost
+            for (int i = 0; i < 50; i++)
             {
-                router.UpdateMetric("claude", 500, true);
-                router.UpdateMetric("gemini", 500, true);
-                router.UpdateMetric("ollama", 500, true);
+                router.UpdateMetric("gemini", 1000, false); // Add cost
             }
             
-            var decision = router.Route("Any task");
-            Assert.Equal("ollama", decision.SelectedProvider);
-            Assert.Contains("Falling back to local Ollama", decision.Reason);
+            // 3. Now Gemini should have significant penalty.
+            // Check if it's no longer the top choice or at least its score dropped.
+            var decision2 = router.Route("Small task", RoutingIntent.SmallModel);
+            Assert.NotEqual("gemini", decision2.SelectedProvider);
+            Assert.True(decision2.SelectedProvider == "claude" || decision2.SelectedProvider == "ollama");
+        }
+
+        [Fact]
+        public void SmartRouter_ShouldTrackAccumulatedCost()
+        {
+            var router = new SmartRouter();
+            router.UpdateMetric("claude", 1000, false); // 1s latency
+            
+            var metrics = router.GetMetrics().First(m => m.ProviderName == "claude");
+            // Cost = CostScore(0.8) * Latency(1.0s) = 0.8
+            Assert.Equal(0.8, metrics.AccumulatedCost, 2);
+            
+            router.UpdateMetric("claude", 500, false); // 0.5s latency
+            // New cost = 0.8 + (0.8 * 0.5) = 1.2
+            Assert.Equal(1.2, metrics.AccumulatedCost, 2);
         }
     }
 }

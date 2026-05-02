@@ -13,7 +13,7 @@
 | D02 | TeruTeruPandas Memory Sharing | Completed | P011-P020 (RAG, Migration, Memory Ops complete) |
 | D03 | Sandboxing/Permission State Machine | Mostly Complete | P021-P030 (Evaluator complete, need audit logs) |
 | D04 | Diagnostics, Source Guard, Masking | Mostly Complete | P031-P040 (SourceGuard complete, need diag refine) |
-| D05 | SmartRouter | Mostly Complete | P041-P050 (Circuit breaker exist, need cost report) |
+| D05 | SmartRouter | Completed | P041-P050 (Cost-aware routing, Provider health monitoring complete) |
 | D06 | Resources-Oriented Skills | Mostly Complete | P051-P060 (Loader exist, need templates/docs) |
 | D07 | Discord Async Orchestration | Completed | P061-P070 (Approval flow, retry logic, multi-handler complete) |
 | D08 | Coordinate (/coordinate) | Completed | P071-P080 (Evidence, Merge Readiness, Gate enforcement complete) |
@@ -27,6 +27,7 @@
 | K006 | D08 Coordinate Evidence | Completed | Evidence-based gates, Merge Readiness scoring |
 | K007 | D09 Self-Healing Quality | Completed | Regex-based taxonomy, Retry library, !prune command |
 | K008 | D02 Memory Ops | Completed | Schema migration, RAG stability, Dimension safety |
+| K009 | D05 Smart Router Ops | Completed | Cost-awareness, EMA tracking, Exponential backoff |
 
 ## Official Verification Commands
 ```powershell
@@ -69,7 +70,10 @@
 - [x] Implement SmartRouter with EMA latency tracking
 - [x] Intent-based routing logic
 - [x] Circuit breaker and fallback chain
-- [x] Add D05SmartRouterTests
+- [x] Implement exponential backoff for Circuit Breaker recovery (Half-Open)
+- [x] Implement accumulated cost tracking and cost-aware routing penalty
+- [x] Add D05SmartRouterTests (Verified health recovery and cost-based decisions)
+- [x] Total 71/71 tests pass
 
 ### D06: Resources-Oriented Skills
 - [x] Define plugin resource directory convention (.resources/)
