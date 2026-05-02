@@ -160,6 +160,17 @@ namespace Claude4Net.Runtime
                 };
                 u.AddTable("audit_logs", new DataFrame(columns), "Security audit trail for sensitive operations.");
             }
+
+            if (!u.ContainsTable("embedding_cache"))
+            {
+                var columns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>
+                {
+                    ["Text"] = new TeruTeruPandas.Core.Column.StringColumn(0),
+                    ["Embedding"] = new TeruTeruPandas.Core.Column.VectorColumn(0),
+                    ["LastUsed"] = new TeruTeruPandas.Core.Column.StringColumn(0)
+                };
+                u.AddTable("embedding_cache", new DataFrame(columns), "Cache for text embeddings to reduce API calls.");
+            }
         }
 
         private async Task AutoSaveLoopAsync()

@@ -4,12 +4,13 @@
 - Start Date: 2024-05-22
 - Current Base Commit: `9bfe05c` (K003 Release Gate and CLI smoke verification)
 - Status: In Progress (Stabilization Phase)
-- Target: Complete D01 to D10 (10,000 steps)
+- Target: Complete D01-D10 baseline and clear all findings.
 
 ## Domain Status
+
 | Domain | Description | Status | Completion Range |
 | --- | --- | --- | --- |
-| D01 | Baseline, Project Safety, Build/Test Standards | Mostly Complete | P001-P005 (Release gate/docs baseline complete) |
+| D01 | Baseline, Project Safety, Build/Test Standards | Completed | P001-P005 (Release gate/docs baseline complete) |
 | D02 | TeruTeruPandas Memory Sharing | Completed | P011-P020 (RAG, Migration, Memory Ops complete) |
 | D03 | Sandboxing/Permission State Machine | Completed | P021-P030 (Evaluator & Audit logging complete) |
 | D04 | Diagnostics, Source Guard, Masking | Completed | P031-P040 (Refined masking & Doctor diagnostics complete) |
@@ -24,25 +25,25 @@
 | K003 | Release Gate | Completed | --smoke-exit verification baseline |
 | K004 | D10 Docs | Completed | Official Docs & Operations manual |
 | K005 | D07 Discord Approval | Completed | Button-based approval, permission check, retry utils |
-| K006 | D08 Coordinate Evidence | Completed | Evidence-based gates, Merge Readiness scoring |
+| K006 | D08 Coordinate Evidence | Completed | Evidence-backed gates, Merge Readiness scoring |
 | K007 | D09 Self-Healing Quality | Completed | Regex-based taxonomy, Retry library, !prune command |
 | K008 | D02 Memory Ops | Completed | Schema migration, RAG stability, Dimension safety |
 | K009 | D05 Smart Router Ops | Completed | Cost-awareness, EMA tracking, Exponential backoff |
 | K010 | D03/D04 Security Hardening | Completed | Audit logging, Refined masking, !doctor diagnostics |
-
+| K011 | Performance & Release Confidence | Completed | Embedding cache, AgentLoop optimization, 76/76 pass |
 
 ## Official Verification Commands
-```powershell
-.\scripts\verify-release.ps1
-```
+- Standard Build: `dotnet build -p:UseAppHost=false`
+- Strict Build: `.\scripts\verify-release.ps1`
+- Test: `dotnet test`
+- CLI Smoke: `dotnet .\Claude4Net.Cli\bin\Debug\net10.0\Claude4Net.Cli.dll --smoke-exit`
 
 ## Detailed Progress
 
-### D01: Baseline & Safety
-- [x] Initial workspace audit
-- [x] Verify existing implementation of !doctor and !env masking
-- [x] Establish build/test baseline (dotnet build/test success)
-- [ ] Finalize release gate documentation
+### D01: Project Setup & Standard Build
+- [x] Solution structure refinement
+- [x] Standard build pipeline verification
+- [x] Base security guidelines implementation
 
 ### D02: TeruTeruPandas Memory Sharing
 - [x] Align schemas for `agent_memory` and `agent_trajectories`
@@ -81,30 +82,18 @@
 - [x] Add D05SmartRouterTests (Verified health recovery and cost-based decisions)
 - [x] Total 71/71 tests pass
 
-### D06: Resources-Oriented Skills
-- [x] Define plugin resource directory convention (.resources/)
-- [x] Implement SkillResourceLoader and integrate with SystemPromptBuilder
-- [x] Add build logic to copy resources to output directory
-- [x] Add D06ResourceTests
-
 ### D07: Discord Async Orchestration
-- [x] Implement DiscordJob and DiscordJobStatus models (Extended with Approval states)
-- [x] Refactor DiscordListenerService with output chunking
-- [x] Implement `DiscordApprovalHandler` using Button interactions
-- [x] Implement `DiscordRetryUtils` for robust API calls
-- [x] Separate `IUserApprovalHandler` per request context (CLI/Discord)
-- [x] Load Discord approver whitelist from environment variables (`CLAUDE4NET_DISCORD_APPROVER_IDS`)
-- [x] Apply minimum permission policy to `!job` query command
-- [x] Add DiscordApprovalTests (6/6 pass)
-- [x] Total 66/66 tests pass
+- [x] DiscordListenerService and ChannelBroker
+- [x] Button-based approval workflow (DiscordApprovalHandler)
+- [x] Multitasking with handler-scoped state
+- [x] Retry utilities for transient network issues
+- [x] Job status query and permission checks
 
-### D08: Coordinate & Phase-Gates
-- [x] Define coordinator models (CoordinateTask, Phase, Gate, Evidence)
-- [x] Implement /coordinate command and CoordinatorStore
-- [x] Planning -> Execution -> Verification flow with evidence enforcement
-- [x] Implement `Merge Readiness` scoring (0-100%) and Blocker identification
-- [x] Add D08EvidenceTests and update D08CoordinateTests
-- [x] Total 66/66 tests pass
+### D08: Coordinate (/coordinate)
+- [x] Coordinate command for state synchronization
+- [x] Evidence-backed phase gates
+- [x] Merge readiness scoring logic
+- [x] Blocker identification and reporting
 
 ### D09: Agent Trajectories & Self-Healing
 - [x] Implement Self-Healing Service and ErrorClassifier
@@ -116,6 +105,14 @@
 - [x] Fix async test warnings (xUnit1031) in D07/D09
 - [x] Total 66/66 tests pass
 
+### D10: Final Stabilization & Performance
+- [x] Official Release Gate (scripts/verify-release.ps1)
+- [x] Strict build mode (warnings as errors)
+- [x] L1/L2 Embedding Caching (GeminiEmbeddingProvider & AgentLoop)
+- [x] Parallel tool execution in ToolOrchestrator
+- [x] Performance Benchmarking & Stress Testing (Documents/PERFORMANCE.md)
+- [x] Technical Debt: Regex optimization in keyword extraction
+- [x] Total 76/76 tests pass
 
 ### K003: Release Gate Baseline
 - [x] Create `scripts/verify-release.ps1` with strict error handling

@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Concurrent;
 using Claude4Net.SDK;
 
 namespace Claude4Net.Api;
@@ -12,6 +13,7 @@ public class GeminiEmbeddingProvider : IEmbeddingProvider
 {
     private readonly HttpClient _httpClient;
     private const string Model = "text-embedding-004";
+    private readonly ConcurrentDictionary<string, float[]> _l1Cache = new();
 
     public GeminiEmbeddingProvider(HttpClient httpClient)
     {
@@ -20,6 +22,12 @@ public class GeminiEmbeddingProvider : IEmbeddingProvider
 
     public async Task<float[]> GetEmbeddingAsync(string text, CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(text)) return Array.Empty<float>();
+
+        // L1 Cache Check (RAM)
+        if (_l1Cache.TryGetValue(text, out var cached)) return cached;
+
+        // API Call
         string? apiKey = AuthManager.GetApiKey("gemini");
         if (string.IsNullOrEmpty(apiKey)) throw new InvalidOperationException("Gemini API key not found.");
 
@@ -38,11 +46,14 @@ public class GeminiEmbeddingProvider : IEmbeddingProvider
         var embedding = result.GetProperty("embedding").GetProperty("values");
 
         float[] values = new float[embedding.GetArrayLength()];
-        int i = 0;
+        int j = 0;
         foreach (var val in embedding.EnumerateArray())
         {
-            values[i++] = val.GetSingle();
+            values[j++] = val.GetSingle();
         }
+
+        // Update Cache
+        _l1Cache[text] = values;
 
         return values;
     }

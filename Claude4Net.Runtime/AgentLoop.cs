@@ -118,13 +118,54 @@ namespace Claude4Net.Runtime
 
         private async Task<string> RetrieveRelevantMemoriesAsync(string userPrompt)
         {
+            if (_embedding == null) return "";
+            
+            var sw = Stopwatch.StartNew();
             float[]? targetVector = null;
-            if (_embedding != null)
+
+            // 1. Check persistent cache (L2) via PandasUniverseManager
+            targetVector = await PandasUniverseManager.Instance.ExecuteAsync(u =>
+            {
+                if (!u.ContainsTable("embedding_cache")) return null;
+                var df = u.GetTableOrThrow("embedding_cache");
+                for (int i = 0; i < df.RowCount; i++)
+                {
+                    if (df["Text"].GetValue(i)?.ToString() == userPrompt)
+                    {
+                        return df["Embedding"].GetValue(i) as float[];
+                    }
+                }
+                return null;
+            });
+
+            // 2. If not in cache, call API
+            if (targetVector == null)
             {
                 try { targetVector = await _embedding.GetEmbeddingAsync(userPrompt); } catch { }
+                
+                // Save to L2 cache if successful
+                if (targetVector != null && targetVector.Length > 0)
+                {
+                    var vec = targetVector;
+                    _ = PandasUniverseManager.Instance.ExecuteAsync(u =>
+                    {
+                        if (!u.ContainsTable("embedding_cache")) return null!;
+                        var df = u.GetTableOrThrow("embedding_cache");
+                        var newRowCols = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>
+                        {
+                            ["Text"] = new TeruTeruPandas.Core.Column.StringColumn(new[] { userPrompt }),
+                            ["Embedding"] = new TeruTeruPandas.Core.Column.VectorColumn(new[] { vec }),
+                            ["LastUsed"] = new TeruTeruPandas.Core.Column.StringColumn(new[] { DateTime.Now.ToString("O") })
+                        };
+                        var newRowDf = new DataFrame(newRowCols);
+                        var updatedDf = TeruTeruPandas.Core.DataFrameJoinExtensions.Concat(new[] { df, newRowDf }, 0);
+                        u.AddOrUpdateTable("embedding_cache", updatedDf);
+                        return null!;
+                    });
+                }
             }
 
-            return await PandasUniverseManager.Instance.ExecuteAsync(u =>
+            string result = await PandasUniverseManager.Instance.ExecuteAsync(u =>
             {
                 if (!u.ContainsTable("agent_memory")) return "";
                 var df = u.GetTableOrThrow("agent_memory");
@@ -182,6 +223,13 @@ namespace Claude4Net.Runtime
                 sb.AppendLine("--------------------------------------------------------------------------\n");
                 return sb.ToString();
             });
+
+            sw.Stop();
+            if (sw.ElapsedMilliseconds > 200)
+            {
+                AnsiConsole.MarkupLine($"[yellow]⚠ Performance Warning:[/] RAG retrieval took {sw.ElapsedMilliseconds}ms.");
+            }
+            return result;
         }
 
         private DataFrame SearchByKeywords(DataFrame df, string userPrompt)
@@ -663,14 +711,20 @@ namespace Claude4Net.Runtime
             }
         }
 
+        private static readonly Regex KeywordRegex = new(@"\b\w{4,}\b", RegexOptions.Compiled);
+        private static readonly HashSet<string> StopWords = new(StringComparer.OrdinalIgnoreCase) 
+        { 
+            "this", "that", "there", "their", "where", "which", "could", "should", "would", "about", "above", "after", "again" 
+        };
+
         private string ExtractKeywords(string text)
         {
             try
             {
-                var words = Regex.Matches(text.ToLower(), @"\b\w{4,}\b")
+                var words = KeywordRegex.Matches(text.ToLower())
                                  .Cast<Match>()
                                  .Select(m => m.Value)
-                                 .Where(w => !new[] { "this", "that", "there", "their", "where", "which" }.Contains(w))
+                                 .Where(w => !StopWords.Contains(w))
                                  .GroupBy(w => w)
                                  .OrderByDescending(g => g.Count())
                                  .Take(10)
