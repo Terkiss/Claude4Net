@@ -15,7 +15,7 @@
 | D03 | Sandboxing/Permission State Machine | Completed | P021-P030 (Evaluator & Audit logging complete) |
 | D04 | Diagnostics, Source Guard, Masking | Completed | P031-P040 (Refined masking & Doctor diagnostics complete) |
 | D05 | SmartRouter | Completed | P041-P050 (Cost-aware routing, Provider health monitoring complete) |
-| D06 | Resources-Oriented Skills | Mostly Complete | P051-P060 (Loader exist, need templates/docs) |
+| D06 | Resources-Oriented Skills | Completed | P051-P060 (Loader, Caching, Prompt integration, Full templates complete) |
 | D07 | Discord Async Orchestration | Completed | P061-P070 (Approval flow, retry logic, multi-handler complete) |
 | D08 | Coordinate (/coordinate) | Completed | P071-P080 (Evidence, Merge Readiness, Gate enforcement complete) |
 | D09 | Agent Trajectories & Self-Healing | Completed | P081-P090 (Intelligent classification, Retry policies, Pruning complete) |
@@ -31,7 +31,7 @@
 | K009 | D05 Smart Router Ops | Completed | Cost-awareness, EMA tracking, Exponential backoff |
 | K010 | D03/D04 Security Hardening | Completed | Audit logging, Refined masking, !doctor diagnostics |
 | K011 | Performance & Release Confidence | Completed | Embedding cache, AgentLoop optimization, 76/76 pass |
-| K012 | Final Stabilization and Handoff | Completed | Security audit, user manual, handoff docs, 76/76 pass |
+| K012 | Final Stabilization and Handoff | Completed | Security audit, user manual, handoff docs, 77/77 pass |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -83,6 +83,14 @@
 - [x] Add D05SmartRouterTests (Verified health recovery and cost-based decisions)
 - [x] Total 71/71 tests pass
 
+### D06: Resources-Oriented Skills
+- [x] SkillResourceLoader with filesystem discovery and caching
+- [x] SkillResourceManifest for Checklist, Playbook, Protocol, and Examples
+- [x] SystemPromptBuilder integration for tool-specific instructions
+- [x] Standard resource templates for `PandasDbTool` and `weather_search`
+- [x] Robust path discovery for both runtime and test environments
+- [x] Total 77/77 tests pass (including D06 resource integrity checks)
+
 ### D07: Discord Async Orchestration
 - [x] DiscordListenerService and ChannelBroker
 - [x] Button-based approval workflow (DiscordApprovalHandler)
@@ -122,10 +130,9 @@
 - [x] Verify operational documentation and READMEs
 - [x] Perform final repository hygiene (Zero untracked/temp files)
 - [x] Prepare handoff documentation (Documents/HANDOFF.md)
-- [x] Final release gate verification (76/76 tests pass)
+- [x] Final release gate verification (77/77 tests pass)
 
 ### K003: Release Gate Baseline
-
 - [x] Create `scripts/verify-release.ps1` with strict error handling
 - [x] Add `--smoke-exit` non-interactive CLI verification path in `Program.cs`
 - [x] Verify DLL-direct CLI smoke test with shutdown message

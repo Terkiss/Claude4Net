@@ -25,4 +25,12 @@
     <ProjectReference Include="..\Claude4Net.Discord\Claude4Net.Discord.csproj" />
   </ItemGroup>
 
+  <!-- 리소스 폴더를 테스트 출력 디렉토리로 복사 (통합 테스트용) -->
+  <ItemGroup>
+    <Content Include="..\.resources\**\*.*">
+      <Link>.resources\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

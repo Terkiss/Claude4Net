@@ -134,5 +134,27 @@ namespace Claude4Net.Tests
                 AppState.SystemBaseDir = originalBaseDir;
             }
         }
+
+        [Fact]
+        public void SystemPromptBuilder_LoadsRealResources_IfExist()
+        {
+            // This test checks if the actual .resources folder in the AppDomain base directory (build output)
+            // contains expected plugin resources.
+            var builder = new SystemPromptBuilder();
+            string prompt = builder.Build("gemini");
+
+            // If the build process copied .resources correctly, these should be present
+            string realResourcesDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".resources");
+            if (Directory.Exists(realResourcesDir) && Directory.GetDirectories(realResourcesDir).Length > 0)
+            {
+                Assert.Contains("## 🛠️ Plugin-Specific Execution Resources", prompt);
+                
+                // Specifically check for weather_search which we know exists in repo
+                if (Directory.Exists(Path.Combine(realResourcesDir, "weather_search")))
+                {
+                    Assert.Contains("### [RESOURCE: weather_search]", prompt);
+                }
+            }
+        }
     }
 }
