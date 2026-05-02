@@ -52,8 +52,8 @@ namespace Claude4Net.Runtime
             // 3. 트랜잭션 큐 초기화 (순차 처리를 위해 Unbounded 사용)
             _transactionQueue = Channel.CreateUnbounded<Func<DataUniverse, Task>>();
 
-            // 4. Ensure baseline tables (agent_memory, agent_trajectories) exist
-            _ = EnsureBaselineTablesAsync();
+            // 4. Ensure baseline tables exist (Synchronously for initial instance)
+            EnsureBaselineTablesInternal(_universe);
 
             // 5. 백그라운드 큐 처리 루프 시작
             _ = ProcessQueueAsync();
@@ -72,66 +72,79 @@ namespace Claude4Net.Runtime
             };
         }
 
-        private async Task EnsureBaselineTablesAsync()
+        /// <summary>
+        /// 필수 베이스라인 테이블(agent_memory, agent_trajectories)이 존재하는지 확인하고 
+        /// 없으면 생성하거나 마이그레이션을 수행합니다.
+        /// </summary>
+        public async Task EnsureBaselineTablesAsync()
         {
             await ExecuteAsync(u =>
             {
-                if (!u.ContainsTable("agent_memory"))
-                {
-                    var columns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>
-                    {
-                        ["AgentId"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                        ["Role"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                        ["Status"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                        ["CurrentTask"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                        ["SharedContext"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                        ["LastUpdated"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                        ["SessionId"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                        ["Keywords"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                        ["UserPrompt"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                        ["AgentResponse"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                        ["Embedding"] = new TeruTeruPandas.Core.Column.VectorColumn(0)
-                    };
-                    u.AddTable("agent_memory", new DataFrame(columns), "Shared agent state and long-term memory for RAG.");
-                }
-                else
-                {
-                    // Migration: Ensure all columns exist
-                    var df = u.GetTableOrThrow("agent_memory");
-                    var requiredCols = new Dictionary<string, Func<int, TeruTeruPandas.Core.Column.IColumn>>
-                    {
-                        ["Keywords"] = (n) => new TeruTeruPandas.Core.Column.StringColumn(Enumerable.Repeat("", n).ToArray()),
-                        ["UserPrompt"] = (n) => new TeruTeruPandas.Core.Column.StringColumn(Enumerable.Repeat("", n).ToArray()),
-                        ["AgentResponse"] = (n) => new TeruTeruPandas.Core.Column.StringColumn(Enumerable.Repeat("", n).ToArray()),
-                        ["Embedding"] = (n) => new TeruTeruPandas.Core.Column.VectorColumn(n)
-                    };
-
-                    bool modified = false;
-                    foreach (var pair in requiredCols)
-                    {
-                        if (!df.Columns.Contains(pair.Key))
-                        {
-                            df.AddColumn(pair.Key, pair.Value(df.RowCount));
-                            modified = true;
-                        }
-                    }
-                    if (modified) u.AddOrUpdateTable("agent_memory", df);
-                }
-
-                if (!u.ContainsTable("agent_trajectories"))
-                {
-                    var columns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>
-                    {
-                        ["Timestamp"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                        ["AgentId"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                        ["ToolName"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                        ["IsError"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                        ["ErrorReason"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0]),
-                        ["Payload"] = new TeruTeruPandas.Core.Column.StringColumn(new string[0])
-                    };
-                    u.AddTable("agent_trajectories", new DataFrame(columns), "Execution history for self-reflection and auditing.");
-                }
+                EnsureBaselineTablesInternal(u);
             });
+        }
+
+        /// <summary>
+        /// 제공된 DataUniverse 인스턴스에 필수 베이스라인 테이블이 있는지 확인하고 생성합니다.
+        /// 트랜잭션 내부에서 직접 호출할 때 사용합니다.
+        /// </summary>
+        public void EnsureBaselineTablesInternal(DataUniverse u)
+        {
+            if (!u.ContainsTable("agent_memory"))
+            {
+                var columns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>
+                {
+                    ["AgentId"] = new TeruTeruPandas.Core.Column.StringColumn(0),
+                    ["Role"] = new TeruTeruPandas.Core.Column.StringColumn(0),
+                    ["Status"] = new TeruTeruPandas.Core.Column.StringColumn(0),
+                    ["CurrentTask"] = new TeruTeruPandas.Core.Column.StringColumn(0),
+                    ["SharedContext"] = new TeruTeruPandas.Core.Column.StringColumn(0),
+                    ["LastUpdated"] = new TeruTeruPandas.Core.Column.StringColumn(0),
+                    ["SessionId"] = new TeruTeruPandas.Core.Column.StringColumn(0),
+                    ["Keywords"] = new TeruTeruPandas.Core.Column.StringColumn(0),
+                    ["UserPrompt"] = new TeruTeruPandas.Core.Column.StringColumn(0),
+                    ["AgentResponse"] = new TeruTeruPandas.Core.Column.StringColumn(0),
+                    ["Embedding"] = new TeruTeruPandas.Core.Column.VectorColumn(0)
+                };
+                u.AddTable("agent_memory", new DataFrame(columns), "Shared agent state and long-term memory for RAG.");
+            }
+            else
+            {
+                // Migration: Ensure all columns exist
+                var df = u.GetTableOrThrow("agent_memory");
+                var requiredCols = new Dictionary<string, Func<int, TeruTeruPandas.Core.Column.IColumn>>
+                {
+                    ["Keywords"] = (n) => new TeruTeruPandas.Core.Column.StringColumn(n),
+                    ["UserPrompt"] = (n) => new TeruTeruPandas.Core.Column.StringColumn(n),
+                    ["AgentResponse"] = (n) => new TeruTeruPandas.Core.Column.StringColumn(n),
+                    ["Embedding"] = (n) => new TeruTeruPandas.Core.Column.VectorColumn(n)
+                };
+
+                bool modified = false;
+                foreach (var pair in requiredCols)
+                {
+                    if (!df.Columns.Contains(pair.Key))
+                    {
+                        df.AddColumn(pair.Key, pair.Value(df.RowCount));
+                        modified = true;
+                    }
+                }
+                if (modified) u.AddOrUpdateTable("agent_memory", df);
+            }
+
+            if (!u.ContainsTable("agent_trajectories"))
+            {
+                var columns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>
+                {
+                    ["Timestamp"] = new TeruTeruPandas.Core.Column.StringColumn(0),
+                    ["AgentId"] = new TeruTeruPandas.Core.Column.StringColumn(0),
+                    ["ToolName"] = new TeruTeruPandas.Core.Column.StringColumn(0),
+                    ["IsError"] = new TeruTeruPandas.Core.Column.StringColumn(0),
+                    ["ErrorReason"] = new TeruTeruPandas.Core.Column.StringColumn(0),
+                    ["Payload"] = new TeruTeruPandas.Core.Column.StringColumn(0)
+                };
+                u.AddTable("agent_trajectories", new DataFrame(columns), "Execution history for self-reflection and auditing.");
+            }
         }
 
         private async Task AutoSaveLoopAsync()

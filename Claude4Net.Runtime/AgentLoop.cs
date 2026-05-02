@@ -135,9 +135,26 @@ namespace Claude4Net.Runtime
                 // Only use semantic search if we have a valid target vector and the column exists
                 if (targetVector != null && targetVector.Length > 0 && df.Columns.Contains("Embedding"))
                 {
-                    // Semantic Search using Cosine Similarity
-                    // (Internal CalculateSimilarities handles null/mismatched row vectors by returning -1.0)
-                    topMemories = df.OrderByDescendingCosineSimilarity("Embedding", targetVector).Head(3);
+                    // Safety: Filter rows with consistent dimensions before SIMD operations
+                    var embCol = df["Embedding"];
+                    var validIndices = new List<int>();
+                    for (int i = 0; i < df.RowCount; i++)
+                    {
+                        if (embCol.GetValue(i) is float[] v && v.Length == targetVector.Length)
+                        {
+                            validIndices.Add(i);
+                        }
+                    }
+
+                    if (validIndices.Count > 0)
+                    {
+                        var filteredDf = df.Reorder(validIndices.ToArray());
+                        topMemories = filteredDf.OrderByDescendingCosineSimilarity("Embedding", targetVector).Head(3);
+                    }
+                    else
+                    {
+                        topMemories = SearchByKeywords(df, userPrompt);
+                    }
                     
                     // If no good semantic matches found (all similarities <= 0), fallback to keywords
                     var topSim = topMemories.Columns.Contains("Similarity") ? (double)(topMemories["Similarity"].GetValue(0) ?? -1.0) : -1.0;

@@ -35,7 +35,7 @@ namespace Claude4Net.SDK
     public static class AppState
     {
         private static readonly ConcurrentDictionary<string, ModelUsage> _modelUsage = new();
-        public static string SessionId { get; private set; } = Guid.NewGuid().ToString();
+        public static string SessionId { get; set; } = Guid.NewGuid().ToString();
         
         // The directory where the EXE is located (System storage for Skills, DB, etc.)
         public static string SystemBaseDir { get; set; } = AppDomain.CurrentDomain.BaseDirectory;

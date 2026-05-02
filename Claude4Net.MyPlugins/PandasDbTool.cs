@@ -628,6 +628,9 @@ namespace Claude4Net.Tools
                     {
                         u.AddTable(tableName, restoredUniverse.GetTableOrThrow(tableName));
                     }
+
+                    // Ensure baseline tables exist after restore
+                    PandasUniverseManager.Instance.EnsureBaselineTablesInternal(u);
                 });
 
                 return new { status = "Success", message = $"DataUniverse restored from snapshot {safeName}." };
@@ -800,11 +803,18 @@ namespace Claude4Net.Tools
                     {
                         // Clear only current session
                         var sessionId = AppState.SessionId;
+                        if (!df.Columns.Contains("SessionId"))
+                        {
+                            // If no SessionId column, cannot filter. Keep all.
+                            return;
+                        }
+
                         var sessionIdCol = df["SessionId"];
                         var list = new List<int>();
                         for (int i = 0; i < df.RowCount; i++)
                         {
-                            if (sessionIdCol.GetValue(i)?.ToString() != sessionId)
+                            var rowSid = sessionIdCol.GetValue(i)?.ToString();
+                            if (rowSid != sessionId)
                             {
                                 list.Add(i);
                             }
@@ -812,13 +822,11 @@ namespace Claude4Net.Tools
                         indicesToKeep = list.ToArray();
                     }
 
-                    var newColumns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>();
-                    foreach (var colName in df.Columns)
+                    if (indicesToKeep.Length < df.RowCount)
                     {
-                        newColumns[colName] = df[colName].Reorder(indicesToKeep);
+                        var newDf = df.Reorder(indicesToKeep);
+                        u.AddOrUpdateTable("agent_memory", newDf);
                     }
-                    var newDf = new DataFrame(newColumns, df.Index.Reorder(indicesToKeep));
-                    u.AddOrUpdateTable("agent_memory", newDf);
                 });
                 return new { status = "Success", message = $"Agent memory cleared (Scope: {scope})." };
             }

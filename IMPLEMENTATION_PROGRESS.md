@@ -10,7 +10,7 @@
 | Domain | Description | Status | Completion Range |
 | --- | --- | --- | --- |
 | D01 | Baseline, Project Safety, Build/Test Standards | Mostly Complete | P001-P005 (Release gate/docs baseline complete) |
-| D02 | TeruTeruPandas Memory Sharing | Mostly Complete | P011-P020 (RAG baseline, need migration/perf) |
+| D02 | TeruTeruPandas Memory Sharing | Completed | P011-P020 (RAG, Migration, Memory Ops complete) |
 | D03 | Sandboxing/Permission State Machine | Mostly Complete | P021-P030 (Evaluator complete, need audit logs) |
 | D04 | Diagnostics, Source Guard, Masking | Mostly Complete | P031-P040 (SourceGuard complete, need diag refine) |
 | D05 | SmartRouter | Mostly Complete | P041-P050 (Circuit breaker exist, need cost report) |
@@ -26,6 +26,7 @@
 | K005 | D07 Discord Approval | Completed | Button-based approval, permission check, retry utils |
 | K006 | D08 Coordinate Evidence | Completed | Evidence-based gates, Merge Readiness scoring |
 | K007 | D09 Self-Healing Quality | Completed | Regex-based taxonomy, Retry library, !prune command |
+| K008 | D02 Memory Ops | Completed | Schema migration, RAG stability, Dimension safety |
 
 ## Official Verification Commands
 ```powershell
@@ -44,8 +45,12 @@
 - [x] Align schemas for `agent_memory` and `agent_trajectories`
 - [x] Implement `PandasAgentMemoryUpsertTool`, `QueryTool`, `ClearTool`
 - [x] Secure `PandasSnapshotTool` and `PandasRestoreTool`
-- [x] Implement memory schema migration logic
-- [x] Add D02MemoryTests and D11RAGTests baseline
+- [x] Implement memory schema migration logic (Reinforced for operational safety)
+- [x] Fix D02MemoryTests regression (Synchronize initialization & Ensure baseline after restore)
+- [x] Improve RAG retrieval stability (Dimension consistency filtering & Keyword fallback)
+- [x] Tighten memory clear scope (Session isolation safety)
+- [x] Add K008MemoryOpsTests (Migration, Dimension Safety, Clear Scope)
+- [x] Total 69/69 tests pass
 
 ### D03: Sandboxing & Permissions
 - [x] Extract path safety logic into PathSafetyEvaluator
@@ -92,13 +97,15 @@
 - [x] Total 66/66 tests pass
 
 ### D09: Agent Trajectories & Self-Healing
-- [x] Implement SelfHealingService and ErrorClassifier
+- [x] Implement Self-Healing Service and ErrorClassifier
 - [x] Regex-based error taxonomy (Quota, Network, Timeout, Logic, etc.)
 - [x] Recommended Retry Policies library (Exponential Backoff, Fixed, etc.)
 - [x] Automatic SELF_HEAL_GUIDE enhancement with retry policies
 - [x] Trajectory Pruning logic and `!prune` command
-- [x] Add D09SelfHealingTests with regression cases
+- [x] Add D09SelfHealingTests with regression cases (Reinforced pruning verification)
+- [x] Fix async test warnings (xUnit1031) in D07/D09
 - [x] Total 66/66 tests pass
+
 
 ### K003: Release Gate Baseline
 - [x] Create `scripts/verify-release.ps1` with strict error handling
