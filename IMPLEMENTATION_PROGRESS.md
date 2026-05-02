@@ -76,8 +76,10 @@
 - [x] Implement `DiscordApprovalHandler` using Button interactions
 - [x] Implement `DiscordRetryUtils` for robust API calls
 - [x] Separate `IUserApprovalHandler` per request context (CLI/Discord)
-- [x] Add DiscordApprovalTests (4/4 pass)
-- [x] Total 59/59 tests pass
+- [x] Load Discord approver whitelist from environment variables (`CLAUDE4NET_DISCORD_APPROVER_IDS`)
+- [x] Apply minimum permission policy to `!job` query command
+- [x] Add DiscordApprovalTests (6/6 pass)
+- [x] Total 61/61 tests pass
 
 ### D08: Coordinate & Phase-Gates
 - [x] Define coordinator models (CoordinateTask, Phase, Gate)

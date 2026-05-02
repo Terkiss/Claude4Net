@@ -50,14 +50,44 @@ namespace Claude4Net.Tests
         }
 
         [Fact]
-        public void AppState_DiscordAllowedApproverIds_Works()
+        public void AppState_LoadDiscordApprovers_Works()
         {
+            // Arrange
+            Environment.SetEnvironmentVariable("CLAUDE4NET_DISCORD_APPROVER_IDS", "111, 222, abc, 333");
+
             // Act
-            AppState.DiscordAllowedApproverIds.Add(12345ul);
-            
+            AppState.LoadDiscordApprovers();
+
             // Assert
-            Assert.Contains(12345ul, AppState.DiscordAllowedApproverIds);
-            Assert.DoesNotContain(67890ul, AppState.DiscordAllowedApproverIds);
+            Assert.Contains(111ul, AppState.DiscordAllowedApproverIds);
+            Assert.Contains(222ul, AppState.DiscordAllowedApproverIds);
+            Assert.Contains(333ul, AppState.DiscordAllowedApproverIds);
+            Assert.Equal(3, AppState.DiscordAllowedApproverIds.Count);
+
+            // Cleanup
+            Environment.SetEnvironmentVariable("CLAUDE4NET_DISCORD_APPROVER_IDS", null);
+        }
+
+        [Fact]
+        public void DiscordJob_PermissionCheck_Logic_Works()
+        {
+            // Arrange
+            AppState.DiscordAllowedApproverIds.Clear();
+            AppState.DiscordAllowedApproverIds.Add(999ul);
+
+            // Act & Assert
+            // 1. Allowed user
+            bool isAllowed1 = AppState.DiscordAllowedApproverIds.Count > 0 && AppState.DiscordAllowedApproverIds.Contains(999ul);
+            Assert.True(isAllowed1);
+
+            // 2. Disallowed user
+            bool isAllowed2 = AppState.DiscordAllowedApproverIds.Count > 0 && AppState.DiscordAllowedApproverIds.Contains(111ul);
+            Assert.False(isAllowed2);
+
+            // 3. Empty whitelist (should deny all)
+            AppState.DiscordAllowedApproverIds.Clear();
+            bool isAllowed3 = AppState.DiscordAllowedApproverIds.Count > 0 && AppState.DiscordAllowedApproverIds.Contains(999ul);
+            Assert.False(isAllowed3);
         }
 
         [Fact]

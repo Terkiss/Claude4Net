@@ -182,6 +182,17 @@ namespace Claude4Net.Discord
                     if (cleanText.StartsWith("!job ", StringComparison.OrdinalIgnoreCase))
                     {
                         var targetId = cleanText.Substring(5).Trim();
+
+                        // Permission Check for !job query
+                        bool isAllowed = AppState.DiscordAllowedApproverIds.Count > 0 && 
+                                         AppState.DiscordAllowedApproverIds.Contains(message.Author.Id);
+
+                        if (!isAllowed)
+                        {
+                            await DiscordRetryUtils.ExecuteWithRetryAsync(() => message.Channel.SendMessageAsync("❌ You do not have permission to query job status."));
+                            return;
+                        }
+
                         if (AppState.Tasks.TryGetValue(targetId, out var t) && t is DiscordJob jobInfo)
                         {
                             var embed = new EmbedBuilder()

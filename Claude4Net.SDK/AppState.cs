@@ -53,6 +53,28 @@ namespace Claude4Net.SDK
         // Discord Security
         public static HashSet<ulong> DiscordAllowedApproverIds { get; } = new();
 
+        public static void LoadDiscordApprovers()
+        {
+            var envValue = Environment.GetEnvironmentVariable("CLAUDE4NET_DISCORD_APPROVER_IDS") ?? 
+                           Environment.GetEnvironmentVariable("DISCORD_APPROVER_IDS");
+
+            if (string.IsNullOrEmpty(envValue)) return;
+
+            var ids = envValue.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var idStr in ids)
+            {
+                if (ulong.TryParse(idStr.Trim(), out ulong id))
+                {
+                    DiscordAllowedApproverIds.Add(id);
+                }
+                else
+                {
+                    // Log or warn locally if needed
+                    Console.WriteLine($"[Warning] Invalid Discord Approver ID format: {idStr}");
+                }
+            }
+        }
+
         public static IEnumerable<CoordinateTask> GetCoordinatedTasks() => 
             Tasks.Values.OfType<CoordinateTask>();
         

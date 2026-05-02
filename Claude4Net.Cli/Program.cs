@@ -14,6 +14,7 @@ using System.IO;
 using System.Threading;
 
 // --- 1. DI Setup ---
+AppState.LoadDiscordApprovers();
 var services = new ServiceCollection();
 
 // HTTP Client Factory
