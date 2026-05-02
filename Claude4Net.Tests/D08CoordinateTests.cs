@@ -8,8 +8,12 @@ using System.Linq;
 
 namespace Claude4Net.Tests
 {
-    public class D08CoordinateTests
+    [Collection("AppState")]
+    public class D08CoordinateTests : IDisposable
     {
+        public D08CoordinateTests() { AppState.Tasks.Clear(); }
+        public void Dispose() { AppState.Tasks.Clear(); }
+
         [Fact]
         public async Task Coordinate_Flow_ShouldWork()
         {
@@ -29,6 +33,7 @@ namespace Claude4Net.Tests
             Assert.Contains("Planning", listRes);
 
             // 3. Update Gates
+            await cmd.Handler!("evidence T1 DesignDoc Final_Design", services);
             string gateRes1 = await cmd.Handler!("gate T1 DesignDoc true Finalized design", services);
             Assert.Contains("updated", gateRes1);
             string gateRes2 = await cmd.Handler!("gate T1 ResourceCheck true Resources verified", services);

@@ -5,8 +5,12 @@ using System.Linq;
 
 namespace Claude4Net.Tests
 {
-    public class D08PhaseGatesTests
+    [Collection("AppState")]
+    public class D08PhaseGatesTests : System.IDisposable
     {
+        public D08PhaseGatesTests() { AppState.Tasks.Clear(); }
+        public void Dispose() { AppState.Tasks.Clear(); }
+
         [Fact]
         public void CoordinatorStore_ShouldCreateTaskWithDefaultGates()
         {
@@ -39,6 +43,7 @@ namespace Claude4Net.Tests
             string id = "test-d08-3";
             var task = store.CreateTask(id, "Test Task", "Description");
 
+            store.AddEvidence(id, "DesignDoc", "Tester", "Proof");
             store.UpdateGate(id, "DesignDoc", true);
             store.UpdateGate(id, "ResourceCheck", true);
 
@@ -54,6 +59,7 @@ namespace Claude4Net.Tests
             var store = CoordinatorStore.Instance;
             string id = "test-d08-4";
             store.CreateTask(id, "Test Task", "Description");
+            store.AddEvidence(id, "DesignDoc", "Tester", "Proof");
             store.UpdateGate(id, "DesignDoc", true);
             store.UpdateGate(id, "ResourceCheck", true);
             store.TransitionPhase(id, CoordinatePhase.Execution);
@@ -69,6 +75,7 @@ namespace Claude4Net.Tests
             var store = CoordinatorStore.Instance;
             string id = "test-d08-5";
             store.CreateTask(id, "Test Task", "Description");
+            store.AddEvidence(id, "DesignDoc", "Tester", "Proof");
             store.UpdateGate(id, "DesignDoc", true);
             store.UpdateGate(id, "ResourceCheck", true);
             store.TransitionPhase(id, CoordinatePhase.Execution);

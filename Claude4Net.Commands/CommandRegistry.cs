@@ -301,7 +301,7 @@ namespace Claude4Net.Commands
 
             new Command { Name = "coordinate", Description = "Orchestrate tasks through Planning -> Execution -> Verification phases", Handler = (a, sp) => {
                 var parts = a.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length == 0) return Task.FromResult("Usage: /coordinate <list|start|status|phase|gate|approve|reject>");
+                if (parts.Length == 0) return Task.FromResult("Usage: /coordinate <list|start|status|phase|gate|evidence|approve|reject>");
 
                 string sub = parts[0].ToLowerInvariant();
                 var store = CoordinatorStore.Instance;
@@ -313,7 +313,11 @@ namespace Claude4Net.Commands
                         if (!tasks.Any()) return Task.FromResult("[grey]No coordinated tasks found.[/]");
                         var table = new System.Text.StringBuilder();
                         table.AppendLine("[bold cyan]Coordinated Tasks:[/]");
-                        foreach(var t in tasks) table.AppendLine($"  - [[{t.Id}]] [bold]{t.Title}[/] ({t.CurrentPhase}) - {t.ReviewStatus}");
+                        foreach(var t in tasks) 
+                        {
+                            string scoreColor = t.ReadinessScore > 80 ? "green" : t.ReadinessScore > 40 ? "yellow" : "red";
+                            table.AppendLine($"  - [[{t.Id}]] [bold]{t.Title}[/] ({t.CurrentPhase}) [[[{scoreColor}]{t.ReadinessScore:0}%[/]]] - {t.ReviewStatus}");
+                        }
                         return Task.FromResult(table.ToString());
 
                     case "start":
@@ -337,13 +341,37 @@ namespace Claude4Net.Commands
                         sb.AppendLine($"  [bold]Description:[/] {task.Description}");
                         sb.AppendLine($"  [bold]Phase:[/] {task.CurrentPhase}");
                         sb.AppendLine($"  [bold]Review:[/] {task.ReviewStatus}");
-                        sb.AppendLine($"  [bold]Created:[/] {task.CreatedAt}");
+                        
+                        // Readiness Progress Bar
+                        int barWidth = 20;
+                        int filled = (int)(task.ReadinessScore / 100 * barWidth);
+                        string bar = new string('█', filled) + new string('░', barWidth - filled);
+                        string barColor = task.ReadinessScore >= 90 ? "green" : task.ReadinessScore >= 50 ? "yellow" : "blue";
+                        sb.AppendLine($"  [bold]Merge Readiness:[/] [{barColor}]{bar}[/] {task.ReadinessScore:0}%");
+
+                        if (task.Blockers.Any())
+                        {
+                            sb.AppendLine($"  [bold red]Blockers:[/]");
+                            foreach (var b in task.Blockers) sb.AppendLine($"    - {b}");
+                        }
+
                         sb.AppendLine($"  [bold]Gates:[/]");
                         if (!task.Gates.Any()) sb.AppendLine("    (No gates defined)");
-                        foreach(var g in task.Gates) sb.AppendLine($"    - {(g.IsPassed ? "[green]✔[/]" : "[red]✘[/]")} {g.Name}: {g.Comments}");
+                        foreach(var g in task.Gates) 
+                        {
+                            string statusIcon = g.IsPassed ? "[green]✔[/]" : "[red]✘[/]";
+                            string evidenceInfo = g.Evidences.Any() ? $" ({g.Evidences.Count} Evidence)" : (g.IsEvidenceRequired ? " [red](Evidence Required)[/]" : "");
+                            sb.AppendLine($"    - {statusIcon} [bold]{g.Name}[/]: {g.Comments}{evidenceInfo}");
+                            if (g.ApprovedBy != null) sb.AppendLine($"      [grey]Approved by: {g.ApprovedBy} at {g.UpdatedAt}[/]");
+                            
+                            foreach(var ev in g.Evidences)
+                            {
+                                sb.AppendLine($"      [grey]└ Evidence: {ev.Summary} (by {ev.Author})[/]");
+                            }
+                        }
                         
-                        sb.AppendLine($"  [bold]History (Last 3):[/]");
-                        foreach(var h in task.History.AsEnumerable().Reverse().Take(3)) sb.AppendLine($"    - {h}");
+                        sb.AppendLine($"  [bold]History (Last 5):[/]");
+                        foreach(var h in task.History.AsEnumerable().Reverse().Take(5)) sb.AppendLine($"    - {h}");
 
                         return Task.FromResult(sb.ToString());
 
@@ -359,10 +387,22 @@ namespace Claude4Net.Commands
                         if (parts.Length < 4) return Task.FromResult("Usage: /coordinate gate <id> <name> <true|false> [comments]");
                         if (bool.TryParse(parts[3], out bool passed)) {
                             string? gComments = parts.Length > 4 ? string.Join(" ", parts.Skip(4)) : null;
-                            string res = store.UpdateGate(parts[1], parts[2], passed, gComments);
+                            string user = Environment.UserName;
+                            string res = store.UpdateGate(parts[1], parts[2], passed, gComments, user);
                             return Task.FromResult(res.StartsWith("Error") ? $"[red]{res}[/]" : $"[green]{res}[/]");
                         }
                         return Task.FromResult($"[red]Error:[/] Invalid boolean value '{parts[3]}'.");
+
+                    case "evidence":
+                        if (parts.Length < 4) return Task.FromResult("Usage: /coordinate evidence <taskId> <gateName> <summary> [details]");
+                        string evTaskId = parts[1];
+                        string evGateName = parts[2];
+                        string evSummary = parts[3];
+                        string? evDetails = parts.Length > 4 ? string.Join(" ", parts.Skip(4)) : null;
+                        string evAuthor = Environment.UserName;
+                        
+                        string evRes = store.AddEvidence(evTaskId, evGateName, evAuthor, evSummary, evDetails);
+                        return Task.FromResult(evRes.StartsWith("Error") ? $"[red]{evRes}[/]" : $"[green]{evRes}[/]");
 
                     case "approve":
                         if (parts.Length < 2) return Task.FromResult("Usage: /coordinate approve <id> [comments]");
