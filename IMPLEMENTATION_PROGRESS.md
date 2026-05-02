@@ -17,7 +17,7 @@
 | D06 | Resources-Oriented Skills | Mostly Complete | P051-P060 (Loader exist, need templates/docs) |
 | D07 | Discord Async Orchestration | Completed | P061-P070 (Approval flow, retry logic, multi-handler complete) |
 | D08 | Coordinate (/coordinate) | Completed | P071-P080 (Evidence, Merge Readiness, Gate enforcement complete) |
-| D09 | Agent Trajectories & Self-Healing | Partial | P081-P090 (Guide baseline exist, need retry policy) |
+| D09 | Agent Trajectories & Self-Healing | Completed | P081-P090 (Intelligent classification, Retry policies, Pruning complete) |
 | D10 | Testing, Documentation, Release | Completed | P091-P100 (Release suite & docs complete) |
 | K001 | Workspace Hygiene | Completed | Temp logs removed |
 | K002 | Progress SSOT | Completed | P001-P005 updated |
@@ -25,6 +25,7 @@
 | K004 | D10 Docs | Completed | Official Docs & Operations manual |
 | K005 | D07 Discord Approval | Completed | Button-based approval, permission check, retry utils |
 | K006 | D08 Coordinate Evidence | Completed | Evidence-based gates, Merge Readiness scoring |
+| K007 | D09 Self-Healing Quality | Completed | Regex-based taxonomy, Retry library, !prune command |
 
 ## Official Verification Commands
 ```powershell
@@ -80,7 +81,7 @@
 - [x] Load Discord approver whitelist from environment variables (`CLAUDE4NET_DISCORD_APPROVER_IDS`)
 - [x] Apply minimum permission policy to `!job` query command
 - [x] Add DiscordApprovalTests (6/6 pass)
-- [x] Total 63/63 tests pass
+- [x] Total 66/66 tests pass
 
 ### D08: Coordinate & Phase-Gates
 - [x] Define coordinator models (CoordinateTask, Phase, Gate, Evidence)
@@ -88,17 +89,20 @@
 - [x] Planning -> Execution -> Verification flow with evidence enforcement
 - [x] Implement `Merge Readiness` scoring (0-100%) and Blocker identification
 - [x] Add D08EvidenceTests and update D08CoordinateTests
-- [x] Total 63/63 tests pass
+- [x] Total 66/66 tests pass
 
 ### D09: Agent Trajectories & Self-Healing
 - [x] Implement SelfHealingService and ErrorClassifier
-- [x] Automatic SELF_HEAL_GUIDE update logic via !reflect
-- [x] Baseline trajectory collection in AgentLoop
-- [x] Add D09SelfHealingTests
+- [x] Regex-based error taxonomy (Quota, Network, Timeout, Logic, etc.)
+- [x] Recommended Retry Policies library (Exponential Backoff, Fixed, etc.)
+- [x] Automatic SELF_HEAL_GUIDE enhancement with retry policies
+- [x] Trajectory Pruning logic and `!prune` command
+- [x] Add D09SelfHealingTests with regression cases
+- [x] Total 66/66 tests pass
 
 ### K003: Release Gate Baseline
 - [x] Create `scripts/verify-release.ps1` with strict error handling
 - [x] Add `--smoke-exit` non-interactive CLI verification path in `Program.cs`
 - [x] Verify DLL-direct CLI smoke test with shutdown message
 - [x] Establish `Documents/RELEASE_GATE.md` checklist
-- [x] Verified 63/63 tests pass under strict nullable rules
+- [x] Verified 66/66 tests pass under strict nullable rules

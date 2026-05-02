@@ -347,6 +347,14 @@ namespace Claude4Net.Runtime
                     await context.Output.WriteAsync("System plugins metadata and runtime assemblies refreshed.");
                     return true;
 
+                case "!prune":
+                    int days = 7;
+                    if (parts.Length > 1 && int.TryParse(parts[1], out int d)) days = d;
+                    AnsiConsole.MarkupLine($"[bold cyan]Pruning agent_trajectories older than {days} days...[/]");
+                    await SelfHealingService.Instance.PruneTrajectoriesAsync(days);
+                    await context.Output.WriteAsync($"Trajectory pruning completed (Retention: {days} days).");
+                    return true;
+
                 case "!status":
                     var process = Process.GetCurrentProcess();
                     long memoryUsed = GC.GetTotalMemory(false) / 1024 / 1024;
