@@ -1,7 +1,7 @@
 # 🤖 Claude4Net (v1.0.0 Stable)
 
 [![Release Gate](https://img.shields.io/badge/Release%20Gate-Passed-green)](./scripts/verify-release.ps1)
-[![Tests](https://img.shields.io/badge/Tests-77%2F77%20Passed-brightgreen)](./Claude4Net.Tests/)
+[![Tests](https://img.shields.io/badge/Tests-80%2F80%20Passed-brightgreen)](./Claude4Net.Tests/)
 [![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 
 > **Claude Code의 강력함을 .NET 10 환경으로 완벽하게 포팅한 차세대 AI 시스템 에이전트**
@@ -28,6 +28,10 @@
 ### 4. ⚡ 초최적화 실행 파이프라인
 - **병렬 도구 실행**: 조회성 도구들을 안전하게 병렬로 실행하여 응답 속도를 극대화했습니다.
 - **자율 디버깅(Self-Healing)**: 도구 실행 실패 시 AI가 오류를 분류하고 맞춤형 재시도 전략(Exponential Backoff 등)을 스스로 수립합니다.
+
+### 5. 🌐 비동기 오케스트레이션 (Orchestration)
+- **Discord Integration**: 긴 작업을 백그라운드에서 수행하고, 디스코드 봇을 통해 승인(Approval) 및 완료 알림을 제공합니다.
+- **Coordinate Command**: 다중 에이전트 환경에서 증거 기반의 마일스톤 관리를 수행할 수 있는 `/coordinate` 시스템을 갖췄습니다.
 
 ---
 
@@ -61,8 +65,9 @@ dotnet build
 dotnet run --project Claude4Net.Cli
 ```
 
-### 3. API 등록 예시
+### 3. API 등록 및 프로바이더 전환 예시
 ```bash
+> !login geminicli             # (Gemini CLI 연동 모드 - 키 불필요)
 > !login gemini YOUR_GOOGLE_API_KEY
 > !login claude YOUR_ANTHROPIC_API_KEY
 > !login discord YOUR_DISCORD_BOT_TOKEN
