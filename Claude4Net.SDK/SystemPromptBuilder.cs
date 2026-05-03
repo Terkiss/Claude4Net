@@ -5,13 +5,23 @@ using System.IO;
 
 namespace Claude4Net.SDK
 {
+    /// <summary>
+    /// LLM에게 전달할 시스템 프롬프트를 동적으로 구성하는 빌더 클래스입니다.
+    /// 전역 프로토콜, 제공자별 특성, 메모리 지침 및 동적 스킬 리소스를 조합합니다.
+    /// </summary>
     public class SystemPromptBuilder
     {
+        /// <summary>
+        /// 지정된 환경 정보를 바탕으로 최종 시스템 프롬프트 문자열을 생성합니다.
+        /// </summary>
+        /// <param name="providerName">LLM 제공자 이름 (예: gemini, ollama, anthropic)</param>
+        /// <param name="taskContext">현재 진행 중인 작업에 대한 추가 컨텍스트 (선택 사항)</param>
+        /// <returns>구성된 시스템 프롬프트 문자열</returns>
         public string Build(string providerName, string? taskContext = null)
         {
             var sb = new StringBuilder();
 
-            // 1. Global Identity & Base Protocol
+            // 1. 전역 정체성 및 기본 프로토콜 구성
             sb.AppendLine("# Claude4Net Global System Protocol");
             sb.AppendLine($"Current Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             sb.AppendLine($"OS: {Environment.OSVersion}");
@@ -30,7 +40,7 @@ namespace Claude4Net.SDK
             sb.AppendLine("저장할 JSON 스키마 예시: { \"Timestamp\": \"YYYY-MM-DD HH:MM\", \"Keywords\": \"핵심, 단어, 쉼표구분\", \"UserPrompt\": \"사용자 지시 요약\", \"AgentResponse\": \"어떻게 처리했는지 요약\" }");
             sb.AppendLine();
 
-            // 2. Provider Specific Identity
+            // 2. 제공자별 특화 프로토콜 (Provider Specific Identity)
             if (providerName.ToLower() == "gemini")
             {
                 sb.AppendLine("## Gemini Agent Protocol (Antigravity Mode)");
@@ -45,7 +55,7 @@ namespace Claude4Net.SDK
 
             sb.AppendLine();
 
-            // 3. Task Context (Optional)
+            // 3. 현재 작업 컨텍스트 (Task Context)
             if (!string.IsNullOrEmpty(taskContext))
             {
                 sb.AppendLine("## Current Task Context");
@@ -53,14 +63,14 @@ namespace Claude4Net.SDK
                 sb.AppendLine();
             }
 
-            // 4. Common Tool Usage Rules
+            // 4. 공통 도구 사용 규칙 (Tool Execution Rules)
             sb.AppendLine("## Tool Execution Rules");
             sb.AppendLine("1. [Analyze] 요청 분석 및 필요 도구 결정.");
             sb.AppendLine("2. [Execute] 즉시 도구 호출 (불필요한 설명 생략).");
             sb.AppendLine("3. [Verify] 결과 확인 및 필요시 스스로 디버깅하여 재시도.");
             sb.AppendLine();
 
-            // 5. Self-Healing Guide (Dynamic Analysis from agent_trajectories)
+            // 5. 자가 치유 가이드 (Self-Healing Guide) - 과거 궤적 분석 기반
             string guidePath = Path.Combine(AppState.SystemBaseDir, "SELF_HEAL_GUIDE.md");
             if (File.Exists(guidePath))
             {
@@ -70,7 +80,7 @@ namespace Claude4Net.SDK
                 sb.AppendLine();
             }
 
-            // 6. Load Self-Evolved Skills from 'Skills' directory (Inside System Storage)
+            // 6. 자율 진화 스킬 로드 (Self-Evolved Skills)
             string skillsDir = Path.Combine(AppState.SystemBaseDir, "Skills");
             if (Directory.Exists(skillsDir))
             {
@@ -89,7 +99,7 @@ namespace Claude4Net.SDK
                 }
             }
 
-            // 6. Load Resource-Oriented Skills (.resources folder)
+            // 7. 리소스 기반 플러그인 스킬 로드 (.resources 폴더)
             string resourcesDir = Path.Combine(AppState.SystemBaseDir, ".resources");
             if (Directory.Exists(resourcesDir))
             {

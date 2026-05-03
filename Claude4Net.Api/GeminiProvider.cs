@@ -13,6 +13,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Claude4Net.Api
 {
+    /// <summary>
+    /// Google Gemini API를 활용하여 대화형 AI 및 도구 호출 기능을 제공하는 프로바이더입니다.
+    /// Anthropic 형식의 메시지를 Gemini 규격으로 변환하여 상호 호환성을 유지합니다.
+    /// </summary>
     public class GeminiProvider : ILLMProvider
     {
         private readonly HttpClient _httpClient;
@@ -21,14 +25,26 @@ namespace Claude4Net.Api
         private readonly IToolRegistry _toolRegistry;
         private readonly Dictionary<string, string> _toolCallIdToNameMap = new();
 
+        /// <summary>
+        /// GeminiProvider의 새 인스턴스를 초기화합니다.
+        /// </summary>
+        /// <param name="httpClient">HTTP 요청을 위한 클라이언트</param>
+        /// <param name="toolRegistry">도구 등록 정보를 관리하는 레지스트리</param>
         public GeminiProvider(HttpClient httpClient, IToolRegistry toolRegistry) 
         { 
             _httpClient = httpClient;
             _toolRegistry = toolRegistry; 
         }
 
+        /// <summary>
+        /// 프로바이더의 고유 이름입니다.
+        /// </summary>
         public string Name => "gemini";
 
+        /// <summary>
+        /// 대화 히스토리에 메시지를 추가하며, Anthropic 형식을 Gemini 형식으로 변환합니다.
+        /// </summary>
+        /// <param name="message">추가할 메시지 객체 (Anthropic 규격 선호)</param>
         public void AddMessage(object message)
         {
             if (message == null) return;
@@ -39,12 +55,11 @@ namespace Claude4Net.Api
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
 
-                // Anthropic -> Gemini Format Conversion
+                // Anthropic 메시지를 Gemini 형식으로 변환 시도
                 if (root.TryGetProperty("role", out var roleProp))
                 {
                     string role = roleProp.GetString() ?? "user";
 
-                    // If it has 'content' instead of 'parts', convert it
                     if (root.TryGetProperty("content", out var contentProp))
                     {
                         var parts = new List<object>();
@@ -55,7 +70,7 @@ namespace Claude4Net.Api
                             {
                                 if (item.TryGetProperty("type", out var typeProp) && typeProp.GetString() == "tool_result")
                                 {
-                                    // Gemini Tool Result Format
+                                    // 도구 실행 결과 변환
                                     string toolUseId = item.GetProperty("tool_use_id").GetString() ?? "unknown";
                                     string functionName = _toolCallIdToNameMap.TryGetValue(toolUseId, out var name) ? name : toolUseId;
 
@@ -74,14 +89,12 @@ namespace Claude4Net.Api
                                 }
                                 else
                                 {
-                                    // Fallback for simple strings or unknown types
                                     parts.Add(new { text = item.ToString() });
                                 }
                             }
                         }
                         else
                         {
-                            // Simple string content
                             parts.Add(new { text = contentProp.GetString() ?? "" });
                         }
 
@@ -94,16 +107,19 @@ namespace Claude4Net.Api
             }
             catch
             {
-                // Fallback to raw message if parsing fails
+                // 변환 실패 시 원본 메시지 추가
             }
 
             _conversationHistory.Add(message);
             ApplySlidingWindow();
         }
 
+        /// <summary>
+        /// 슬라이딩 윈도우 방식으로 최근 대화 맥락만 유지합니다.
+        /// </summary>
         private void ApplySlidingWindow()
         {
-            const int MAX_HISTORY = 16; // Approx 8 turns
+            const int MAX_HISTORY = 16; // 약 8회의 턴 유지
             if (_conversationHistory.Count > MAX_HISTORY)
             {
                 int toRemove = _conversationHistory.Count - MAX_HISTORY;
@@ -111,8 +127,19 @@ namespace Claude4Net.Api
             }
         }
 
+        /// <summary>
+        /// 현재 대화 히스토리를 반환합니다.
+        /// </summary>
+        /// <returns>메시지 객체 리스트</returns>
         public IReadOnlyList<object> GetHistory() => _conversationHistory.AsReadOnly();
 
+        /// <summary>
+        /// Gemini API를 호출하여 결과를 스트리밍합니다. 시스템 프롬프트 및 도구 정의가 포함됩니다.
+        /// </summary>
+        /// <param name="prompt">사용자 입력 쿼리</param>
+        /// <param name="model">모델명 (예: gemini-1.5-pro)</param>
+        /// <param name="ct">작업 취소 토큰</param>
+        /// <returns>스트리밍 이벤트 열거자</returns>
         public async IAsyncEnumerable<LLMStreamEvent> StreamQueryAsync(string prompt, string? model = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
         {
             string actualModel = model ?? AppState.ActiveModel;
@@ -124,6 +151,7 @@ namespace Claude4Net.Api
                 _conversationHistory.Add(new { role = "user", parts = new[] { new { text = prompt } } });
             }
 
+            // 도구 선언 (Function Declarations) 구성
             var tools = _toolRegistry.GetTools();
             var geminiTools = new List<object>();
             if (tools != null && tools.Any())
@@ -140,6 +168,7 @@ namespace Claude4Net.Api
             string modelId = actualModel.Contains("/") ? actualModel.Split('/').Last() : actualModel;
             var url = $"{BASE_URL}/{modelId}:streamGenerateContent?alt=sse&key={apiKey}";
 
+            // 생성 설정 (Thinking Config 지원 포함)
             object? generationCfg;
             if (actualModel.Contains("think", StringComparison.OrdinalIgnoreCase) || actualModel.StartsWith("gemini-3", StringComparison.OrdinalIgnoreCase))
             {
@@ -179,6 +208,7 @@ namespace Claude4Net.Api
             var assistantParts = new List<object>();
             int toolCallIndex = 0;
 
+            // SSE 스트림 파싱
             while (await reader.ReadLineAsync() is { } line)
             {
                 if (ct.IsCancellationRequested) break;
@@ -193,6 +223,7 @@ namespace Claude4Net.Api
                 {
                     var candidate = candidates[0];
 
+                    // 안전 필터링 처리
                     if (candidate.TryGetProperty("finishReason", out var reasonProp))
                     {
                         if (reasonProp.GetString() == "SAFETY")
@@ -216,6 +247,7 @@ namespace Claude4Net.Api
                             }
                             else if (part.TryGetProperty("functionCall", out var funcCall))
                             {
+                                // 도구 호출 처리
                                 string callName = funcCall.GetProperty("name").GetString()!;
                                 string callId = $"{callName}_{toolCallIndex++}";
                                 var call = new ToolUseRequest { Id = callId, Name = callName, Input = funcCall.GetProperty("args") };

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Claude4Net.SDK;
@@ -10,6 +11,9 @@ using TeruTeruPandas.IO;
 
 namespace Claude4Net.Tools
 {
+    /// <summary>
+    /// CSV 파일을 읽어 DataUniverse 내의 TeruTeruPandas 테이블로 로드하는 도구입니다.
+    /// </summary>
     public class PandasLoadCsvTool : ITool
     {
         public string Name => "pandas_load_csv";
@@ -26,12 +30,16 @@ namespace Claude4Net.Tools
             required = new[] { "path", "tableName" }
         };
 
+        /// <summary>
+        /// CSV 파일을 비동기적으로 읽어 테이블로 변환하고 메모리에 로드합니다.
+        /// </summary>
         public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
             var input = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
             string path = input?["path"] ?? throw new ArgumentException("Path is required");
             string tableName = input?["tableName"] ?? throw new ArgumentException("TableName is required");
 
+            // [안전장치] 파일 존재 여부 확인
             if (!File.Exists(path))
                 return new { status = "Error", message = $"File not found: {path}" };
 
@@ -40,12 +48,15 @@ namespace Claude4Net.Tools
                 string fileContent = File.ReadAllText(path).Trim();
                 if (string.IsNullOrEmpty(fileContent))
                 {
+                    // 빈 파일일 경우 빈 데이터프레임 초기화
                     var emptyDf = new TeruTeruPandas.Core.DataFrame(new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>());
                     await PandasUniverseManager.Instance.ExecuteAsync(u => u.AddOrUpdateTable(tableName, emptyDf));
                     return new { status = "Success", message = $"Loaded 0 rows into table '{tableName}' (Empty CSV initialized).", columns = emptyDf.Columns };
                 }
 
+                // CsvReader를 이용한 데이터 파싱
                 var df = CsvReader.ReadCsv(path);
+                // DataUniverse에 테이블 추가 또는 업데이트
                 await PandasUniverseManager.Instance.ExecuteAsync(u => u.AddOrUpdateTable(tableName, df));
                 
                 return new
@@ -62,6 +73,9 @@ namespace Claude4Net.Tools
         }
     }
 
+    /// <summary>
+    /// JSON 파일(레코드 배열)을 TeruTeruPandas 테이블로 로드하는 도구입니다.
+    /// </summary>
     public class PandasLoadJsonTool : ITool
     {
         public string Name => "pandas_load_json";
@@ -114,6 +128,9 @@ namespace Claude4Net.Tools
         }
     }
 
+    /// <summary>
+    /// SQLite 데이터베이스의 특정 테이블을 DataUniverse로 로드하는 도구입니다.
+    /// </summary>
     public class PandasLoadSqliteTool : ITool
     {
         public string Name => "pandas_load_sqlite";
@@ -143,6 +160,7 @@ namespace Claude4Net.Tools
 
             try
             {
+                // SQLite에서 데이터프레임으로 데이터 읽기
                 var df = SqliteIO.ReadSqliteTable(dbPath, sqliteTableName);
                 await PandasUniverseManager.Instance.ExecuteAsync(u => u.AddOrUpdateTable(targetTableName, df));
                 
@@ -160,6 +178,9 @@ namespace Claude4Net.Tools
         }
     }
 
+    /// <summary>
+    /// DataUniverse 내의 테이블들을 대상으로 SQL 쿼리를 실행하는 도구입니다.
+    /// </summary>
     public class PandasSqlTool : ITool
     {
         public string Name => "pandas_sql";
@@ -182,6 +203,7 @@ namespace Claude4Net.Tools
 
             try
             {
+                // [로직] DataUniverse의 SQL 엔진을 사용하여 쿼리 실행
                 var result = await PandasUniverseManager.Instance.ExecuteAsync(u => {
                     var df = u.SqlExecute(sql);
                     return new
@@ -200,6 +222,9 @@ namespace Claude4Net.Tools
         }
     }
 
+    /// <summary>
+    /// 현재 DataUniverse에 로드된 모든 테이블 목록과 통계를 표시하는 도구입니다.
+    /// </summary>
     public class PandasShowTablesTool : ITool
     {
         public string Name => "pandas_show_tables";
@@ -225,6 +250,9 @@ namespace Claude4Net.Tools
         }
     }
 
+    /// <summary>
+    /// 특정 테이블의 컬럼 타입, Non-Null 카운트 등 상세 구조 정보를 제공하는 도구입니다.
+    /// </summary>
     public class PandasTableInfoTool : ITool
     {
         public string Name => "pandas_table_info";
@@ -250,7 +278,7 @@ namespace Claude4Net.Tools
                 var result = await PandasUniverseManager.Instance.ExecuteAsync(u => {
                     var df = u.GetTableOrThrow(tableName);
                     var sb = new System.Text.StringBuilder();
-                    df.Info(sb);
+                    df.Info(sb); // 데이터프레임 구조 정보 추출
                     return new
                     {
                         status = "Success",
@@ -266,6 +294,9 @@ namespace Claude4Net.Tools
         }
     }
 
+    /// <summary>
+    /// DataUniverse의 테이블을 CSV 파일로 저장하는 도구입니다.
+    /// </summary>
     public class PandasSaveCsvTool : ITool
     {
         public string Name => "pandas_save_csv";
@@ -308,6 +339,9 @@ namespace Claude4Net.Tools
         }
     }
 
+    /// <summary>
+    /// DataUniverse의 테이블을 JSON 파일로 저장하는 도구입니다.
+    /// </summary>
     public class PandasSaveJsonTool : ITool
     {
         public string Name => "pandas_save_json";
@@ -350,6 +384,9 @@ namespace Claude4Net.Tools
         }
     }
 
+    /// <summary>
+    /// DataUniverse의 테이블을 SQLite 데이터베이스 파일로 저장하는 도구입니다.
+    /// </summary>
     public class PandasSaveSqliteTool : ITool
     {
         public string Name => "pandas_save_sqlite";
@@ -396,6 +433,9 @@ namespace Claude4Net.Tools
         }
     }
 
+    /// <summary>
+    /// 데이터프레임에 새로운 행을 추가하는 도구입니다.
+    /// </summary>
     public class PandasInsertRowTool : ITool
     {
         public string Name => "pandas_insert_row";
@@ -423,6 +463,7 @@ namespace Claude4Net.Tools
                 var result = await PandasUniverseManager.Instance.ExecuteAsync(u =>
                 {
                     var df = u.GetTableOrThrow(tableName);
+                    // 임시 JSON 파일을 만들어 ReadJson으로 읽어들인 후 Concat 수행
                     string tmpFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
                     File.WriteAllText(tmpFile, "[" + rowJson + "]");
 
@@ -447,6 +488,9 @@ namespace Claude4Net.Tools
         }
     }
 
+    /// <summary>
+    /// 특정 셀의 값을 업데이트하는 도구입니다. 행 인덱스와 열 이름을 사용합니다.
+    /// </summary>
     public class PandasUpdateCellTool : ITool
     {
         public string Name => "pandas_update_cell";
@@ -460,7 +504,7 @@ namespace Claude4Net.Tools
                 tableName = new { type = "string" },
                 rowIndex = new { type = "integer", description = "수정할 대상의 0부터 시작하는 행 정수 인덱스" },
                 columnName = new { type = "string" },
-                value = new { type = "string", description = "수정할 새 값 (문자열). 컬럼의 본래 데이터 타입에 맞춰내부적으로 파싱됩니다." }
+                value = new { type = "string", description = "수정할 새 값 (문자열). 컬럼의 본래 데이터 타입에 맞춰 내부적으로 파싱됩니다." }
             },
             required = new[] { "tableName", "rowIndex", "columnName", "value" }
         };
@@ -481,6 +525,7 @@ namespace Claude4Net.Tools
                     var df = u.GetTableOrThrow(tableName);
                     if (!df.Dtypes.ContainsKey(columnName)) throw new KeyNotFoundException($"Column {columnName} not found.");
                     
+                    // [캐스팅] 컬럼의 원래 타입으로 문자열 값을 변환
                     var colType = df.Dtypes[columnName];
                     object? castedValue = value == null ? null : Convert.ChangeType(value, colType);
 
@@ -496,6 +541,9 @@ namespace Claude4Net.Tools
         }
     }
 
+    /// <summary>
+    /// 지정된 행 인덱스들을 테이블에서 삭제하는 도구입니다.
+    /// </summary>
     public class PandasDeleteRowsTool : ITool
     {
         public string Name => "pandas_delete_rows";
@@ -529,6 +577,7 @@ namespace Claude4Net.Tools
                 var result = await PandasUniverseManager.Instance.ExecuteAsync(u =>
                 {
                     var df = u.GetTableOrThrow(tableName);
+                    // 삭제할 인덱스를 제외한 나머지 인덱스들만 필터링하여 새로운 데이터프레임 생성
                     var indicesToKeep = Enumerable.Range(0, df.RowCount).Where(i => !rowIndices.Contains(i)).ToArray();
 
                     var newColumns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>();
@@ -551,6 +600,9 @@ namespace Claude4Net.Tools
         }
     }
 
+    /// <summary>
+    /// 현재 DataUniverse 상태를 SQLite 파일로 스냅샷 저장하는 도구입니다.
+    /// </summary>
     public class PandasSnapshotTool : ITool
     {
         public string Name => "pandas_snapshot";
@@ -570,7 +622,8 @@ namespace Claude4Net.Tools
         {
             var input = JsonSerializer.Deserialize<Dictionary<string, string>>(arguments);
             string rawName = input?["snapshotName"] ?? throw new ArgumentException("snapshotName is required");
-            string safeName = Path.GetFileName(rawName); // Basic protection against traversal
+            // [보안] 경로 트래버스 방지를 위해 파일명만 추출
+            string safeName = Path.GetFileName(rawName); 
 
             try
             {
@@ -592,6 +645,9 @@ namespace Claude4Net.Tools
         }
     }
 
+    /// <summary>
+    /// 스냅샷 파일로부터 DataUniverse 상태를 복구하는 도구입니다.
+    /// </summary>
     public class PandasRestoreTool : ITool
     {
         public string Name => "pandas_restore";
@@ -621,6 +677,7 @@ namespace Claude4Net.Tools
 
                 await PandasUniverseManager.Instance.ExecuteAsync(u =>
                 {
+                    // SQLite에서 유니버스 복원
                     var restoredUniverse = DataUniverseIO.FromSqlite(snapshotPath);
                     u.ClearAll();
                     
@@ -629,7 +686,7 @@ namespace Claude4Net.Tools
                         u.AddTable(tableName, restoredUniverse.GetTableOrThrow(tableName));
                     }
 
-                    // Ensure baseline tables exist after restore
+                    // 복구 후 기본 테이블 존재 여부 보장
                     PandasUniverseManager.Instance.EnsureBaselineTablesInternal(u);
                 });
 
@@ -642,6 +699,9 @@ namespace Claude4Net.Tools
         }
     }
 
+    /// <summary>
+    /// 에이전트 공유 메모리에 상태를 업데이트하거나 추가(Upsert)하는 도구입니다.
+    /// </summary>
     public class PandasAgentMemoryUpsertTool : ITool
     {
         public string Name => "pandas_agent_memory_upsert";
@@ -678,7 +738,7 @@ namespace Claude4Net.Tools
                 {
                     var df = u.GetTableOrThrow("agent_memory");
                     
-                    // Find existing row by AgentId
+                    // AgentId로 기존 행 검색
                     int existingIdx = -1;
                     var agentIdCol = df["AgentId"];
                     for (int i = 0; i < df.RowCount; i++)
@@ -692,6 +752,7 @@ namespace Claude4Net.Tools
 
                     if (existingIdx >= 0)
                     {
+                        // 기존 데이터 업데이트
                         df[existingIdx, "Role"] = role;
                         df[existingIdx, "Status"] = status;
                         df[existingIdx, "CurrentTask"] = currentTask;
@@ -701,7 +762,7 @@ namespace Claude4Net.Tools
                     }
                     else
                     {
-                        // Insert new row
+                        // 신규 행 삽입
                         var rowDict = new Dictionary<string, object?>
                         {
                             ["AgentId"] = agentId,
@@ -733,6 +794,9 @@ namespace Claude4Net.Tools
         }
     }
 
+    /// <summary>
+    /// 에이전트 공유 메모리에서 SQL을 사용하여 데이터를 조회하는 도구입니다.
+    /// </summary>
     public class PandasAgentMemoryQueryTool : ITool
     {
         public string Name => "pandas_agent_memory_query";
@@ -768,6 +832,9 @@ namespace Claude4Net.Tools
         }
     }
 
+    /// <summary>
+    /// 에이전트 공유 메모리를 비우는 도구입니다. 세션별 또는 전체 삭제가 가능합니다.
+    /// </summary>
     public class PandasAgentMemoryClearTool : ITool
     {
         public string Name => "pandas_agent_memory_clear";
@@ -796,16 +863,15 @@ namespace Claude4Net.Tools
 
                     if (scope == "all")
                     {
-                        // Clear all rows
+                        // 전체 행 삭제
                         indicesToKeep = new int[0];
                     }
                     else
                     {
-                        // Clear only current session
+                        // 현재 세션 데이터만 필터링하여 삭제
                         var sessionId = AppState.SessionId;
                         if (!df.Columns.Contains("SessionId"))
                         {
-                            // If no SessionId column, cannot filter. Keep all.
                             return;
                         }
 

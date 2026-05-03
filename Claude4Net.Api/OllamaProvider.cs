@@ -11,20 +11,36 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Claude4Net.Api
 {
+    /// <summary>
+    /// 로컬에서 실행되는 Ollama 인스턴스를 통해 LLM 기능을 제공하는 프로바이더입니다.
+    /// 로컬 호스트(http://localhost:11434) 통신 및 도구 호출을 지원합니다.
+    /// </summary>
     public class OllamaProvider : ILLMProvider
     {
         private readonly HttpClient _httpClient;
         private readonly List<object> _messageHistory = new();
         private readonly IToolRegistry _toolRegistry;
 
+        /// <summary>
+        /// OllamaProvider의 새 인스턴스를 초기화합니다.
+        /// </summary>
+        /// <param name="httpClient">HTTP 통신용 클라이언트</param>
+        /// <param name="toolRegistry">도구 정보를 관리하는 레지스트리</param>
         public OllamaProvider(HttpClient httpClient, IToolRegistry toolRegistry) 
         { 
             _httpClient = httpClient;
             _toolRegistry = toolRegistry; 
         }
 
+        /// <summary>
+        /// 프로바이더의 고유 이름입니다.
+        /// </summary>
         public string Name => "ollama";
 
+        /// <summary>
+        /// 대화 히스토리에 메시지를 추가합니다. 도구 실행 결과를 Ollama 규격에 맞춰 변환합니다.
+        /// </summary>
+        /// <param name="message">추가할 메시지 객체</param>
         public void AddMessage(object message)
         {
             if (message is { } obj)
@@ -41,7 +57,7 @@ namespace Claude4Net.Api
                     {
                         if (item.TryGetProperty("type", out var typeProp) && typeProp.GetString() == "tool_result")
                         {
-                            // CRITICAL FIX: Ollama MUST receive the tool_call_id to match the request
+                            // Ollama는 도구 결과를 role="tool"과 tool_call_id를 통해 매칭해야 함
                             _messageHistory.Add(new
                             {
                                 role = "tool",
@@ -57,8 +73,16 @@ namespace Claude4Net.Api
             _messageHistory.Add(message);
         }
 
+        /// <summary>
+        /// 현재 대화 히스토리를 반환합니다.
+        /// </summary>
+        /// <returns>메시지 히스토리 리스트</returns>
         public IReadOnlyList<object> GetHistory() => _messageHistory.AsReadOnly();
 
+        /// <summary>
+        /// Ollama 서버에서 사용 가능한 모델 목록을 조회합니다.
+        /// </summary>
+        /// <returns>모델 이름 리스트</returns>
         public async Task<List<string>> ListModelsAsync()
         {
             string? uri = AuthManager.GetApiKey("ollama") ?? "http://localhost:11434";
@@ -74,6 +98,13 @@ namespace Claude4Net.Api
             return new List<string> { "llama3" };
         }
 
+        /// <summary>
+        /// Ollama API를 통해 쿼리를 수행하고 결과를 스트리밍합니다.
+        /// </summary>
+        /// <param name="prompt">사용자 입력 쿼리</param>
+        /// <param name="model">모델명 (예: llama3.1)</param>
+        /// <param name="ct">작업 취소 토큰</param>
+        /// <returns>스트리밍 이벤트 열거자</returns>
         public async IAsyncEnumerable<LLMStreamEvent> StreamQueryAsync(string prompt, string? model = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
         {
             string actualModel = model ?? AppState.ActiveModel;
@@ -81,6 +112,7 @@ namespace Claude4Net.Api
 
             _messageHistory.Add(new { role = "user", content = prompt });
 
+            // 도구 목록 구성
             var tools = _toolRegistry.GetTools();
             var ollamaTools = new List<object>();
             if (tools != null)
@@ -115,6 +147,7 @@ namespace Claude4Net.Api
             var assistantToolCalls = new List<object>();
             bool toolCalled = false;
 
+            // 응답 파싱 및 스트리밍
             while (await reader.ReadLineAsync(ct) is { } line)
             {
                 if (string.IsNullOrWhiteSpace(line)) continue;
@@ -139,7 +172,7 @@ namespace Claude4Net.Api
 
                             var call = new ToolUseRequest
                             {
-                                Id = callId, // KEEP THE ORIGINAL ID
+                                Id = callId,
                                 Name = func.GetProperty("name").GetString()!
                             };
 
