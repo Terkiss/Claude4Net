@@ -88,7 +88,7 @@ You can only call one tool per <tool_call> tag. After outputting a tool call, wa
 
             string combinedPrompt = $"{systemPrompt}\n\n[CRITICAL INSTRUCTION]\n반드시 모든 사고(Thinking) 과정과 출력, 대답, 분석 내용을 한국어(Korean)로만 작성하세요.\n\n{toolDefs}\n\n{historyDump}\n\n[CURRENT USER PROMPT]:\n{prompt}";
 
-            string arguments = "/c gemini -y -p \"\"";
+            string arguments = "/c gemini -y -p \" \"";
 
             var processStartInfo = new ProcessStartInfo
             {

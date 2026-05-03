@@ -19,6 +19,7 @@ namespace Claude4Net.Runtime
             InitializeProvider("claude", 0.8);
             InitializeProvider("gemini", 0.4);
             InitializeProvider("ollama", 0.1);
+            InitializeProvider("gemini-cli", 0.0);
         }
 
         private void InitializeProvider(string name, double costScore)
@@ -101,6 +102,12 @@ namespace Claude4Net.Runtime
                 score -= (m.LatencyEma / 100.0);
             }
 
+            // User explicitly selected provider override boost
+            if (AppState.IsProviderExplicitlySet && m.ProviderName == AppState.ActiveProvider)
+            {
+                score += 10000.0;
+            }
+
             // 2. Base Cost Weight
             double costWeight = (intent == RoutingIntent.CostEffective) ? 50.0 : 10.0;
             score -= (m.CostScore * costWeight);
@@ -154,7 +161,8 @@ namespace Claude4Net.Runtime
                 "claude" => (intent == RoutingIntent.LargeModel) ? "claude-3-5-sonnet-20240620" : "claude-3-haiku-20240307",
                 "gemini" => (intent == RoutingIntent.LargeModel) ? "gemini-1.5-pro" : "gemini-1.5-flash",
                 "ollama" => "llama3",
-                _ => AppState.ActiveModel
+                "gemini-cli" => AppState.ActiveModel ?? "gemini-3.1-pro",
+                _ => AppState.ActiveModel ?? "gemini-3.1-pro"
             };
         }
 

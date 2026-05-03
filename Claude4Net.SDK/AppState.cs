@@ -47,6 +47,7 @@ namespace Claude4Net.SDK
         public static bool IsInteractive { get; set; } = true;
         public static PermissionMode CurrentPermissionMode { get; set; } = PermissionMode.Default;
         public static string ActiveProvider { get; set; } = "gemini";
+        public static bool IsProviderExplicitlySet { get; set; } = false;
         public static string ActiveModel { get; set; } = "gemini-3-flash-preview";
         public static ConcurrentDictionary<string, TaskStateBase> Tasks { get; } = new();
 

@@ -154,6 +154,7 @@ namespace Claude4Net.Commands
                 if (provider == "geminicli" || provider == "gemini-cli")
                 {
                     AppState.ActiveProvider = "gemini-cli";
+                    AppState.IsProviderExplicitlySet = true;
                     return $"[green]Logged in to Gemini CLI (gemini-cli).[/] No API key required (OAuth handled by CLI). Provider switched.";
                 }
 
@@ -161,6 +162,7 @@ namespace Claude4Net.Commands
                 
                 await AuthManager.SaveProviderKeyAsync(provider, parts[1]);
                 AppState.ActiveProvider = provider;
+                AppState.IsProviderExplicitlySet = true;
                 return $"[green]Logged in to {Markup.Escape(provider)}.[/] API key saved and provider switched.";
             }},
 
@@ -218,6 +220,7 @@ namespace Claude4Net.Commands
 
                 AppState.ActiveModel = newModel;
                 AppState.ActiveProvider = detectedProvider;
+                AppState.IsProviderExplicitlySet = true;
                 return $"[green]Model changed to:[/] [bold]{Markup.Escape(newModel)}[/] (Provider switched to: [bold]{Markup.Escape(detectedProvider)}[/])";
             }},
 

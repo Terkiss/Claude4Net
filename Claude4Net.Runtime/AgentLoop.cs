@@ -370,6 +370,7 @@ namespace Claude4Net.Runtime
                     {
                         AnsiConsole.MarkupLine("[bold cyan]Switching provider to Gemini CLI...[/]");
                         AppState.ActiveProvider = "gemini-cli";
+                        AppState.IsProviderExplicitlySet = true;
                         await context.Output.WriteAsync("Provider switched to Gemini CLI (gemini-cli). No API key required (OAuth handled by CLI).");
                     }
                     else
@@ -385,6 +386,7 @@ namespace Claude4Net.Runtime
                         await AuthManager.SaveProviderKeyAsync(providerName, key);
 
                         AppState.ActiveProvider = providerName;
+                        AppState.IsProviderExplicitlySet = true;
                         AnsiConsole.MarkupLine($"[bold cyan]Switching provider to {providerName}...[/]");
                         await context.Output.WriteAsync($"Provider switched to {providerName} and API key has been saved.");
                     }

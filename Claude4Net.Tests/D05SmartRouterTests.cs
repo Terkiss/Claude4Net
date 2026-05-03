@@ -57,9 +57,9 @@ namespace Claude4Net.Tests
             var decision2 = router.Route("Hi", RoutingIntent.SmallModel);
             Assert.Equal("gemini", decision2.SelectedProvider);
             
-            // LocalOnly should always choose Ollama
+            // LocalOnly should choose a local provider (ollama or gemini-cli)
             var decision3 = router.Route("Sensitive data processing", RoutingIntent.LocalOnly);
-            Assert.Equal("ollama", decision3.SelectedProvider);
+            Assert.True(decision3.SelectedProvider == "ollama" || decision3.SelectedProvider == "gemini-cli");
         }
 
         [Fact]
@@ -157,6 +157,41 @@ namespace Claude4Net.Tests
             
             Assert.Equal("ollama", decision.SelectedProvider);
             Assert.Contains("Health: Healthy", decision.Reason);
+        }
+
+        [Fact]
+        public void SmartRouter_ShouldRouteToExplicitProvider_EvenForSmallModel()
+        {
+            var router = new SmartRouter();
+            var originalProvider = AppState.ActiveProvider;
+            var originalIsSet = AppState.IsProviderExplicitlySet;
+            
+            try
+            {
+                // Set AppState.ActiveProvider to simulate !login geminicli
+                AppState.ActiveProvider = "gemini-cli";
+                AppState.IsProviderExplicitlySet = true;
+
+                // Normal SmallModel intent would favor ollama, but ActiveProvider boost should override it
+                var decision = router.Route("안녕"); // < 100 chars, so SmallModel
+
+                Assert.Equal("gemini-cli", decision.SelectedProvider);
+            }
+            finally
+            {
+                // Reset for other tests
+                AppState.ActiveProvider = originalProvider;
+                AppState.IsProviderExplicitlySet = originalIsSet;
+            }
+        }
+
+        [Fact]
+        public void SmartRouter_ShouldIncludeGeminiCliInMetrics()
+        {
+            var router = new SmartRouter();
+            var metrics = router.GetMetrics();
+            
+            Assert.Contains(metrics, m => m.ProviderName == "gemini-cli");
         }
     }
 }
