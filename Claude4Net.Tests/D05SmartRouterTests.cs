@@ -139,5 +139,24 @@ namespace Claude4Net.Tests
             // New cost = 0.8 + (0.8 * 0.5) = 1.2
             Assert.Equal(1.2, metrics.AccumulatedCost, 2);
         }
+
+        [Fact]
+        public void LocalModel_ShouldNotBeDePrioritized_DueToHighLatency()
+        {
+            var router = new SmartRouter();
+            
+            // 1. Record extremely high latency for Ollama (20 seconds)
+            router.UpdateMetric("ollama", 20000, false);
+            
+            // 2. Record low latency for Gemini (100 ms)
+            router.UpdateMetric("gemini", 100, false);
+            
+            // 3. Even with 20s latency, Ollama should still be preferred over Gemini 
+            // due to the +500 local bonus and latency penalty exemption.
+            var decision = router.Route("Any task");
+            
+            Assert.Equal("ollama", decision.SelectedProvider);
+            Assert.Contains("Health: Healthy", decision.Reason);
+        }
     }
 }

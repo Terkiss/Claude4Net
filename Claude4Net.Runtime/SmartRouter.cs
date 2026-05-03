@@ -63,19 +63,20 @@ namespace Claude4Net.Runtime
             }
 
             // Simple heuristic to detect intent from prompt if Auto
-            if (intent == RoutingIntent.Auto)
+            var effectiveIntent = intent;
+            if (effectiveIntent == RoutingIntent.Auto)
             {
                 if (prompt.Length > 1000 || prompt.Contains("complex") || prompt.Contains("refactor"))
-                    intent = RoutingIntent.LargeModel;
+                    effectiveIntent = RoutingIntent.LargeModel;
                 else if (prompt.Length < 100)
-                    intent = RoutingIntent.SmallModel;
+                    effectiveIntent = RoutingIntent.SmallModel;
             }
 
             // Scoring logic
             var scored = healthyProviders.Select(m => new
             {
                 Metric = m,
-                Score = CalculateScore(m, intent, prompt)
+                Score = CalculateScore(m, effectiveIntent, prompt, intent == RoutingIntent.Auto)
             }).OrderByDescending(x => x.Score).ToList();
 
             var top = scored.First();
@@ -83,48 +84,67 @@ namespace Claude4Net.Runtime
             return new RoutingDecision
             {
                 SelectedProvider = top.Metric.ProviderName,
-                SelectedModel = DefaultModelFor(top.Metric.ProviderName, intent),
-                Reason = $"Selected {top.Metric.ProviderName} for {intent} intent (Score: {top.Score:F2}, Latency: {top.Metric.LatencyEma:F0}ms, Health: {top.Metric.Status})",
+                SelectedModel = DefaultModelFor(top.Metric.ProviderName, effectiveIntent),
+                Reason = $"Selected {top.Metric.ProviderName} for {effectiveIntent} intent (Score: {top.Score:F2}, Latency: {top.Metric.LatencyEma:F0}ms, Health: {top.Metric.Status})",
                 FallbackChain = scored.Skip(1).Select(x => x.Metric.ProviderName).ToList()
             };
         }
 
-        private double CalculateScore(ProviderMetric m, RoutingIntent intent, string prompt)
+        private double CalculateScore(ProviderMetric m, RoutingIntent intent, string prompt, bool wasAuto)
         {
             double score = 100.0;
 
             // 1. Latency Penalty (Normalize: 100ms = -1 point)
-            score -= (m.LatencyEma / 100.0);
+            // EXEMPT local providers from latency penalty to respect user's local preference
+            if (!IsLocalProvider(m.ProviderName))
+            {
+                score -= (m.LatencyEma / 100.0);
+            }
 
             // 2. Base Cost Weight
             double costWeight = (intent == RoutingIntent.CostEffective) ? 50.0 : 10.0;
             score -= (m.CostScore * costWeight);
 
             // 3. Accumulated Cost Penalty (Cost-Aware Routing)
-            // Penalty increases as accumulated cost grows to balance load/budget
-            score -= (m.AccumulatedCost * 0.5);
+            // Increased sensitivity to balance load faster
+            score -= (m.AccumulatedCost * 5.0);
 
-            // 4. Intent Alignment
+            // 4. Local Model Protection & Intent Alignment
+            if (IsLocalProvider(m.ProviderName))
+            {
+                // Extra bonus for local models, especially if user didn't specify a tier
+                score += wasAuto ? 2000.0 : 500.0;
+            }
+
             switch (intent)
             {
                 case RoutingIntent.LargeModel:
-                    if (m.ProviderName == "claude") score += 30.0;
-                    if (m.ProviderName == "gemini") score += 10.0;
+                    if (m.ProviderName == "claude") score += 1500.0; 
+                    if (m.ProviderName == "gemini") score += 1000.0;
                     break;
                 case RoutingIntent.SmallModel:
-                    if (m.ProviderName == "gemini") score += 30.0;
+                    if (m.ProviderName == "gemini") score += 600.0; // Slightly beats local bonus (500)
                     if (m.ProviderName == "ollama") score += 20.0;
                     break;
                 case RoutingIntent.LocalOnly:
-                    if (m.ProviderName == "ollama") score += 1000.0;
+                    if (IsLocalProvider(m.ProviderName)) score += 1000.0;
+                    else score -= 2000.0; // Hard de-prioritize non-local
+                    break;
+                case RoutingIntent.CostEffective:
+                    if (IsLocalProvider(m.ProviderName)) score += 300.0;
                     break;
             }
 
             // 5. Health status penalty
             if (m.Status == ProviderHealthStatus.Degraded) score -= 40.0;
-            if (m.Status == ProviderHealthStatus.CircuitBreakerHalfOpen) score -= 60.0; // Probe carefully
+            if (m.Status == ProviderHealthStatus.CircuitBreakerHalfOpen) score -= 60.0;
 
             return score;
+        }
+
+        private bool IsLocalProvider(string name)
+        {
+            return name == "ollama" || name == "gemini-cli";
         }
 
         private string DefaultModelFor(string provider, RoutingIntent intent)

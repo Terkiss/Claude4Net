@@ -32,6 +32,7 @@
 | K010 | D03/D04 Security Hardening | Completed | Audit logging, Refined masking, !doctor diagnostics |
 | K011 | Performance & Release Confidence | Completed | Embedding cache, AgentLoop optimization, 76/76 pass |
 | K012 | Final Stabilization and Handoff | Completed | Security audit, user manual, handoff docs, 77/77 pass |
+| K013-1 | Local Model Protection Policy | Completed | Latency exemption, Local bonus (+2000), 78/78 pass |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
