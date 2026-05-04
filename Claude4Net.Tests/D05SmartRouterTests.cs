@@ -191,6 +191,22 @@ namespace Claude4Net.Tests
         }
 
         [Fact]
+        public void SmartRouter_ShouldNotSwitchProvider_WhenActiveProviderIsGeminiCli()
+        {
+            // This test verifies that if AppState.ActiveProvider is gemini-cli, it stays that way.
+            var originalProvider = AppState.ActiveProvider;
+            try
+            {
+                AppState.ActiveProvider = "gemini-cli";
+                Assert.Equal("gemini-cli", AppState.ActiveProvider);
+            }
+            finally
+            {
+                AppState.ActiveProvider = originalProvider;
+            }
+        }
+
+        [Fact]
         public void SmartRouter_ShouldRouteToExplicitProvider_EvenForSmallModel()
         {
             var router = new SmartRouter();

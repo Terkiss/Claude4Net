@@ -192,9 +192,7 @@ namespace Claude4Net.Commands
 
                     if (!string.IsNullOrEmpty(AuthManager.GetGeminiApiKey())) {
                         sb.AppendLine("[bold yellow]Google Gemini Models (Available):[/]");
-                        sb.AppendLine("  - gemini-3.1-pro, gemini-3.0-flash, gemini-3.1-deep-think, gemini-3.1-flash-lite, gemini-3.1-flash-live");
-                        sb.AppendLine("  - gemini-2.5-pro, gemini-2.5-flash");
-                        sb.AppendLine("  - gemini-2.0-flash, gemini-2.0-flash-lite-preview-02-05, gemini-2.0-pro-exp-02-05, gemini-2.0-flash-thinking-exp-01-21");
+                        sb.AppendLine("  - gemini-2.0-flash, gemini-2.0-flash-lite-preview, gemini-2.0-pro-exp-02-05, gemini-2.0-flash-thinking-exp");
                         sb.AppendLine("  - gemini-1.5-pro, gemini-1.5-flash, gemini-1.5-flash-8b");
                         sb.AppendLine();
                     }
@@ -224,15 +222,23 @@ namespace Claude4Net.Commands
                 string newModel = args.Trim();
                 string detectedProvider = AppState.ActiveProvider;
 
-                // 모델명 패턴으로 프로바이더 자동 매칭
-                if (newModel.StartsWith("claude")) detectedProvider = "claude";
-                else if (newModel.StartsWith("gemini")) detectedProvider = "gemini";
-                else {
-                    try {
-                        var ollama = sp.GetRequiredService<OllamaProvider>();
-                        var ollamaModels = await ollama.ListModelsAsync();
-                        if (ollamaModels.Any(m => m.Equals(newModel, StringComparison.OrdinalIgnoreCase))) detectedProvider = "ollama";
-                    } catch { }
+                // 프로바이더 전환 방어 로직: gemini-cli 모드인 경우 모델명 패턴 매칭을 무시하고 CLI 모드 유지
+                if (AppState.ActiveProvider == "gemini-cli")
+                {
+                    detectedProvider = "gemini-cli";
+                }
+                else
+                {
+                    // 모델명 패턴으로 프로바이더 자동 매칭
+                    if (newModel.StartsWith("claude")) detectedProvider = "claude";
+                    else if (newModel.StartsWith("gemini")) detectedProvider = "gemini";
+                    else {
+                        try {
+                            var ollama = sp.GetRequiredService<OllamaProvider>();
+                            var ollamaModels = await ollama.ListModelsAsync();
+                            if (ollamaModels.Any(m => m.Equals(newModel, StringComparison.OrdinalIgnoreCase))) detectedProvider = "ollama";
+                        } catch { }
+                    }
                 }
 
                 AppState.ActiveModel = newModel;

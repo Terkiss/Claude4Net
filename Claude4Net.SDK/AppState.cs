@@ -85,7 +85,7 @@ namespace Claude4Net.SDK
         /// <summary> 제공자가 명시적으로 설정되었는지 여부 </summary>
         public static bool IsProviderExplicitlySet { get; set; } = false;
         /// <summary> 현재 사용 중인 모델 이름 </summary>
-        public static string ActiveModel { get; set; } = "gemini-3-flash-preview";
+        public static string ActiveModel { get; set; } = "gemini-1.5-flash";
         /// <summary> 현재 진행 중인 작업 목록 </summary>
         public static ConcurrentDictionary<string, TaskStateBase> Tasks { get; } = new();
 
