@@ -173,7 +173,18 @@ namespace Claude4Net.Commands
                     return $"[green]Logged in to Gemini CLI (gemini-cli).[/] No API key required (OAuth handled by CLI). Provider switched.";
                 }
 
-                if (parts.Length < 2) return $"Usage: !login <provider> <key_or_uri>\n[bold red]Error:[/] API key is required for '{Markup.Escape(provider)}'.";
+                // 기존 키 존재 여부 확인 후 자동 전환 (K013-3-Fix)
+                if (parts.Length < 2)
+                {
+                    string? existingKey = AuthManager.GetApiKey(provider);
+                    if (!string.IsNullOrEmpty(existingKey))
+                    {
+                        AppState.ActiveProvider = provider;
+                        AppState.IsProviderExplicitlySet = true;
+                        return $"[green]기존 키를 사용하여 {Markup.Escape(provider)}로 전환했습니다.[/]";
+                    }
+                    return $"Usage: !login <provider> <key_or_uri>\n[bold red]Error:[/] API key is required for '{Markup.Escape(provider)}'.";
+                }
                 
                 await AuthManager.SaveProviderKeyAsync(provider, parts[1]);
                 AppState.ActiveProvider = provider;
