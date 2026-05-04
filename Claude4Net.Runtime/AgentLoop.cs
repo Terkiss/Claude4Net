@@ -546,7 +546,15 @@ namespace Claude4Net.Runtime
                     AnsiConsole.Markup($"[grey]Thinking... ({providerName} T{turnCount}) [/]");
 
                     // 단계 1: LLM에게 현재 상황을 전달하고 스트리밍 응답 수신
-                    await foreach (var evt in provider.StreamQueryAsync(isFirstTurn ? currentPrompt : "Proceed based on previous tool results.", model: model, ct: ct))
+                    string turnPrompt = isFirstTurn ? currentPrompt : "Proceed based on previous tool results.";
+                    
+                    // Gemini fix: Do not add regular user prompt immediately after function response
+                    if (!isFirstTurn && (provider.Name == "gemini" || provider.Name == "gemini-cli"))
+                    {
+                        turnPrompt = "";
+                    }
+
+                    await foreach (var evt in provider.StreamQueryAsync(turnPrompt, model: model, ct: ct))
                     {
                         if (evt.Type == LLMStreamEventType.TextDelta && !string.IsNullOrEmpty(evt.Delta))
                         {
@@ -693,7 +701,11 @@ namespace Claude4Net.Runtime
 
                     // 단계 4: 컨텍스트 압축 및 도구 결과 피드백
                     // 결과가 너무 길 경우 요약하여 LLM에게 다시 전달 (토큰 절약 및 컨텍스트 유지)
-                    var processedResults = ContextCompressor.SummarizeToolResults(toolResults);
+                    // Gemini requires a functionResponse for every functionCall. Collapsing tool
+                    // results into plain text breaks that protocol when a turn has many tool calls.
+                    var processedResults = provider.Name == "gemini"
+                        ? toolResults
+                        : ContextCompressor.SummarizeToolResults(toolResults);
                     provider.AddMessage(new { role = "user", content = processedResults });
                     continue;
                 }

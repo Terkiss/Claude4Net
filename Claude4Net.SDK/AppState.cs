@@ -8,16 +8,16 @@ namespace Claude4Net.SDK
     /// <summary>
     /// 연결 상태를 정의하는 열거형입니다.
     /// </summary>
-    public enum ConnectionStatus 
-    { 
+    public enum ConnectionStatus
+    {
         /// <summary> 연결 중 </summary>
-        Connecting, 
+        Connecting,
         /// <summary> 연결됨 </summary>
-        Connected, 
+        Connected,
         /// <summary> 재연결 중 </summary>
-        Reconnecting, 
+        Reconnecting,
         /// <summary> 연결 끊김 </summary>
-        Disconnected 
+        Disconnected
     }
 
     /// <summary>
@@ -67,10 +67,10 @@ namespace Claude4Net.SDK
         private static readonly ConcurrentDictionary<string, ModelUsage> _modelUsage = new();
         /// <summary> 현재 세션의 고유 ID </summary>
         public static string SessionId { get; set; } = Guid.NewGuid().ToString();
-        
+
         /// <summary> 실행 파일이 위치한 기본 디렉토리 (시스템 리소스 경로) </summary>
         public static string SystemBaseDir { get; set; } = AppDomain.CurrentDomain.BaseDirectory;
-        
+
         /// <summary> 사용자의 현재 작업 디렉토리 </summary>
         public static string? CurrentCwd { get; set; } = null;
 
@@ -85,7 +85,7 @@ namespace Claude4Net.SDK
         /// <summary> 제공자가 명시적으로 설정되었는지 여부 </summary>
         public static bool IsProviderExplicitlySet { get; set; } = false;
         /// <summary> 현재 사용 중인 모델 이름 </summary>
-        public static string ActiveModel { get; set; } = "gemini-1.5-flash";
+        public static string ActiveModel { get; set; } = "gemini-3.1-flash-lite-preview";
         /// <summary> 현재 진행 중인 작업 목록 </summary>
         public static ConcurrentDictionary<string, TaskStateBase> Tasks { get; } = new();
 
@@ -97,7 +97,7 @@ namespace Claude4Net.SDK
         /// </summary>
         public static void LoadDiscordApprovers()
         {
-            var envValue = Environment.GetEnvironmentVariable("CLAUDE4NET_DISCORD_APPROVER_IDS") ?? 
+            var envValue = Environment.GetEnvironmentVariable("CLAUDE4NET_DISCORD_APPROVER_IDS") ??
                            Environment.GetEnvironmentVariable("DISCORD_APPROVER_IDS");
 
             if (string.IsNullOrEmpty(envValue)) return;
@@ -120,9 +120,9 @@ namespace Claude4Net.SDK
         /// <summary>
         /// 조정(Coordinated) 작업 목록을 반환합니다.
         /// </summary>
-        public static IEnumerable<CoordinateTask> GetCoordinatedTasks() => 
+        public static IEnumerable<CoordinateTask> GetCoordinatedTasks() =>
             Tasks.Values.OfType<CoordinateTask>();
-        
+
         /// <summary>
         /// 모델별 사용량을 누적 기록합니다.
         /// </summary>

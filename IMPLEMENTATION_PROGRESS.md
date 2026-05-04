@@ -35,6 +35,7 @@
 | K013-1 | Local Model Protection Policy | Completed | Latency exemption, Local bonus (+2000), 78/78 pass |
 | K013-2 | Explicit Model Routing Fix | Completed | Respect AppState.ActiveModel (81/81 pass) |
 | K013-3 | Provider Logic & Naming Fix | Completed | Defend gemini-cli, real model names, 82/82 pass |
+| K013-4 | Gemini Function Calling Fix | Completed | Fix 400 INVALID_ARGUMENT after tool call (85/85 pass) |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -133,10 +134,11 @@
 - [x] Verify operational documentation and READMEs
 - [x] Perform final repository hygiene (Zero untracked/temp files)
 - [x] Prepare handoff documentation (Documents/HANDOFF.md)
-- [x] Final release gate verification (82/82 tests pass)
+- [x] Final release gate verification (85/85 tests pass)
 - [x] [Maintenance] 명시적 프로바이더 선택 가중치 조정 및 `gemini-cli` 초기 후보 등록 버그 수정
 - [x] [Maintenance] K013-2: 명시적 모델 선택 오류 해결 (Respect AppState.ActiveModel)
 - [x] [Maintenance] K013-3: gemini-cli 프로바이더 전환 방어 및 모델 명칭 최신화 (gemini-2.0-flash 등)
+- [x] [Maintenance] K013-4: Gemini function calling 400 에러 수정 (Continuation prompt 생략)
 
 ### K003: Release Gate Baseline
 - [x] Create `scripts/verify-release.ps1` with strict error handling
