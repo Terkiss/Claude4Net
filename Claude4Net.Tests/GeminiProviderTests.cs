@@ -106,5 +106,28 @@ namespace Claude4Net.Tests
             Assert.Equal(4, System.Text.RegularExpressions.Regex.Matches(json, "functionResponse").Count);
             Assert.DoesNotContain("Collapsed", json);
         }
+
+        [Fact]
+        public void GeminiFunctionCallHistory_ShouldPreserveThoughtSignatureShape()
+        {
+            var functionCallPartJson = """
+            {
+              "functionCall": {
+                "name": "LsTool",
+                "args": { "path": "D:\\Project" }
+              },
+              "thoughtSignature": "opaque-signature"
+            }
+            """;
+
+            using var doc = JsonDocument.Parse(functionCallPartJson);
+            var assistantParts = new List<object> { doc.RootElement.Clone() };
+
+            var modelTurnJson = JsonSerializer.Serialize(new { role = "model", parts = assistantParts });
+
+            Assert.Contains("functionCall", modelTurnJson);
+            Assert.Contains("thoughtSignature", modelTurnJson);
+            Assert.Contains("opaque-signature", modelTurnJson);
+        }
     }
 }

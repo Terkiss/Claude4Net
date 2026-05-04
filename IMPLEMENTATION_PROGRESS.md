@@ -36,6 +36,7 @@
 | K013-2 | Explicit Model Routing Fix | Completed | Respect AppState.ActiveModel (81/81 pass) |
 | K013-3 | Provider Logic & Naming Fix | Completed | Defend gemini-cli, real model names, 82/82 pass |
 | K013-4 | Gemini Function Calling Fix | Completed | Fix 400 INVALID_ARGUMENT after tool call (85/85 pass) |
+| K013-5 | Gemini Thought Signature Fix | Completed | Preserve Gemini thoughtSignature on functionCall history (86/86 pass) |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -135,6 +136,7 @@
 - [x] Perform final repository hygiene (Zero untracked/temp files)
 - [x] Prepare handoff documentation (Documents/HANDOFF.md)
 - [x] Final release gate verification (85/85 tests pass)
+- [x] [Maintenance] K013-5: Preserve Gemini functionCall thoughtSignature metadata for Gemini 3 tool-use continuity (86/86 tests pass)
 - [x] [Maintenance] 명시적 프로바이더 선택 가중치 조정 및 `gemini-cli` 초기 후보 등록 버그 수정
 - [x] [Maintenance] K013-2: 명시적 모델 선택 오류 해결 (Respect AppState.ActiveModel)
 - [x] [Maintenance] K013-3: gemini-cli 프로바이더 전환 방어 및 모델 명칭 최신화 (gemini-2.0-flash 등)

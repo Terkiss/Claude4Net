@@ -250,12 +250,12 @@ namespace Claude4Net.Api
                                 // 도구 호출 처리
                                 string callName = funcCall.GetProperty("name").GetString()!;
                                 string callId = $"{callName}_{toolCallIndex++}";
-                                var call = new ToolUseRequest { Id = callId, Name = callName, Input = funcCall.GetProperty("args") };
+                                var call = new ToolUseRequest { Id = callId, Name = callName, Input = funcCall.GetProperty("args").Clone() };
                                 
                                 _toolCallIdToNameMap[callId] = callName;
                                 
                                 toolCalls.Add(call);
-                                assistantParts.Add(new { functionCall = new { name = callName, args = call.Input } });
+                                assistantParts.Add(part.Clone());
                                 yield return new LLMStreamEvent { Type = LLMStreamEventType.ToolCallStart, ToolCall = call };
                             }
                         }
