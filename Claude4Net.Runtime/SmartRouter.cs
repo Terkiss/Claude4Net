@@ -191,6 +191,12 @@ namespace Claude4Net.Runtime
 
         private string DefaultModelFor(string provider, RoutingIntent intent)
         {
+            // 사용자가 명시적으로 프로바이더와 모델을 설정한 경우, 시스템의 자동 선택보다 우선함
+            if (AppState.IsProviderExplicitlySet && provider.Equals(AppState.ActiveProvider, StringComparison.OrdinalIgnoreCase))
+            {
+                return AppState.ActiveModel;
+            }
+
             return provider switch
             {
                 "claude" => (intent == RoutingIntent.LargeModel) ? "claude-3-5-sonnet-20240620" : "claude-3-haiku-20240307",

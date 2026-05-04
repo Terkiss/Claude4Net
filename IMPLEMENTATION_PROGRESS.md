@@ -31,8 +31,9 @@
 | K009 | D05 Smart Router Ops | Completed | Cost-awareness, EMA tracking, Exponential backoff |
 | K010 | D03/D04 Security Hardening | Completed | Audit logging, Refined masking, !doctor diagnostics |
 | K011 | Performance & Release Confidence | Completed | Embedding cache, AgentLoop optimization, 76/76 pass |
-| K012 | Final Stabilization and Handoff | Completed | Security audit, user manual, handoff docs, 80/80 pass |
-| K013-1 | Local Model Protection Policy | Completed | Latency exemption, Local bonus (+2000), 80/80 pass |
+| K012 | Final Stabilization and Handoff | Completed | Security audit, user manual, handoff docs, 77/77 pass |
+| K013-1 | Local Model Protection Policy | Completed | Latency exemption, Local bonus (+2000), 78/78 pass |
+| K013-2 | Explicit Model Routing Fix | Completed | Respect AppState.ActiveModel (81/81 pass) |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -131,8 +132,9 @@
 - [x] Verify operational documentation and READMEs
 - [x] Perform final repository hygiene (Zero untracked/temp files)
 - [x] Prepare handoff documentation (Documents/HANDOFF.md)
-- [x] Final release gate verification (80/80 tests pass)
+- [x] Final release gate verification (81/81 tests pass)
 - [x] [Maintenance] 명시적 프로바이더 선택 가중치 조정 및 `gemini-cli` 초기 후보 등록 버그 수정
+- [x] [Maintenance] K013-2: 명시적 모델 선택 오류 해결 (Respect AppState.ActiveModel)
 
 ### K003: Release Gate Baseline
 - [x] Create `scripts/verify-release.ps1` with strict error handling

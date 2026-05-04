@@ -154,9 +154,40 @@ namespace Claude4Net.Tests
             // 3. Even with 20s latency, Ollama should still be preferred over Gemini 
             // due to the +500 local bonus and latency penalty exemption.
             var decision = router.Route("Any task");
-            
             Assert.Equal("ollama", decision.SelectedProvider);
             Assert.Contains("Health: Healthy", decision.Reason);
+        }
+
+        [Fact]
+        public void SmartRouter_ShouldRespectExplicitModel_ForGeminiProvider()
+        {
+            var router = new SmartRouter();
+
+            // 1. Arrange: Manually set explicit provider and model in AppState
+            var originalProvider = AppState.ActiveProvider;
+            var originalModel = AppState.ActiveModel;
+            var originalExplicit = AppState.IsProviderExplicitlySet;
+
+            try
+            {
+                AppState.ActiveProvider = "gemini";
+                AppState.ActiveModel = "gemini-1.5-pro-custom-version";
+                AppState.IsProviderExplicitlySet = true;
+
+                // 2. Act: Route a normal task
+                var decision = router.Route("Normal task");
+
+                // 3. Assert: Should respect the explicitly set model instead of default flash
+                Assert.Equal("gemini", decision.SelectedProvider);
+                Assert.Equal("gemini-1.5-pro-custom-version", decision.SelectedModel);
+            }
+            finally
+            {
+                // Restore original state
+                AppState.ActiveProvider = originalProvider;
+                AppState.ActiveModel = originalModel;
+                AppState.IsProviderExplicitlySet = originalExplicit;
+            }
         }
 
         [Fact]
