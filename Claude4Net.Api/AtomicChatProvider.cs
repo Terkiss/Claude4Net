@@ -8,13 +8,24 @@ using System.Linq;
 
 namespace Claude4Net.Providers
 {
+    /// <summary>
+    /// OpenAI 호환 API를 제공하는 Atomic Chat 서비스와의 통신을 담당하는 프로바이더입니다.
+    /// 로컬 또는 원격 서버에서 실행 중인 모델을 활용할 수 있습니다.
+    /// </summary>
     public class AtomicChatProvider
     {
         private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
         private static readonly string _atomicChatBaseUrl = Environment.GetEnvironmentVariable("ATOMIC_CHAT_BASE_URL") ?? "http://127.0.0.1:1337";
 
+        /// <summary>
+        /// API 엔드포인트 전체 URL을 생성합니다.
+        /// </summary>
         private string ApiUrl(string path) => $"{_atomicChatBaseUrl}/v1{path}";
 
+        /// <summary>
+        /// Atomic Chat 서비스가 현재 실행 중인지 확인합니다.
+        /// </summary>
+        /// <returns>활성 상태면 true, 아니면 false</returns>
         public async Task<bool> CheckAtomicChatRunningAsync()
         {
             try
@@ -29,6 +40,10 @@ namespace Claude4Net.Providers
             }
         }
 
+        /// <summary>
+        /// 서비스에서 제공하는 사용 가능한 모델 목록을 조회합니다.
+        /// </summary>
+        /// <returns>모델 ID 리스트</returns>
         public async Task<List<string>> ListAtomicChatModelsAsync()
         {
             try
@@ -52,11 +67,19 @@ namespace Claude4Net.Providers
             }
             catch
             {
-                // Console.WriteLine("Could not list Atomic Chat models");
                 return new List<string>();
             }
         }
 
+        /// <summary>
+        /// Atomic Chat API를 호출하여 대화를 수행하고 결과를 Anthropic 호환 딕셔너리 형식으로 반환합니다.
+        /// </summary>
+        /// <param name="model">모델명</param>
+        /// <param name="messages">메시지 이력</param>
+        /// <param name="system">시스템 프롬프트 (선택 사항)</param>
+        /// <param name="maxTokens">최대 생성 토큰 수</param>
+        /// <param name="temperature">샘플링 온도</param>
+        /// <returns>응답 데이터를 담은 딕셔너리</returns>
         public async Task<Dictionary<string, object>> AtomicChatAsync(
             string model,
             List<Dictionary<string, object>> messages,

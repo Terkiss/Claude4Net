@@ -9,13 +9,31 @@ using Claude4Net.SDK;
 
 namespace Claude4Net.Tools
 {
+    /// <summary>
+    /// ImageEngineTool 실행을 위한 입력 매개변수 클래스입니다.
+    /// </summary>
     public class ImageEngineInput
     {
+        /// <summary>
+        /// 이미지 생성을 위한 프롬프트입니다.
+        /// </summary>
         public string prompt { get; set; } = string.Empty;
+        
+        /// <summary>
+        /// (선택 사항) 편집 시 사용할 이미지 데이터입니다.
+        /// </summary>
         public string? image { get; set; }
+        
+        /// <summary>
+        /// (선택 사항) 이미지 해상도 또는 종횡비입니다. (예: '4K', '16:9')
+        /// </summary>
         public string? resolution { get; set; }
     }
 
+    /// <summary>
+    /// Gemini API를 사용하여 이미지를 생성하거나 편집하는 도구입니다.
+    /// 생성된 이미지는 워크스페이스 내의 'GeneratedImages' 디렉토리에 저장됩니다.
+    /// </summary>
     public class ImageEngineTool : ITool
     {
         public string Name => "ImageEngineTool";
@@ -34,8 +52,16 @@ namespace Claude4Net.Tools
             required = new[] { "prompt" }
         };
 
+        /// <summary>
+        /// 이미지 생성 프로세스를 비동기적으로 수행합니다.
+        /// </summary>
+        /// <param name="arguments">JSON 형식의 생성 매개변수</param>
+        /// <param name="context">실행 컨텍스트</param>
+        /// <param name="ct">취소 토큰</param>
+        /// <returns>생성 결과 상태 및 저장된 파일 경로</returns>
         public async Task<object> ExecuteAsync(string arguments, object context, System.Threading.CancellationToken ct = default)
         {
+            // [워크스페이스 확인] 워크스페이스가 설정되어 있지 않으면 실행을 거부합니다.
             if (string.IsNullOrEmpty(AppState.CurrentCwd))
                 throw new Exception("Workspace is not set. Use /setworkspace <path> first before generating images.");
 
@@ -44,7 +70,7 @@ namespace Claude4Net.Tools
             var input = JsonSerializer.Deserialize<ImageEngineInput>(arguments, options)
                         ?? throw new ArgumentException("Invalid arguments");
 
-            // 2. 나노 바나나 기본 프롬프트 믹싱
+            // 2. [가공] 프롬프트 튜닝 - 스타일 및 해상도 정보를 믹싱합니다.
             string finalPrompt = input.prompt + " (Apply nano banana style / theme explicitly)";
             if (!string.IsNullOrWhiteSpace(input.resolution))
             {
@@ -57,7 +83,7 @@ namespace Claude4Net.Tools
 
             string url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key={apiKey}";
 
-            // 4. 요청 페이로드 세팅
+            // 4. [페이로드 구성] 이미지 구성 설정(해상도, 종횡비 등)을 포함하여 요청 본문을 생성합니다.
             object? genConfig = null;
             if (!string.IsNullOrWhiteSpace(input.resolution))
             {
@@ -103,7 +129,7 @@ namespace Claude4Net.Tools
                 throw new Exception($"Gemini API Error: {error}");
             }
 
-            // 6. 결과 파싱 및 이미지 Base64 찾기
+            // 6. [결과 파싱] 응답 데이터에서 Base64 이미지 데이터를 추출합니다.
             var data = await response.Content.ReadFromJsonAsync<JsonElement>(options, ct);
             string? base64Image = null;
 
@@ -126,7 +152,7 @@ namespace Claude4Net.Tools
             if (string.IsNullOrEmpty(base64Image))
                 throw new Exception("결과물에서 이미지를 추출하지 못했습니다.");
 
-            // 7. 디코딩 후 물리 파일로 저장 (사용자 워크스페이스 기준)
+            // 7. [파일 저장] 디코딩 후 물리 파일로 저장 (사용자 워크스페이스 내 GeneratedImages 폴더)
             string currentCwd = AppState.CurrentCwd ?? Environment.CurrentDirectory;
             string targetDir = Path.Combine(currentCwd, "GeneratedImages");
             if (!Directory.Exists(targetDir))

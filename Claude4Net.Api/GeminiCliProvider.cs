@@ -9,18 +9,33 @@ using Claude4Net.SDK;
 
 namespace Claude4Net.Api
 {
+    /// <summary>
+    /// 외부 'gemini' CLI 도구를 프로세스로 실행하여 Google Gemini 모델의 기능을 대행하는 프로바이더입니다.
+    /// CLI 출력을 캡처하고 XML 형식의 도구 호출을 파싱하여 처리합니다.
+    /// </summary>
     public class GeminiCliProvider : ILLMProvider
     {
         private readonly List<object> _conversationHistory = new();
         private readonly IToolRegistry _toolRegistry;
 
+        /// <summary>
+        /// GeminiCliProvider의 새 인스턴스를 초기화합니다.
+        /// </summary>
+        /// <param name="toolRegistry">도구 정보 레지스트리</param>
         public GeminiCliProvider(IToolRegistry toolRegistry)
         {
             _toolRegistry = toolRegistry;
         }
 
+        /// <summary>
+        /// 프로바이더 이름입니다.
+        /// </summary>
         public string Name => "gemini-cli";
 
+        /// <summary>
+        /// 대화 히스토리에 메시지를 추가합니다.
+        /// </summary>
+        /// <param name="message">메시지 객체</param>
         public void AddMessage(object message)
         {
             if (message != null)
@@ -29,11 +44,23 @@ namespace Claude4Net.Api
             }
         }
 
+        /// <summary>
+        /// 현재 대화 히스토리를 반환합니다.
+        /// </summary>
+        /// <returns>메시지 목록</returns>
         public IReadOnlyList<object> GetHistory()
         {
             return _conversationHistory.AsReadOnly();
         }
 
+        /// <summary>
+        /// gemini CLI를 호출하여 프롬프트를 전송하고 출력을 스트리밍합니다. 
+        /// XML 형태의 도구 호출을 실시간으로 감지하여 이벤트로 발생시킵니다.
+        /// </summary>
+        /// <param name="prompt">사용자 입력 프롬프트</param>
+        /// <param name="model">모델명</param>
+        /// <param name="ct">작업 취소 토큰</param>
+        /// <returns>스트리밍 이벤트 열거자</returns>
         public async IAsyncEnumerable<LLMStreamEvent> StreamQueryAsync(string prompt, string? model = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
         {
             if (!string.IsNullOrEmpty(prompt))
@@ -43,6 +70,7 @@ namespace Claude4Net.Api
 
             var tools = _toolRegistry?.GetTools();
 
+            // 도구 정의 및 사용 규칙을 프롬프트에 포함
             var toolDefs = new StringBuilder();
             if (tools != null && tools.Count > 0)
             {
@@ -73,6 +101,7 @@ You can only call one tool per <tool_call> tag. After outputting a tool call, wa
 
             var systemPromptBuilder = new StringBuilder();
             
+            // 자율 진화 스킬 정보 로드
             string skillsDir = string.IsNullOrEmpty(AppState.CurrentCwd) ? "" : Path.Combine(AppState.CurrentCwd, "Skills");
             if (!string.IsNullOrEmpty(skillsDir) && Directory.Exists(skillsDir))
             {
@@ -86,9 +115,11 @@ You can only call one tool per <tool_call> tag. After outputting a tool call, wa
             }
             var systemPrompt = systemPromptBuilder.ToString();
 
+            // 최종 프롬프트 조합
             string combinedPrompt = $"{systemPrompt}\n\n[CRITICAL INSTRUCTION]\n반드시 모든 사고(Thinking) 과정과 출력, 대답, 분석 내용을 한국어(Korean)로만 작성하세요.\n\n{toolDefs}\n\n{historyDump}\n\n[CURRENT USER PROMPT]:\n{prompt}";
 
-            string arguments = "/c gemini -y -p \"\"";
+            string modelArg = !string.IsNullOrEmpty(model) ? $"-m \"{model}\" " : "";
+            string arguments = $"/c gemini {modelArg}-y -p \" \"";
 
             var processStartInfo = new ProcessStartInfo
             {
@@ -106,6 +137,7 @@ You can only call one tool per <tool_call> tag. After outputting a tool call, wa
             using var process = new Process { StartInfo = processStartInfo };
             process.Start();
 
+            // CLI에 프롬프트 입력
             await process.StandardInput.WriteAsync(combinedPrompt);
             process.StandardInput.Close();
 
@@ -116,11 +148,12 @@ You can only call one tool per <tool_call> tag. After outputting a tool call, wa
 
             var fullText = new StringBuilder();
 
-            process.ErrorDataReceived += (sender, args) => { /* 백그라운드 에러 스트림 드레인 (Deadlock 방지) */ };
+            process.ErrorDataReceived += (sender, args) => { /* 에러 드레인 */ };
             process.BeginErrorReadLine();
 
             using var reader = process.StandardOutput;
 
+            // CLI 출력 실시간 파싱 및 이벤트 전송
             while (true)
             {
                 if (ct.IsCancellationRequested)
@@ -132,8 +165,10 @@ You can only call one tool per <tool_call> tag. After outputting a tool call, wa
                 string? line = await reader.ReadLineAsync(ct);
                 if (line == null) break;
 
-                string cleanLine = System.Text.RegularExpressions.Regex.Replace(line, @"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])", "");
+                // ANSI 이스케이프 코드 제거
+                string cleanLine = System.Text.RegularExpressions.Regex.Replace(line, @"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@~])", "");
 
+                // 불필요한 알림 문구 정제
                 if (cleanLine.Contains("MCP issues detected"))
                 {
                     cleanLine = cleanLine.Replace("MCP issues detected. ", "")
@@ -141,6 +176,7 @@ You can only call one tool per <tool_call> tag. After outputting a tool call, wa
                                          .Replace("MCP issues detected.", "");
                 }
 
+                // <tool_call> 태그 감지 및 버퍼링 로직
                 if (!isBufferingTool)
                 {
                     var matchStart = System.Text.RegularExpressions.Regex.Match(cleanLine, @"<tool_call[ \t]+name\s*=\s*""([^""]+)""\s*>");
@@ -189,6 +225,7 @@ You can only call one tool per <tool_call> tag. After outputting a tool call, wa
                     }
                 }
 
+                // 도구 호출 완성 시 이벤트 발생
                 if (!isBufferingTool && toolBuffer.Length > 0 && !string.IsNullOrEmpty(currentToolName))
                 {
                     string jsonArgs = toolBuffer.ToString().Trim();
@@ -202,7 +239,6 @@ You can only call one tool per <tool_call> tag. After outputting a tool call, wa
                     catch (Exception ex)
                     { 
                         Console.WriteLine($"\n\x1b[1;31m⚠️ JSON Parse Error (\x1b[33m{currentToolName}\x1b[1;31m):\x1b[0m {ex.Message}");
-                        Console.WriteLine($"\x1b[90mRaw JSON:\x1b[0m {jsonArgs}");
                     }
                     
                     var toolReq = new ToolUseRequest {
