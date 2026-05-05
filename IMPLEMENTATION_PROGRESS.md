@@ -37,6 +37,7 @@
 | K013-3 | Provider Logic & Naming Fix | Completed | Defend gemini-cli, real model names, 82/82 pass |
 | K013-4 | Gemini Function Calling Fix | Completed | Fix 400 INVALID_ARGUMENT after tool call (85/85 pass) |
 | K013-5 | Gemini Thought Signature Fix | Completed | Preserve Gemini thoughtSignature on functionCall history (86/86 pass) |
+| K014 | macOS Cross-Platform Preparation | Prepared | macOS support prepared, native verification pending |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -148,3 +149,12 @@
 - [x] Verify DLL-direct CLI smoke test with shutdown message
 - [x] Establish `Documents/RELEASE_GATE.md` checklist
 - [x] Verified 66/66 tests pass under strict nullable rules
+
+### K014: macOS Cross-Platform Preparation
+- [x] OS abstraction for `GeminiCliProvider` (GetExecutionCommand)
+- [x] OS abstraction for `BashTool` (GetShellConfiguration with /bin/sh fallback)
+- [x] `PathSafetyEvaluator` OS branch for CLI flags (Windows-only heuristic)
+- [x] `PathSafetyTests` updated for Unix absolute path detection
+- [x] Added `scripts/verify-release.sh` Unix release gate script (Native execution pending)
+- [x] Verified `dotnet publish` on Windows for `osx-arm64` and `osx-x64`
+- [x] Prepared / Native macOS verification pending (90/90 tests pass on Windows)

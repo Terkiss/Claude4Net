@@ -115,7 +115,7 @@ namespace Claude4Net.Tests
         }
 
         [Fact]
-        public void CheckCommandSafety_ShouldAllowWindowsCliFlags()
+        public void CheckCommandSafety_ShouldAllowWindowsCliFlags_OnWindows_ShouldBlockOnUnix()
         {
             // Arrange
             var evaluator = new PathSafetyEvaluator();
@@ -129,8 +129,17 @@ namespace Claude4Net.Tests
             var result = evaluator.EvaluateInputSafety(input);
 
             // Assert
-            // It should be Workspace (default for safe commands) and definitely not Outside
-            Assert.NotEqual(PathSafetyResult.Outside, result);
+            bool isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
+            if (isWindows)
+            {
+                // It should be Workspace (default for safe commands) and definitely not Outside
+                Assert.NotEqual(PathSafetyResult.Outside, result);
+            }
+            else
+            {
+                // On Unix, /f is considered an absolute path pointing to root, so it is Outside
+                Assert.Equal(PathSafetyResult.Outside, result);
+            }
         }
 
         [Fact]
@@ -149,6 +158,37 @@ namespace Claude4Net.Tests
 
             // Assert
             Assert.Equal(PathSafetyResult.Outside, result);
+        }
+
+        [Fact]
+        public void EvaluateSinglePathSafety_ShouldIdentifyUnixOutsidePaths()
+        {
+            // Arrange
+            var evaluator = new PathSafetyEvaluator();
+            // Set CWD to a specific subdirectory, NOT the root /tmp itself
+            AppState.CurrentCwd = "/Users/workspace/project";
+
+            // Act & Assert
+            // macOS/Linux system paths should be Outside
+            Assert.Equal(PathSafetyResult.Outside, evaluator.EvaluateSinglePathSafety("/etc/passwd"));
+            Assert.Equal(PathSafetyResult.Outside, evaluator.EvaluateSinglePathSafety("/tmp/secret.txt"));
+            Assert.Equal(PathSafetyResult.Outside, evaluator.EvaluateSinglePathSafety("/Users/admin/.ssh/id_rsa"));
+            Assert.Equal(PathSafetyResult.Outside, evaluator.EvaluateSinglePathSafety("/var/log/syslog"));
+        }
+
+        [Fact]
+        public void CheckCommandSafety_ShouldBlockMixedUnixCommands()
+        {
+            // Arrange
+            var evaluator = new PathSafetyEvaluator();
+            AppState.CurrentCwd = Path.GetTempPath();
+
+            // Act & Assert
+            // Pipe with sensitive path
+            Assert.Equal(PathSafetyResult.Outside, evaluator.EvaluateInputSafety(new { command = "ls | grep /etc/shadow" }));
+
+            // Redirect to sensitive path
+            Assert.Equal(PathSafetyResult.Outside, evaluator.EvaluateInputSafety(new { command = "echo 'malicious' > /etc/cron.d/hack" }));
         }
 
         [Fact]

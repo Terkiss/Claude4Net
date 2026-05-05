@@ -102,8 +102,10 @@ namespace Claude4Net.Runtime
             {
                 string t = token.Trim('\'', '\"');
                 
-                // Windows 스타일의 CLI 플래그(/f, /y 등)는 경로 검사에서 제외하는 휴리스틱 적용
-                if (t.StartsWith("/") && t.Length <= 10 && !t.Contains("\\") && t.LastIndexOf('/') == 0)
+                bool isWindowsFlag = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
+
+                // Windows 스타일의 CLI 플래그(/f, /y 등)는 경로 검사에서 제외하는 휴리스틱 적용 (Windows 환경에서만)
+                if (isWindowsFlag && t.StartsWith("/") && t.Length <= 10 && !t.Contains("\\") && t.LastIndexOf('/') == 0)
                     continue;
 
                 PathSafetyResult s = EvaluateSinglePathSafety(t);
@@ -121,8 +123,9 @@ namespace Claude4Net.Runtime
         {
             if (string.IsNullOrWhiteSpace(targetPath)) return PathSafetyResult.NotApplicable;
 
-            // CLI 플래그 여부 재확인 (휴리스틱)
-            if (targetPath.StartsWith("/"))
+            bool isWindowsFlag = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
+            // CLI 플래그 여부 재확인 (휴리스틱, Windows 환경에서만)
+            if (isWindowsFlag && targetPath.StartsWith("/"))
             {
                 bool hasInternalSlash = targetPath.IndexOf('/', 1) > 0;
                 bool isShortAlphanumeric = targetPath.Length <= 10 && targetPath.Substring(1).All(char.IsLetterOrDigit);

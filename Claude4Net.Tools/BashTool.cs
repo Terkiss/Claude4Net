@@ -46,10 +46,12 @@ namespace Claude4Net.Tools
             var input = JsonSerializer.Deserialize<BashInput>(arguments, options)
                         ?? throw new ArgumentException("Invalid arguments for BashTool");
 
-            // [보안 및 설정] PowerShell을 사용하여 명령을 격리된 환경(NoProfile)에서 실행합니다.
+            // [보안 및 설정] OS에 따라 PowerShell 또는 Bash를 사용하여 명령을 격리된 환경에서 실행합니다.
             using var process = new Process();
-            process.StartInfo.FileName = "powershell.exe";
-            process.StartInfo.Arguments = $"-NoProfile -Command \"{input.command}\"";
+            var (fileName, shellArgs) = GetShellConfiguration(input.command);
+
+            process.StartInfo.FileName = fileName;
+            process.StartInfo.Arguments = shellArgs;
             process.StartInfo.RedirectStandardOutput = true;
             process.StartInfo.RedirectStandardError = true;
             process.StartInfo.UseShellExecute = false;
@@ -89,6 +91,36 @@ namespace Claude4Net.Tools
             string error = await errTask;
 
             return new { command = input.command, output = output, error = error, exitCode = process.ExitCode };
+        }
+
+        /// <summary>
+        /// 현재 운영체제에 적합한 쉘 실행 파일과 인자 구성을 반환합니다.
+        /// (macOS support prepared, native verification pending)
+        /// </summary>
+        public static (string FileName, string Arguments) GetShellConfiguration(string command)
+        {
+            bool isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
+            return GetShellConfiguration(command, isWindows);
+        }
+
+        /// <summary>
+        /// 특정 플랫폼에 대한 쉘 실행 파일과 인자 구성을 반환합니다. (테스트용)
+        /// </summary>
+        public static (string FileName, string Arguments) GetShellConfiguration(string command, bool isWindows)
+        {
+            if (isWindows)
+            {
+                return ("powershell.exe", $"-NoProfile -Command \"{command}\"");
+            }
+            else
+            {
+                // macOS/Linux: bash 우선, 없으면 sh 사용
+                // Native macOS verification pending
+                string shell = "/bin/bash";
+                if (!File.Exists(shell)) shell = "/bin/sh";
+
+                return (shell, $"-c \"{command}\"");
+            }
         }
     }
 }

@@ -118,12 +118,11 @@ You can only call one tool per <tool_call> tag. After outputting a tool call, wa
             // 최종 프롬프트 조합
             string combinedPrompt = $"{systemPrompt}\n\n[CRITICAL INSTRUCTION]\n반드시 모든 사고(Thinking) 과정과 출력, 대답, 분석 내용을 한국어(Korean)로만 작성하세요.\n\n{toolDefs}\n\n{historyDump}\n\n[CURRENT USER PROMPT]:\n{prompt}";
 
-            string modelArg = !string.IsNullOrEmpty(model) ? $"-m \"{model}\" " : "";
-            string arguments = $"/c gemini {modelArg}-y -p \" \"";
+            var (fileName, arguments) = GetExecutionCommand(model);
 
             var processStartInfo = new ProcessStartInfo
             {
-                FileName = "cmd.exe",
+                FileName = fileName,
                 Arguments = arguments,
                 WorkingDirectory = string.IsNullOrEmpty(AppState.CurrentCwd) ? AppDomain.CurrentDomain.BaseDirectory : AppState.CurrentCwd,
                 RedirectStandardOutput = true,
@@ -287,6 +286,40 @@ You can only call one tool per <tool_call> tag. After outputting a tool call, wa
                 Type = LLMStreamEventType.Completed,
                 FinalResponse = new LLMResponse { Text = finalOutput, ToolCalls = interceptedTools }
             };
+        }
+
+        /// <summary>
+        /// 현재 운영체제에 적합한 gemini CLI 실행 명령어와 인자를 반환합니다.
+        /// (macOS support prepared, native verification pending)
+        /// </summary>
+        public static (string FileName, string Arguments) GetExecutionCommand(string? model)
+        {
+            bool isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
+            return GetExecutionCommand(model, isWindows);
+        }
+
+        /// <summary>
+        /// 특정 플랫폼에 대한 gemini CLI 실행 명령어 구성을 반환합니다. (테스트용)
+        /// </summary>
+        public static (string FileName, string Arguments) GetExecutionCommand(string? model, bool isWindows)
+        {
+            if (isWindows)
+            {
+                string modelArg = !string.IsNullOrEmpty(model) ? $"-m \"{model}\" " : "";
+                return ("cmd.exe", $"/c gemini {modelArg}-y -p \" \"");
+            }
+            else
+            {
+                // Unix: Use single quotes inside -lc "..." to avoid double quote breakage from inner modelArg
+                // Native macOS verification pending
+                string modelArg = !string.IsNullOrEmpty(model) ? $"-m {QuoteForUnixShell(model)} " : "";
+                return ("/bin/bash", $"-lc \"gemini {modelArg}-y -p ' '\"");
+            }
+        }
+
+        private static string QuoteForUnixShell(string value)
+        {
+            return $"'{value.Replace("'", "'\\''")}'";
         }
     }
 }
