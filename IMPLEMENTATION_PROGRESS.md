@@ -2,9 +2,9 @@
 
 ## Overview
 - Start Date: 2024-05-22
-- Current Base Commit: `889c4be` (K012 Final Handoff stable baseline)
-- Status: Stable Baseline (K012 Complete)
-- Target: Maintain the D01-D10 baseline and handle post-release fixes without reopening completed milestones.
+- Current Base Commit: `e0e8169` (K014 macOS cross-platform preparation on K012 maintenance line)
+- Status: Stable Baseline Maintenance (K012 Complete, K014 Prepared / Native Verification Pending)
+- Target: Maintain the D01-D10 baseline, keep post-release fixes verified, and avoid reopening completed milestones without explicit approval.
 
 ## Domain Status
 
@@ -38,6 +38,8 @@
 | K013-4 | Gemini Function Calling Fix | Completed | Fix 400 INVALID_ARGUMENT after tool call (85/85 pass) |
 | K013-5 | Gemini Thought Signature Fix | Completed | Preserve Gemini thoughtSignature on functionCall history (86/86 pass) |
 | K014 | macOS Cross-Platform Preparation | Prepared | macOS support prepared, native verification pending |
+
+Latest official release gate: `.\scripts\verify-release.ps1` passed at HEAD `e0e8169` with 90/90 tests passing.
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
