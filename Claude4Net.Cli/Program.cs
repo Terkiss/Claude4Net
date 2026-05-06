@@ -82,6 +82,38 @@ services.AddSingleton<OllamaProvider>(sp =>
 
 var serviceProvider = services.BuildServiceProvider();
 
+for (int i = 0; i < args.Length; i++)
+{
+    if (args[i].Equals("--permission-mode", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+    {
+        if (TryParsePermissionMode(args[i + 1], out var parsedMode))
+        {
+            AppState.CurrentPermissionMode = parsedMode;
+        }
+        else
+        {
+            Console.Error.WriteLine($"Error: invalid permission mode '{args[i + 1]}'.");
+            return 1;
+        }
+    }
+}
+
+if (args.Length > 0 && args[0].Equals("doctor", StringComparison.OrdinalIgnoreCase))
+{
+    var cmd = CommandRegistry.FindCommand("/doctor");
+    if (cmd?.Handler == null)
+    {
+        Console.Error.WriteLine("Error: /doctor command not found in Registry.");
+        return 1;
+    }
+
+    var doctorArgs = string.Join(" ", args.Skip(1));
+    var res = await cmd.Handler(doctorArgs, serviceProvider);
+    Console.WriteLine(res);
+    Console.Out.Flush();
+    return 0;
+}
+
 // --- 연기 테스트(Smoke Test) 경로 ---
 // 자동화된 환경에서 실행 여부를 확인하기 위한 간단한 종료 테스트
 if (args.Contains("--smoke-exit"))
@@ -319,6 +351,27 @@ return 0;
 /// <summary>
 /// CLI 환경에서의 출력을 처리하는 핸들러입니다.
 /// </summary>
+static bool TryParsePermissionMode(string raw, out PermissionMode mode)
+{
+    string normalized = raw.Replace("-", "", StringComparison.OrdinalIgnoreCase)
+        .Replace("_", "", StringComparison.OrdinalIgnoreCase)
+        .ToLowerInvariant();
+
+    mode = normalized switch
+    {
+        "readonly" => PermissionMode.ReadOnly,
+        "workspacewrite" => PermissionMode.WorkspaceWrite,
+        "prompt" => PermissionMode.Prompt,
+        "dangerfullaccess" => PermissionMode.DangerFullAccess,
+        "default" => PermissionMode.Default,
+        "yolo" => PermissionMode.Yolo,
+        "bypasspermissions" => PermissionMode.BypassPermissions,
+        _ => default
+    };
+
+    return normalized is "readonly" or "workspacewrite" or "prompt" or "dangerfullaccess" or "default" or "yolo" or "bypasspermissions";
+}
+
 public class CliOutputHandler : IOutputHandler
 {
     public Task WriteAsync(string text) => Task.CompletedTask;

@@ -61,14 +61,14 @@ namespace Claude4Net.Tests
                 var df = u.GetTableOrThrow("audit_logs");
                 Assert.True(df.RowCount > 0);
                 
-                // Find our tool log
+                // Find our tool log. K015 policy denies sensitive tools without an approval handler.
                 bool found = false;
                 for (int i = 0; i < df.RowCount; i++)
                 {
                     if (df["ToolName"].GetValue(i)?.ToString() == "sensitive_test_tool")
                     {
                         found = true;
-                        Assert.Equal("Success", df["Status"].GetValue(i)?.ToString());
+                        Assert.Equal("Denied (No Handler)", df["Status"].GetValue(i)?.ToString());
                         break;
                     }
                 }

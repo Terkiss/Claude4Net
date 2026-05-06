@@ -8,6 +8,7 @@ using Claude4Net.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 using System.IO;
 using System.Diagnostics;
+using System.Text.Json;
 using Spectre.Console;
 
 namespace Claude4Net.Commands
@@ -59,6 +60,39 @@ namespace Claude4Net.Commands
 
             /// <summary> 시스템 진단: 현재 런타임, 작업 공간, 라우팅 상태, DB 무결성 등을 종합적으로 점검합니다. </summary>
             new Command { Name = "doctor", Description = "Run system health check and diagnostics", Handler = async (a, sp) => {
+                if (a.Contains("--output-format json", StringComparison.OrdinalIgnoreCase) ||
+                    a.Equals("json", StringComparison.OrdinalIgnoreCase))
+                {
+                    var jsonRouter = sp.GetService<ISmartRouter>();
+                    var metrics = jsonRouter?.GetMetrics().Select(m => new
+                    {
+                        provider = m.ProviderName,
+                        status = m.Status.ToString(),
+                        latencyEma = m.LatencyEma,
+                        accumulatedCost = m.AccumulatedCost
+                    }).ToList();
+                    string jsonDbPath = Path.Combine(AppState.SystemBaseDir, "db", "memory.db");
+                    string jsonPluginDir = Path.Combine(AppState.SystemBaseDir, "plugins");
+                    string[] providersForJson = { "Claude", "Gemini", "Discord", "Ollama" };
+                    var apiKeys = providersForJson.ToDictionary(p => p, p => !string.IsNullOrEmpty(AuthManager.GetApiKey(p)));
+                    var payload = new
+                    {
+                        schemaVersion = 1,
+                        runtime = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
+                        os = System.Runtime.InteropServices.RuntimeInformation.OSDescription,
+                        systemBaseDir = AppState.SystemBaseDir,
+                        currentWorkspace = AppState.CurrentCwd,
+                        permissionMode = AppState.CurrentPermissionMode.ToString(),
+                        normalizedPermissionMode = PermissionEnforcer.Normalize(AppState.CurrentPermissionMode).ToString(),
+                        providers = metrics ?? new(),
+                        apiKeys,
+                        database = new { path = jsonDbPath, exists = File.Exists(jsonDbPath) },
+                        plugins = new { path = jsonPluginDir, count = Directory.Exists(jsonPluginDir) ? Directory.GetFiles(jsonPluginDir, "*.dll").Length : 0 }
+                    };
+
+                    return JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
+                }
+
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine("[bold cyan]🩺 Claude4Net-App Diagnostics[/]");
                 sb.AppendLine(new string('-', 40));

@@ -64,11 +64,19 @@ namespace Claude4Net.SDK
     /// </summary>
     public enum PermissionMode
     {
-        /// <summary> 기본 모드 (안전 확인 필요) </summary>
+        /// <summary> Read-only mode. Write and shell execution are blocked. </summary>
+        ReadOnly,
+        /// <summary> Workspace writes are allowed through normal safety checks. </summary>
+        WorkspaceWrite,
+        /// <summary> Sensitive workspace actions require user approval. </summary>
+        Prompt,
+        /// <summary> Full access mode. Outside-workspace access still requires explicit approval. </summary>
+        DangerFullAccess,
+        /// <summary> Legacy alias for Prompt. </summary>
         Default,
-        /// <summary> 승인 절차 없이 즉시 실행 </summary>
+        /// <summary> Legacy alias for DangerFullAccess. </summary>
         Yolo,
-        /// <summary> 모든 권한 검사를 우회 </summary>
+        /// <summary> Legacy alias for DangerFullAccess. </summary>
         BypassPermissions
     }
 

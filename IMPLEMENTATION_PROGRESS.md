@@ -37,6 +37,7 @@
 | K013-3 | Provider Logic & Naming Fix | Completed | Defend gemini-cli, real model names, 82/82 pass |
 | K013-4 | Gemini Function Calling Fix | Completed | Fix 400 INVALID_ARGUMENT after tool call (85/85 pass) |
 | K013-5 | Gemini Thought Signature Fix | Completed | Preserve Gemini thoughtSignature on functionCall history (86/86 pass) |
+| K015 | P0 Reliability Preflight and Permission Foundation | Completed | Permission foundation, command risk classification, doctor JSON, P1 safety regression fixes (93/93 pass) |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -148,3 +149,15 @@
 - [x] Verify DLL-direct CLI smoke test with shutdown message
 - [x] Establish `Documents/RELEASE_GATE.md` checklist
 - [x] Verified 66/66 tests pass under strict nullable rules
+
+### K015: P0 Reliability Preflight and Permission Foundation
+- [x] Extended `PermissionMode` with ReadOnly, WorkspaceWrite, Prompt, and DangerFullAccess while preserving legacy Default/Yolo/BypassPermissions compatibility
+- [x] Added `PermissionEnforcer` for centralized path, command-risk, and sensitive-tool policy decisions
+- [x] Added `CommandRiskClassifier` for dangerous terminal command detection
+- [x] Added CLI `doctor --output-format json` and `--permission-mode` support
+- [x] Added regression coverage for outside-workspace write blocking, symlink escape detection where supported, dangerous command classification, and doctor JSON output
+- [x] P1 fix: deny `PermissionDecision.RequireApproval` when no approval handler is available
+- [x] P1 fix: resolve parent-chain symlinks for nonexistent child paths before workspace classification
+- [x] Worker verification: standard build, strict nullable build, and `dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false` passed with 93/93 tests
+- [x] First reviewer verification approved
+- [x] Final controller verification approved

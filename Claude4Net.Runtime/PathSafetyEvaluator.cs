@@ -144,7 +144,7 @@ namespace Claude4Net.Runtime
                     !targetPath.Contains("..")) return PathSafetyResult.NotApplicable;
 
                 // 절대 경로로 변환하여 상대 경로 우회(Traversal) 방지
-                string fullPath = Path.GetFullPath(targetPath);
+                string fullPath = ResolveFinalPath(Path.GetFullPath(targetPath));
                 
                 bool isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
                 var comparison = isWindows ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
@@ -202,6 +202,59 @@ namespace Claude4Net.Runtime
             if (current == PathSafetyResult.Workspace || @new == PathSafetyResult.Workspace) return PathSafetyResult.Workspace;
             if (current == PathSafetyResult.SafeSystem || @new == PathSafetyResult.SafeSystem) return PathSafetyResult.SafeSystem;
             return PathSafetyResult.NotApplicable;
+        }
+
+        private static string ResolveFinalPath(string fullPath)
+        {
+            try
+            {
+                string? existingPath = fullPath;
+                var missingSegments = new Stack<string>();
+
+                while (!string.IsNullOrEmpty(existingPath) &&
+                       !File.Exists(existingPath) &&
+                       !Directory.Exists(existingPath))
+                {
+                    string? segment = Path.GetFileName(existingPath);
+                    if (!string.IsNullOrEmpty(segment))
+                    {
+                        missingSegments.Push(segment);
+                    }
+
+                    existingPath = Path.GetDirectoryName(existingPath);
+                }
+
+                if (string.IsNullOrEmpty(existingPath))
+                {
+                    return fullPath;
+                }
+
+                string resolvedExistingPath = existingPath;
+
+                if (File.Exists(existingPath))
+                {
+                    var fileInfo = new FileInfo(existingPath);
+                    var target = fileInfo.ResolveLinkTarget(true);
+                    resolvedExistingPath = target?.FullName ?? existingPath;
+                }
+                else if (Directory.Exists(existingPath))
+                {
+                    var directoryInfo = new DirectoryInfo(existingPath);
+                    var target = directoryInfo.ResolveLinkTarget(true);
+                    resolvedExistingPath = target?.FullName ?? existingPath;
+                }
+
+                while (missingSegments.Count > 0)
+                {
+                    resolvedExistingPath = Path.Combine(resolvedExistingPath, missingSegments.Pop());
+                }
+
+                return resolvedExistingPath;
+            }
+            catch
+            {
+                return fullPath;
+            }
         }
     }
 }
