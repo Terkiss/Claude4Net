@@ -37,7 +37,10 @@
 | K013-3 | Provider Logic & Naming Fix | Completed | Defend gemini-cli, real model names, 82/82 pass |
 | K013-4 | Gemini Function Calling Fix | Completed | Fix 400 INVALID_ARGUMENT after tool call (85/85 pass) |
 | K013-5 | Gemini Thought Signature Fix | Completed | Preserve Gemini thoughtSignature on functionCall history (86/86 pass) |
-| K015 | P0 Reliability Preflight and Permission Foundation | Completed | Permission foundation, command risk classification, doctor JSON, P1 safety regression fixes (93/93 pass) |
+| K015 | P0 Reliability Preflight and Permission Foundation | Completed | 93/93 pass |
+| K016 | P1 Session Store and Task Board | Completed | 118/118 pass |
+
+
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -161,3 +164,12 @@
 - [x] Worker verification: standard build, strict nullable build, and `dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false` passed with 93/93 tests
 - [x] First reviewer verification approved
 - [x] Final controller verification approved
+
+### K016: P1 Session Store and Task Board
+- [x] Define `.claude4net/sessions/{sessionId}/` layout (session.json, task-board.json, progress.jsonl, result.md)
+- [x] Implement `AgentSessionStore` for file-based persistence
+- [x] Integrate real-time progress logging in `AgentLoop.RunAsync` (Thinking, ToolCall, Result)
+- [x] Implement task board synchronization with `CoordinatorStore`
+- [x] Add system commands: `/status` (visual summary) and `/resume` (metadata loading)
+- [x] Add `K016SessionTests` (Directory creation, Roundtrip, JSONL append, Result write, path traversal guards)
+- [x] Official Release Gate passed (118/118 tests)
