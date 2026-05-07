@@ -113,7 +113,24 @@ namespace Claude4Net.Runtime
                             AnsiConsole.MarkupLine("[bold red]SECURITY ALERT: outside workspace access requested.[/]");
                         }
 
-                        approved = await activeApprovalHandler.RequestApprovalAsync(tool.Name, jsonInput);
+                        // K017: Diff Approval Workflow Integration
+                        if (tool is IPreviewableTool previewTool && activeApprovalHandler is IRichApprovalHandler richHandler)
+                        {
+                            var diff = await previewTool.GetPreviewAsync(jsonInput);
+                            if (diff != null)
+                            {
+                                approved = await richHandler.RequestApprovalWithDiffAsync(tool.Name, jsonInput, diff);
+                            }
+                            else
+                            {
+                                approved = await activeApprovalHandler.RequestApprovalAsync(tool.Name, jsonInput);
+                            }
+                        }
+                        else
+                        {
+                            approved = await activeApprovalHandler.RequestApprovalAsync(tool.Name, jsonInput);
+                        }
+
                         if (approved != true)
                         {
                             await LogAuditAsync(tool.Name, jsonInput, safetyResult, approved, "Denied");

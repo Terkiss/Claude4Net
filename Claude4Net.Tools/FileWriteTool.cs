@@ -31,7 +31,7 @@ namespace Claude4Net.Tools
     /// <summary>
     /// 파일에 내용을 작성하는 도구입니다. 기존 파일이 있으면 덮어씁니다.
     /// </summary>
-    public class FileWriteTool : ITool
+    public class FileWriteTool : ITool, IPreviewableTool
     {
         public string Name => "FileWriteTool";
         public string Description => "Write content to a file.";
@@ -43,6 +43,24 @@ namespace Claude4Net.Tools
                 content = new { type = "string" } 
             }, 
             required = new[] { "file_path", "content" } };
+
+        public async Task<FileDiffPreview?> GetPreviewAsync(string arguments)
+        {
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var input = JsonSerializer.Deserialize<FileWriteInput>(arguments, options);
+            if (input == null) return null;
+
+            string? oldContent = null;
+            var changeType = FileChangeType.Create;
+
+            if (File.Exists(input.file_path))
+            {
+                oldContent = await File.ReadAllTextAsync(input.file_path);
+                changeType = FileChangeType.Update;
+            }
+
+            return DiffService.CreatePreview(oldContent, input.content, input.file_path, changeType);
+        }
 
         /// <summary>
         /// 내용을 지정된 경로의 파일에 비동기적으로 씁니다.

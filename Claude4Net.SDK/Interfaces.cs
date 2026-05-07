@@ -25,6 +25,15 @@ namespace Claude4Net.SDK
     }
 
     /// <summary>
+    /// 실행 전 변경 사항에 대한 프리뷰를 제공할 수 있는 도구 인터페이스입니다.
+    /// </summary>
+    public interface IPreviewableTool : ITool
+    {
+        /// <summary> 실행 시 발생할 변경 사항에 대한 프리뷰를 생성합니다. </summary>
+        Task<FileDiffPreview?> GetPreviewAsync(string arguments);
+    }
+
+    /// <summary>
     /// 등록된 도구들을 관리하고 검색하는 레지스트리 인터페이스입니다.
     /// </summary>
     public interface IToolRegistry
@@ -42,6 +51,15 @@ namespace Claude4Net.SDK
     {
         /// <summary> 특정 도구 실행에 대해 사용자에게 승인을 요청합니다. </summary>
         Task<bool> RequestApprovalAsync(string tool, string args);
+    }
+
+    /// <summary>
+    /// 풍부한 컨텍스트(Diff 등)를 포함하여 승인을 요청할 수 있는 핸들러 인터페이스입니다.
+    /// </summary>
+    public interface IRichApprovalHandler : IUserApprovalHandler
+    {
+        /// <summary> 파일 변경 사항(Diff)을 포함하여 사용자에게 승인을 요청합니다. </summary>
+        Task<bool> RequestApprovalWithDiffAsync(string tool, string args, FileDiffPreview diff);
     }
 
     /// <summary>

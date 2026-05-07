@@ -36,12 +36,27 @@ namespace Claude4Net.Tools
     /// <summary>
     /// 파일 내의 특정 문자열을 찾아 다른 문자열로 교체하는 도구입니다.
     /// </summary>
-    public class FileEditTool : ITool
+    public class FileEditTool : ITool, IPreviewableTool
     {
         public string Name => "FileEditTool";
         public string Description => "Edit a file.";
         public List<string>? Aliases => new() { "edit" };
         public object? InputSchema => new { type = "object", properties = new { file_path = new { type = "string" }, old_string = new { type = "string" }, new_string = new { type = "string" } }, required = new[] { "file_path", "old_string", "new_string" } };
+
+        public async Task<FileDiffPreview?> GetPreviewAsync(string arguments)
+        {
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var input = JsonSerializer.Deserialize<FileEditInput>(arguments, options);
+            if (input == null) return null;
+
+            if (!File.Exists(input.file_path)) return null;
+
+            string content = await File.ReadAllTextAsync(input.file_path);
+            if (!content.Contains(input.old_string)) return null;
+
+            string updated = content.Replace(input.old_string, input.new_string);
+            return DiffService.CreatePreview(content, updated, input.file_path, FileChangeType.Update);
+        }
 
         /// <summary>
         /// 파일의 내용을 비동기적으로 읽어 문자열 치환을 수행하고 저장합니다.

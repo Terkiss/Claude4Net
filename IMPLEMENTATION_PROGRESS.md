@@ -173,3 +173,12 @@
 - [x] Add system commands: `/status` (visual summary) and `/resume` (metadata loading)
 - [x] Add `K016SessionTests` (Directory creation, Roundtrip, JSONL append, Result write, path traversal guards)
 - [x] Official Release Gate passed (118/118 tests)
+
+### K017: P2 Diff Approval Workflow
+- [x] Define `FileDiffPreview` and `IRichApprovalHandler` in SDK
+- [x] Implement `DiffService` for Unified Diff generation and binary detection
+- [x] Refactor `FileWriteTool` and `FileEditTool` to implement `IPreviewableTool`
+- [x] Integrate Diff-based approval flow in `ToolOrchestrator`
+- [x] Implement rich diff visualization in `CliUserApprovalHandler`
+- [x] Add `K017DiffTests` (Unified Diff, Preview generation, Approval/Deny logic)
+- [x] Official Release Gate passed (123/123 tests)
