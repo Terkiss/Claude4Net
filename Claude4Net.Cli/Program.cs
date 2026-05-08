@@ -44,21 +44,29 @@ services.AddSingleton<ITool, LsTool>();        // 디렉토리 목록 조회 도
 // [Runtime] 에이전트 실행 및 도구 관리를 위한 핵심 컴포넌트 등록
 services.AddSingleton<ISmartRouter, SmartRouter>(); // 프롬프트에 따른 LLM 라우팅 엔진
 services.AddSingleton<IUserApprovalHandler, CliUserApprovalHandler>(); // CLI 기반 사용자 승인 핸들러
+
+// [Skill Registry] 스킬 발견 및 품질 추적을 위한 서비스 등록
+services.AddSingleton<SkillRegistryService>(sp =>
+{
+    string ws = AppState.CurrentCwd ?? AppState.SystemBaseDir;
+    return new SkillRegistryService(ws);
+});
+
 services.AddSingleton<ToolOrchestrator>(sp => new ToolOrchestrator(
-    sp.GetServices<ITool>(), 
-    sp.GetService<IUserApprovalHandler>(), 
+    sp.GetServices<ITool>(),
+    sp.GetService<IUserApprovalHandler>(),
     sp));
 services.AddSingleton<IToolRegistry>(sp => sp.GetRequiredService<ToolOrchestrator>());
 
 // [LLM Providers] 다양한 LLM 제공자(Provider)들을 DI에 등록
-services.AddSingleton<AnthropicClient>(sp => 
+services.AddSingleton<AnthropicClient>(sp =>
 {
     var clientFactory = sp.GetRequiredService<IHttpClientFactory>();
     var httpClient = clientFactory.CreateClient("Anthropic");
     return new AnthropicClient(httpClient);
 });
 services.AddSingleton<ClaudeService>();
-services.AddSingleton<GeminiProvider>(sp => 
+services.AddSingleton<GeminiProvider>(sp =>
 {
     var clientFactory = sp.GetRequiredService<IHttpClientFactory>();
     var httpClient = clientFactory.CreateClient("Gemini");
@@ -66,13 +74,13 @@ services.AddSingleton<GeminiProvider>(sp =>
     return new GeminiProvider(httpClient, sp.GetRequiredService<IToolRegistry>());
 });
 services.AddSingleton<GeminiCliProvider>();
-services.AddSingleton<IEmbeddingProvider, GeminiEmbeddingProvider>(sp => 
+services.AddSingleton<IEmbeddingProvider, GeminiEmbeddingProvider>(sp =>
 {
     var clientFactory = sp.GetRequiredService<IHttpClientFactory>();
     var httpClient = clientFactory.CreateClient("Gemini");
     return new GeminiEmbeddingProvider(httpClient);
 });
-services.AddSingleton<OllamaProvider>(sp => 
+services.AddSingleton<OllamaProvider>(sp =>
 {
     var clientFactory = sp.GetRequiredService<IHttpClientFactory>();
     var httpClient = clientFactory.CreateClient("Ollama");
@@ -172,7 +180,7 @@ if (Console.IsInputRedirected)
                 var res = await cmd.Handler(cmdArgs, serviceProvider);
                 AnsiConsole.MarkupLine(res);
                 Console.Out.Flush();
-                
+
                 if (cmd.Name == "exit")
                 {
                     mainCts.Cancel();
@@ -194,12 +202,12 @@ if (Console.IsInputRedirected)
         };
 
         var agent = new AgentLoop(
-            serviceProvider.GetRequiredService<ToolOrchestrator>(), 
-            serviceProvider, 
+            serviceProvider.GetRequiredService<ToolOrchestrator>(),
+            serviceProvider,
             broker,
             router,
             serviceProvider.GetRequiredService<IEmbeddingProvider>());
-            
+
         try
         {
             await agent.RunAsync(input, cliOutput, provider, decision.SelectedModel, cliApproval, mainCts.Token);
@@ -214,7 +222,7 @@ if (Console.IsInputRedirected)
 else
 {
     // --- 대화형 터미널 경로 (Producer-Consumer 모델) ---
-    
+
     // [보조 작업] ESC 키 감시: 실행 중인 작업을 즉시 취소할 수 있도록 별도 태스크로 실행
     _ = Task.Run(() =>
     {
@@ -248,9 +256,9 @@ else
             {
                 if (CliUserApprovalHandler.PendingApproval == null)
                     Console.Write("> ");
-                    
+
                 string? rawInput = Console.ReadLine();
-                if (rawInput == null) 
+                if (rawInput == null)
                 {
                     mainCts.Cancel();
                     break;
@@ -270,7 +278,7 @@ else
                 // 붙여넣기(Paste)로 인한 멀티라인 폭탄 방어 로직:
                 // 빠른 시간 내에 다량의 입력이 들어올 경우 이를 하나의 덩어리로 묶어 처리합니다.
                 var sb = new System.Text.StringBuilder(input);
-                Thread.Sleep(15); 
+                Thread.Sleep(15);
                 while (Console.KeyAvailable)
                 {
                     string? nextLine = Console.ReadLine();
@@ -298,7 +306,7 @@ else
                         var res = await cmd.Handler(cmdArgs, serviceProvider);
                         AnsiConsole.MarkupLine(res);
                         Console.Out.Flush();
-                        
+
                         if (cmd.Name == "exit")
                         {
                             mainCts.Cancel();
@@ -322,13 +330,13 @@ else
     while (!mainCts.Token.IsCancellationRequested)
     {
         var agent = new AgentLoop(
-            serviceProvider.GetRequiredService<ToolOrchestrator>(), 
-            serviceProvider, 
+            serviceProvider.GetRequiredService<ToolOrchestrator>(),
+            serviceProvider,
             broker,
             serviceProvider.GetRequiredService<ISmartRouter>(),
             serviceProvider.GetRequiredService<IEmbeddingProvider>());
-        
-        try 
+
+        try
         {
             // 브로커에서 메시지가 올 때까지 대기하며 에이전트 작업 수행
             await agent.ListenAsync(mainCts.Token);
@@ -383,9 +391,9 @@ public class CliOutputHandler : IOutputHandler
     /// </summary>
     public Task SendFileAsync(string filePath, string? text = null)
     {
-        if (!string.IsNullOrEmpty(text)) 
+        if (!string.IsNullOrEmpty(text))
             AnsiConsole.Console.Write(new Markup($"[bold blue][[CLI]][/] {Markup.Escape(text)}\n"));
-        
+
         AnsiConsole.Console.Write(new Markup($"[bold blue][[CLI]][/] File available at: [underlined]{Markup.Escape(filePath)}[/]\n"));
         return Task.CompletedTask;
     }

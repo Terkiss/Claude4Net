@@ -39,8 +39,8 @@
 | K013-5 | Gemini Thought Signature Fix | Completed | Preserve Gemini thoughtSignature on functionCall history (86/86 pass) |
 | K015 | P0 Reliability Preflight and Permission Foundation | Completed | 93/93 pass |
 | K016 | P1 Session Store and Task Board | Completed | 118/118 pass |
-
-
+| K017 | P2 Diff Approval Workflow | Completed | 123/123 pass |
+| K018 | P3 Skill Registry Foundation | Completed | 138/138 pass |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -182,3 +182,12 @@
 - [x] Implement rich diff visualization in `CliUserApprovalHandler`
 - [x] Add `K017DiffTests` (Unified Diff, Preview generation, Approval/Deny logic)
 - [x] Official Release Gate passed (123/123 tests)
+
+### K018: P3 Skill Registry Foundation
+- [x] Define `SkillRegistryRecord` and `SkillQualityMetrics` models in SDK
+- [x] Implement `SkillRegistryService` for file-backed storage (.claude4net/skill-registry.json)
+- [x] Support `.skill_id` sidecar identification without mutating `.agents/`
+- [x] Integrate with `!skills` command and `!doctor` diagnostics
+- [x] Implement path traversal protection for skill registration
+- [x] Add `K018SkillRegistryTests` (Registration, Discovery, Metrics, Security)
+- [x] Official Release Gate passed (138/138 tests)

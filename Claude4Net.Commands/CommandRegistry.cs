@@ -35,7 +35,7 @@ namespace Claude4Net.Commands
         private static readonly List<Command> _commands = new()
         {
             // --- [도움말 및 시스템 제어] ---
-            
+
             /// <summary> 도움말 표시: 사용 가능한 모든 명령어 목록을 출력합니다. </summary>
             new Command { Name = "help", Description = "Show help", Handler = (a, sp) => {
                 var sb = new System.Text.StringBuilder();
@@ -46,7 +46,7 @@ namespace Claude4Net.Commands
                 }
                 return Task.FromResult(sb.ToString());
             }},
-            
+
             /// <summary> YOLO 모드 전환: 모든 보안 권한 및 승인 절차를 우회합니다. </summary>
             new Command { Name = "yolo", Description = "ROOT ACCESS - Bypass all permissions", Handler = (a, sp) => {
                 if (AppState.CurrentPermissionMode == PermissionMode.Yolo) {
@@ -75,6 +75,10 @@ namespace Claude4Net.Commands
                     string jsonPluginDir = Path.Combine(AppState.SystemBaseDir, "plugins");
                     string[] providersForJson = { "Claude", "Gemini", "Discord", "Ollama" };
                     var apiKeys = providersForJson.ToDictionary(p => p, p => !string.IsNullOrEmpty(AuthManager.GetApiKey(p)));
+
+                    var skillRegistry = sp.GetService<SkillRegistryService>();
+                    if (skillRegistry != null) await skillRegistry.LoadAsync();
+
                     var payload = new
                     {
                         schemaVersion = 1,
@@ -87,7 +91,8 @@ namespace Claude4Net.Commands
                         providers = metrics ?? new(),
                         apiKeys,
                         database = new { path = jsonDbPath, exists = File.Exists(jsonDbPath) },
-                        plugins = new { path = jsonPluginDir, count = Directory.Exists(jsonPluginDir) ? Directory.GetFiles(jsonPluginDir, "*.dll").Length : 0 }
+                        plugins = new { path = jsonPluginDir, count = Directory.Exists(jsonPluginDir) ? Directory.GetFiles(jsonPluginDir, "*.dll").Length : 0 },
+                        skillRegistry = new { count = skillRegistry?.ListSkills().Count ?? 0 }
                     };
 
                     return JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
@@ -100,7 +105,7 @@ namespace Claude4Net.Commands
                 // 1. .NET 런타임 및 OS 정보
                 sb.AppendLine($"[bold]Runtime:[/] {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}");
                 sb.AppendLine($"[bold]OS:[/] {System.Runtime.InteropServices.RuntimeInformation.OSDescription}");
-                
+
                 // 2. 작업 공간 상태
                 sb.AppendLine($"[bold]System Base Dir:[/] {Markup.Escape(AppState.SystemBaseDir)}");
                 sb.AppendLine($"[bold]Current Workspace (CWD):[/] {Markup.Escape(AppState.CurrentCwd ?? "[red]NOT SET[/]")}");
@@ -138,7 +143,7 @@ namespace Claude4Net.Commands
                         var manager = PandasUniverseManager.Instance;
                         var tables = manager.TableNames.ToList();
                         sb.AppendLine($"  - Tables: {string.Join(", ", tables)}");
-                        
+
                         // 필수 베이스라인 테이블 존재 여부 확인
                         string[] baseline = { "agent_memory", "agent_trajectories", "audit_logs" };
                         foreach(var b in baseline)
@@ -163,6 +168,15 @@ namespace Claude4Net.Commands
                 var dlls = Directory.GetFiles(pluginDir, "*.dll");
                 sb.AppendLine($"[bold]Plugins:[/] {dlls.Length} loaded from {Markup.Escape(pluginDir)}");
 
+                // 8. 스킬 레지스트리 상태
+                var registry = sp.GetService<SkillRegistryService>();
+                if (registry != null)
+                {
+                    await registry.LoadAsync();
+                    var sks = registry.ListSkills();
+                    sb.AppendLine($"[bold]Skill Registry:[/] {sks.Count} skills discovered");
+                }
+
                 return sb.ToString();
             }},
 
@@ -172,10 +186,10 @@ namespace Claude4Net.Commands
                     if (!u.ContainsTable("audit_logs")) return "[yellow]Audit logs table not found.[/]";
                     var df = u.GetTableOrThrow("audit_logs");
                     if (df.RowCount == 0) return "[grey]No audit logs found.[/]";
-                    
+
                     int count = 10;
                     if (int.TryParse(a, out int requestedCount)) count = requestedCount;
-                    
+
                     var sb = new System.Text.StringBuilder();
                     sb.AppendLine($"[bold cyan]Latest {Math.Min(count, df.RowCount)} Security Audit Logs:[/]");
                     int start = Math.Max(0, df.RowCount - count);
@@ -192,13 +206,49 @@ namespace Claude4Net.Commands
                 });
             }},
 
+            /// <summary> 스킬 목록 조회: 등록된 모든 스킬과 그 품질 지표를 확인합니다. </summary>
+            new Command { Name = "skills", Description = "List discovered skills and quality metrics", Handler = async (a, sp) => {
+                var registry = sp.GetService<SkillRegistryService>();
+                if (registry == null) return "[red]Error:[/] SkillRegistryService not available.";
+
+                await registry.LoadAsync();
+                var skills = registry.ListSkills();
+
+                if (!skills.Any()) return "[grey]No skills registered in the current registry.[/]";
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("[bold cyan]Discovered Skills:[/]");
+
+                var table = new Table().Border(TableBorder.Rounded);
+                table.AddColumn("[bold]ID[/]");
+                table.AddColumn("[bold]Display Name[/]");
+                table.AddColumn("[bold]Version[/]");
+                table.AddColumn("[bold]Success/Fail[/]");
+                table.AddColumn("[bold]Avg Score[/]");
+
+                foreach(var s in skills.OrderBy(x => x.Id))
+                {
+                    string scoreColor = s.Metrics.AverageScore > 0.8 ? "green" : s.Metrics.AverageScore > 0.5 ? "yellow" : "red";
+                    table.AddRow(
+                        Markup.Escape(s.Id),
+                        Markup.Escape(s.DisplayName),
+                        Markup.Escape(s.Version),
+                        $"{s.Metrics.SuccessCount}/{s.Metrics.FailureCount}",
+                        $"[{scoreColor}]{s.Metrics.AverageScore:P0}[/]"
+                    );
+                }
+
+                AnsiConsole.Write(table);
+                return $"Total {skills.Count} skills listed.";
+            }},
+
             // --- [인증 및 모델 관리] ---
 
             /// <summary> 로그인: 특정 프로바이더(Claude, Gemini 등)의 API 키를 설정하거나 활성화합니다. </summary>
             new Command { Name = "login", Description = "Log in to a provider (gemini, claude, ollama, gemini-cli)", Handler = async (args, sp) => {
                 var parts = args.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length == 0) return "Usage: !login <provider> [key_or_uri]";
-                
+
                 string provider = parts[0].ToLowerInvariant();
                 if (provider == "geminicli" || provider == "gemini-cli")
                 {
@@ -219,7 +269,7 @@ namespace Claude4Net.Commands
                     }
                     return $"Usage: !login <provider> <key_or_uri>\n[bold red]Error:[/] API key is required for '{Markup.Escape(provider)}'.";
                 }
-                
+
                 await AuthManager.SaveProviderKeyAsync(provider, parts[1]);
                 AppState.ActiveProvider = provider;
                 AppState.IsProviderExplicitlySet = true;
@@ -303,12 +353,12 @@ namespace Claude4Net.Commands
             /// <summary> 파일 목록: 현재 작업 공간의 파일 및 폴더 목록을 표시합니다. </summary>
             new Command { Name = "ls", Description = "List files in current directory", Handler = (a, sp) => {
                 if (string.IsNullOrEmpty(AppState.CurrentCwd)) return Task.FromResult("[red]Error:[/] Workspace is not set. Use [bold]/setworkspace <path>[/] first.");
-                
+
                 string currentPath = Environment.CurrentDirectory;
                 var files = Directory.GetFileSystemEntries(currentPath);
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine($"[bold cyan]Directory: {Markup.Escape(currentPath)}[/]");
-                foreach(var f in files) 
+                foreach(var f in files)
                 {
                     bool isDir = Directory.Exists(f);
                     string tag = isDir ? "[bold blue][[Dir]][/]" : "[grey][[File]][/]";
@@ -339,10 +389,10 @@ namespace Claude4Net.Commands
             new Command { Name = "cd", Description = "Change current working directory within workspace", Handler = (a, sp) => {
                 if (string.IsNullOrEmpty(AppState.CurrentCwd)) return Task.FromResult("[red]Error:[/] Please set your workspace first using [bold]/setworkspace <path>[/]");
                 if (string.IsNullOrWhiteSpace(a)) return Task.FromResult("Usage: /cd <path>");
-                
+
                 string combined = Path.Combine(Environment.CurrentDirectory, a);
                 string newPath = Path.GetFullPath(combined);
-                
+
                 if (Directory.Exists(newPath)) {
                     // 샌드박스 정책: 설정된 작업 공간 루트 밖으로 나가는 것은 금지됨
                     string normalizedWorkspace = AppState.CurrentCwd.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
@@ -374,11 +424,11 @@ namespace Claude4Net.Commands
                 sb.AppendLine(showAll
                     ? "[bold cyan]Environment Variables (All Values Source-Guarded):[/]"
                     : $"[bold cyan]Environment Variables (Top {Math.Min(defaultLimit, env.Count)} of {env.Count}, Source-Guarded):[/]");
-                
+
                 foreach(System.Collections.DictionaryEntry de in visible) {
                     string key = de.Key?.ToString() ?? "Unknown";
                     string val = de.Value?.ToString() ?? "";
-                    
+
                     // 민감 정보 자동 마스킹
                     string maskedVal = SourceGuard.MaskValue(val, key);
 
@@ -448,7 +498,7 @@ namespace Claude4Net.Commands
                         if (!tasks.Any()) return Task.FromResult("[grey]No coordinated tasks found.[/]");
                         var table = new System.Text.StringBuilder();
                         table.AppendLine("[bold cyan]Coordinated Tasks:[/]");
-                        foreach(var t in tasks) 
+                        foreach(var t in tasks)
                         {
                             string scoreColor = t.ReadinessScore > 80 ? "green" : t.ReadinessScore > 40 ? "yellow" : "red";
                             table.AppendLine($"  - [[{t.Id}]] [bold]{t.Title}[/] ({t.CurrentPhase}) [[[{scoreColor}]{t.ReadinessScore:0}%[/]]] - {t.ReviewStatus}");
@@ -470,13 +520,13 @@ namespace Claude4Net.Commands
                     case "status":
                         if (parts.Length < 2) return Task.FromResult("Usage: /coordinate status <id>");
                         if (!AppState.Tasks.TryGetValue(parts[1], out var st) || st is not CoordinateTask task) return Task.FromResult($"[red]Error:[/] Coordinated task '{parts[1]}' not found.");
-                        
+
                         var sb = new System.Text.StringBuilder();
                         sb.AppendLine($"[bold cyan]Task Details: {task.Title} ({task.Id})[/]");
                         sb.AppendLine($"  [bold]Description:[/] {task.Description}");
                         sb.AppendLine($"  [bold]Phase:[/] {task.CurrentPhase}");
                         sb.AppendLine($"  [bold]Review:[/] {task.ReviewStatus}");
-                        
+
                         // 병합 준비도(Readiness) 진행 바 표시
                         int barWidth = 20;
                         int filled = (int)(task.ReadinessScore / 100 * barWidth);
@@ -492,19 +542,19 @@ namespace Claude4Net.Commands
 
                         sb.AppendLine($"  [bold]Gates:[/]");
                         if (!task.Gates.Any()) sb.AppendLine("    (No gates defined)");
-                        foreach(var g in task.Gates) 
+                        foreach(var g in task.Gates)
                         {
                             string statusIcon = g.IsPassed ? "[green]✔[/]" : "[red]✘[/]";
                             string evidenceInfo = g.Evidences.Any() ? $" ({g.Evidences.Count} Evidence)" : (g.IsEvidenceRequired ? " [red](Evidence Required)[/]" : "");
                             sb.AppendLine($"    - {statusIcon} [bold]{g.Name}[/]: {g.Comments}{evidenceInfo}");
                             if (g.ApprovedBy != null) sb.AppendLine($"      [grey]Approved by: {g.ApprovedBy} at {g.UpdatedAt}[/]");
-                            
+
                             foreach(var ev in g.Evidences)
                             {
                                 sb.AppendLine($"      [grey]└ Evidence: {ev.Summary} (by {ev.Author})[/]");
                             }
                         }
-                        
+
                         sb.AppendLine($"  [bold]History (Last 5):[/]");
                         foreach(var h in task.History.AsEnumerable().Reverse().Take(5)) sb.AppendLine($"    - {h}");
 
@@ -535,7 +585,7 @@ namespace Claude4Net.Commands
                         string evSummary = parts[3];
                         string? evDetails = parts.Length > 4 ? string.Join(" ", parts.Skip(4)) : null;
                         string evAuthor = Environment.UserName;
-                        
+
                         string evRes = store.AddEvidence(evTaskId, evGateName, evAuthor, evSummary, evDetails);
                         return Task.FromResult(evRes.StartsWith("Error") ? $"[red]{evRes}[/]" : $"[green]{evRes}[/]");
 
