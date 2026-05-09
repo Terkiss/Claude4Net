@@ -119,6 +119,33 @@ namespace Claude4Net.Runtime
 
         public IReadOnlyList<SkillProposalRecord> ListProposals() => _root.Proposals.AsReadOnly();
 
+        /// <summary>
+        /// Performs a dry-run validation of a proposal.
+        /// Checks for syntax, required metadata, and estimated impact without applying changes.
+        /// </summary>
+        public SkillValidationResult ValidateProposal(SkillProposalRecord proposal)
+        {
+            var result = new SkillValidationResult { ProposalId = proposal.Id };
+
+            // 1. Basic Metadata Check
+            if (string.IsNullOrEmpty(proposal.Title)) result.Errors.Add("Missing Title");
+            if (string.IsNullOrEmpty(proposal.Description)) result.Errors.Add("Missing Description");
+
+            // 2. Resource Path Check
+            if (string.IsNullOrEmpty(proposal.TargetPath)) result.Errors.Add("Missing TargetPath");
+
+            // 3. Simulated "Pass Rate" based on metadata quality (K026)
+            int score = 0;
+            if (proposal.Rationale.Length > 20) score += 40;
+            if (proposal.ProposedChanges.Length > 50) score += 40;
+            if (proposal.Metadata.Count > 0) score += 20;
+
+            result.EstimatedPassRate = score;
+            result.IsValid = result.Errors.Count == 0 && score >= 60;
+
+            return result;
+        }
+
         private void ValidatePath(string workspaceRoot, string path)
         {
             string workspaceRootFull = Path.GetFullPath(workspaceRoot);

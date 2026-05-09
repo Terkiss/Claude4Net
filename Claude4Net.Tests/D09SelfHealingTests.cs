@@ -38,7 +38,7 @@ namespace Claude4Net.Tests
             service.UpdateGuide("Reflecting on recent quota errors.");
 
             string guide = service.GetGuide();
-            Assert.Contains("## 🔄 Recommended Retry Policies", guide);
+            Assert.Contains("## Recommended Retry Policies", guide);
             Assert.Contains("QuotaError", guide);
             Assert.Contains("ExponentialBackoff", guide);
         }

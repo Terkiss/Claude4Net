@@ -21,7 +21,7 @@ namespace Claude4Net.Tests
             _originalBaseDir = AppState.SystemBaseDir;
             AppState.SystemBaseDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "K010Tests_" + Guid.NewGuid().ToString("N"));
             System.IO.Directory.CreateDirectory(AppState.SystemBaseDir);
-            
+
             // Ensure DB and tables exist
             PandasUniverseManager.Instance.EnsureBaselineTablesAsync().Wait();
         }
@@ -60,7 +60,7 @@ namespace Claude4Net.Tests
             {
                 var df = u.GetTableOrThrow("audit_logs");
                 Assert.True(df.RowCount > 0);
-                
+
                 // Find our tool log. K015 policy denies sensitive tools without an approval handler.
                 bool found = false;
                 for (int i = 0; i < df.RowCount; i++)
@@ -68,7 +68,8 @@ namespace Claude4Net.Tests
                     if (df["ToolName"].GetValue(i)?.ToString() == "sensitive_test_tool")
                     {
                         found = true;
-                        Assert.Equal("Denied (No Handler)", df["Status"].GetValue(i)?.ToString());
+                        var status = df["Status"].GetValue(i)?.ToString() ?? "";
+                        Assert.StartsWith("Denied (No Handler)", status);
                         break;
                     }
                 }

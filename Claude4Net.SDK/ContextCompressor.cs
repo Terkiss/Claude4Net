@@ -6,27 +6,159 @@ using System.Text.Json;
 namespace Claude4Net.SDK
 {
     /// <summary>
-    /// LLM 컨텍스트 윈도우 관리를 위해 대화 기록이나 도구 실행 결과를 압축하고 요약하는 기능을 제공합니다.
+    /// LLM 컨텍?�트 ?�도??관리�? ?�해 ?�??기록?�나 ?�구 ?�행 결과�??�축?�고 ?�약?�는 기능???�공?�니??
     /// </summary>
     public class ContextCompressor
     {
         /// <summary>
-        /// 전체 대화 기록을 분석하여 토큰 한계를 넘지 않도록 압축합니다. (현재 기본 구현)
+        /// ?�체 ?�??기록??분석?�여 ?�큰 ?�계�??��? ?�도�??�축?�니??
         /// </summary>
-        /// <param name="history">메시지 이력 리스트</param>
-        /// <returns>압축된 메시지 이력 리스트</returns>
-        public static List<object> Compress(List<object> history)
+        /// <param name="history">메시지 ?�력 리스??/param>
+        /// <param name="counter">?�큰 카운??/param>
+        /// <param name="limit">?�큰 ?�도</param>
+        /// <returns>?�축??메시지 ?�력 리스??/returns>
+        public static List<object> Compress(List<object> history, ITokenCounter counter, int limit)
         {
-            if (history.Count < 5) return history;
-            // TODO: 실제 토큰 계산 기반의 압축 로직 구현 필요
-            return history;
+            if (history == null || history.Count == 0) return new List<object>();
+
+            int currentTokens = counter.CountTokens(history);
+            // 80% 미만?�면 ?�축 ????
+            if (currentTokens < limit * 0.8) return history;
+
+            int targetTokens = (int)(limit * 0.6);
+
+            // 최근 5�?메시지????�� ?��?
+            int minPreserve = Math.Min(history.Count, 5);
+            var tail = history.TakeLast(minPreserve).ToList();
+            var headCandidates = history.Take(history.Count - minPreserve).ToList();
+
+            var preservedHead = new List<object>();
+
+            // ?�구 ?�출 ??찾기 �?보존
+            // Anthropic/Gemini ?�식 모두 고려 (ID 기반 매칭)
+            var toolUseIds = new HashSet<string>();
+            foreach (var msg in headCandidates)
+            {
+                ExtractToolIds(msg, toolUseIds);
+            }
+
+            foreach (var msg in headCandidates)
+            {
+                if (IsToolRelated(msg, toolUseIds))
+                {
+                    preservedHead.Add(msg);
+                }
+                else if (counter.CountTokens(preservedHead) + counter.CountTokens(tail) < targetTokens)
+                {
+                    // ?�직 ?�유가 ?�으�??�반 메시지???��? ?��? (?��?분�???
+                    preservedHead.Add(msg);
+                }
+            }
+
+            var result = preservedHead.Concat(tail).ToList();
+
+            // 만약 그래???�도�??�는?�면 (?�구 ?�출???�무 많음)
+            // 가???�래???�구 ?�출 ?��????�거?�거???�스???�약 처리 (?�기?�는 ?�단 ?��? ?�책 ?�선)
+
+            return result;
+        }
+
+        private static void ExtractToolIds(object message, HashSet<string> ids)
+        {
+            try
+            {
+                var json = JsonSerializer.Serialize(message);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                // Anthropic style
+                if (root.TryGetProperty("content", out var content))
+                {
+                    if (content.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var item in content.EnumerateArray())
+                        {
+                            if (item.TryGetProperty("type", out var type) && type.GetString() == "tool_use")
+                            {
+                                ids.Add(item.GetProperty("id").GetString() ?? "");
+                            }
+                        }
+                    }
+                }
+                // Gemini style
+                if (root.TryGetProperty("parts", out var parts))
+                {
+                    foreach (var part in parts.EnumerateArray())
+                    {
+                        if (part.TryGetProperty("functionCall", out var fc))
+                        {
+                            ids.Add(fc.GetProperty("name").GetString() ?? "");
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private static bool IsToolRelated(object message, HashSet<string> toolIds)
+        {
+            try
+            {
+                var json = JsonSerializer.Serialize(message);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                // Anthropic style
+                if (root.TryGetProperty("content", out var content))
+                {
+                    if (content.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var item in content.EnumerateArray())
+                        {
+                            if (item.TryGetProperty("type", out var type))
+                            {
+                                string t = type.GetString() ?? "";
+                                if (t == "tool_use" && toolIds.Contains(item.GetProperty("id").GetString() ?? "")) return true;
+                                if (t == "tool_result" && toolIds.Contains(item.GetProperty("tool_use_id").GetString() ?? "")) return true;
+                            }
+                        }
+                    }
+                }
+                // Gemini style
+                if (root.TryGetProperty("role", out var role))
+                {
+                    string r = role.GetString() ?? "";
+                    if (r == "function" && root.TryGetProperty("parts", out var parts))
+                    {
+                        foreach (var part in parts.EnumerateArray())
+                        {
+                            if (part.TryGetProperty("functionResponse", out var fr))
+                            {
+                                if (toolIds.Contains(fr.GetProperty("name").GetString() ?? "")) return true;
+                            }
+                        }
+                    }
+                    if (r == "model" && root.TryGetProperty("parts", out var parts2))
+                    {
+                        foreach (var part in parts2.EnumerateArray())
+                        {
+                            if (part.TryGetProperty("functionCall", out var fc))
+                            {
+                                if (toolIds.Contains(fc.GetProperty("name").GetString() ?? "")) return true;
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            return false;
         }
 
         /// <summary>
-        /// 여러 개의 도구 실행 결과가 연속될 경우, 이를 하나로 요약하여 문맥 길이를 줄입니다.
+        /// ?�러 개의 ?�구 ?�행 결과가 ?�속??경우, ?��? ?�나�??�약?�여 문맥 길이�?줄입?�다.
         /// </summary>
-        /// <param name="toolResults">도구 결과 객체 리스트</param>
-        /// <returns>요약된 텍스트가 포함된 리스트 또는 원본 리스트</returns>
+        /// <param name="toolResults">?�구 결과 객체 리스??/param>
+        /// <returns>?�약???�스?��? ?�함??리스???�는 ?�본 리스??/returns>
         public static List<object> SummarizeToolResults(List<object> toolResults)
         {
             if (toolResults.Count > 3)
@@ -38,16 +170,17 @@ namespace Claude4Net.SDK
         }
 
         /// <summary>
-        /// 도구 결과 객체에서 tool_use_id를 추출합니다.
+        /// ?�구 결과 객체?�서 tool_use_id�?추출?�니??
         /// </summary>
-        /// <param name="result">도구 결과 객체</param>
-        /// <returns>추출된 ID 또는 "unknown"</returns>
+        /// <param name="result">?�구 결과 객체</param>
+        /// <returns>추출??ID ?�는 "unknown"</returns>
         private static string GetToolId(object result)
         {
             try {
                 var json = JsonSerializer.Serialize(result);
                 using var doc = JsonDocument.Parse(json);
                 if (doc.RootElement.TryGetProperty("tool_use_id", out var idProp)) return idProp.GetString() ?? "unknown";
+                if (doc.RootElement.TryGetProperty("tool_use", out var tuProp)) return tuProp.GetProperty("id").GetString() ?? "unknown";
             } catch { }
             return "unknown";
         }

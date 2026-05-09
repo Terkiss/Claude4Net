@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Threading.Tasks;
 using Xunit;
@@ -48,9 +48,9 @@ namespace Claude4Net.Tests
 
             var proposal = new SkillProposalRecord
             {
-                Summary = "Fix bug in parser",
+                Title = "Fix bug in parser",
                 Rationale = "Handles nested tags better",
-                SuggestedChange = "DIFF TEXT",
+                ProposedChanges = "DIFF TEXT",
                 Type = SkillProposalType.BugFix
             };
 
@@ -67,7 +67,7 @@ namespace Claude4Net.Tests
         {
             var service = new SkillProposalService(_registry);
             await service.LoadAsync(_tempWorkspace);
-            var p = new SkillProposalRecord { Id = "PROP-123", Summary = "Test" };
+            var p = new SkillProposalRecord { Id = "PROP-123", Title = "Test" };
             service.CreateProposal(_tempWorkspace, p);
 
             service.UpdateStatus("PROP-123", SkillProposalStatus.Approved);
@@ -81,7 +81,7 @@ namespace Claude4Net.Tests
         {
             var service1 = new SkillProposalService(_registry);
             await service1.LoadAsync(_tempWorkspace);
-            service1.CreateProposal(_tempWorkspace, new SkillProposalRecord { Id = "P1", Summary = "Save Test" });
+            service1.CreateProposal(_tempWorkspace, new SkillProposalRecord { Id = "P1", Title = "Save Test" });
             await service1.SaveAsync(_tempWorkspace);
 
             var service2 = new SkillProposalService(_registry);
@@ -89,7 +89,7 @@ namespace Claude4Net.Tests
             var loaded = service2.GetProposal("P1");
 
             Assert.NotNull(loaded);
-            Assert.Equal("Save Test", loaded.Summary);
+            Assert.Equal("Save Test", loaded.Title);
         }
 
         [Fact]
@@ -98,7 +98,7 @@ namespace Claude4Net.Tests
             var service = new SkillProposalService(_registry);
             string outsidePath = Path.Combine(Path.GetTempPath(), "evil.md");
 
-            var p = new SkillProposalRecord { Summary = "Evil", TargetPath = outsidePath };
+            var p = new SkillProposalRecord { Title = "Evil", TargetPath = outsidePath };
 
             Assert.Throws<UnauthorizedAccessException>(() => service.CreateProposal(_tempWorkspace, p));
         }
@@ -117,9 +117,9 @@ namespace Claude4Net.Tests
             var p = new SkillProposalRecord
             {
                 Id = "PROP-001",
-                Summary = "Change content",
+                Title = "Change content",
                 TargetPath = skillFile,
-                SuggestedChange = "New Content"
+                ProposedChanges = "New Content"
             };
             service.CreateProposal(_tempWorkspace, p);
 
@@ -138,7 +138,7 @@ namespace Claude4Net.Tests
             var service = new SkillProposalService(_registry);
             await service.LoadAsync(_tempWorkspace);
 
-            var p = new SkillProposalRecord { SkillId = "non-existent-skill", Summary = "New skill idea" };
+            var p = new SkillProposalRecord { SkillId = "non-existent-skill", Title = "New skill idea" };
             service.CreateProposal(_tempWorkspace, p);
 
             var created = service.GetProposal(p.Id);
@@ -164,7 +164,7 @@ namespace Claude4Net.Tests
 
             // 4. Operation time binding: Load and Create in real workspace
             await service.LoadAsync(realWorkspace);
-            service.CreateProposal(realWorkspace, new SkillProposalRecord { Summary = "Late binding test" });
+            service.CreateProposal(realWorkspace, new SkillProposalRecord { Title = "Late binding test" });
             await service.SaveAsync(realWorkspace);
 
             // 5. Verification: Data should be in RealWorkspace, NOT in SystemBase

@@ -10,7 +10,7 @@ using Claude4Net.SDK;
 namespace Claude4Net.Api
 {
     /// <summary>
-    /// Anthropic Claude 모델을 기반으로 대화 및 도구 사용 서비스를 제공하는 프로바이더 구현체입니다.
+    /// Anthropic Claude 모델??기반?�로 ?�??�??�구 ?�용 ?�비?��? ?�공?�는 ?�로바이??구현체입?�다.
     /// </summary>
     public class ClaudeService : ILLMProvider
     {
@@ -19,46 +19,66 @@ namespace Claude4Net.Api
         private readonly IToolRegistry _toolRegistry;
 
         /// <summary>
-        /// ClaudeService의 새 인스턴스를 초기화합니다.
+        /// ClaudeService?????�스?�스�?초기?�합?�다.
         /// </summary>
-        /// <param name="client">Anthropic API 클라이언트</param>
-        /// <param name="toolRegistry">사용 가능한 도구 레지스트리</param>
-        public ClaudeService(AnthropicClient client, IToolRegistry toolRegistry) 
-        { 
+        /// <param name="client">Anthropic API ?�라?�언??/param>
+        /// <param name="toolRegistry">?�용 가?�한 ?�구 ?��??�트�?/param>
+        public ClaudeService(AnthropicClient client, IToolRegistry toolRegistry)
+        {
             _client = client;
             _toolRegistry = toolRegistry;
         }
 
         /// <summary>
-        /// 프로바이더의 고유 이름입니다.
+        /// ?�로바이?�의 고유 ?�름?�니??
         /// </summary>
         public string Name => "claude";
 
         /// <summary>
-        /// 대화 히스토리에 메시지를 추가합니다.
+        /// ?�당 ?�공?�용 ?�큰 카운?��? 가?�옵?�다.
+        /// </summary>
+        public ITokenCounter TokenCounter { get; } = new DefaultTokenCounter();
+
+        /// <summary>
+        /// ?�당 ?�공?�의 ?�재 모델 컨텍?�트 ?�한??가?�옵?�다. (Claude 3 기�? 200k)
+        /// </summary>
+        public int ContextLimit => 200000;
+
+        /// <summary>
+        /// ?�???�스?�리??메시지�?추�??�니??
         /// </summary>
         /// <param name="message">메시지 객체</param>
         public void AddMessage(object message) => _messageHistory.Add(message);
 
         /// <summary>
-        /// 현재까지의 대화 히스토리를 반환합니다.
+        /// ?�재까�????�???�스?�리�?반환?�니??
         /// </summary>
-        /// <returns>메시지 객체 리스트</returns>
+        /// <returns>메시지 객체 리스??/returns>
         public IReadOnlyList<object> GetHistory() => _messageHistory.AsReadOnly();
 
         /// <summary>
-        /// 사용자 쿼리를 실행하고 응답을 스트리밍 방식으로 반환합니다. 도구 호출 및 결과 처리를 포함합니다.
+        /// ?�???�스?�리�??�로??목록?�로 ?�체합?�다.
         /// </summary>
-        /// <param name="prompt">사용자 입력 프롬프트</param>
-        /// <param name="model">사용할 모델명 (선택 사항)</param>
-        /// <param name="ct">작업 취소 토큰</param>
-        /// <returns>LLM 스트림 이벤트의 비동기 열거자</returns>
+        /// <param name="history">?�체할 메시지 목록</param>
+        public void SetHistory(IEnumerable<object> history)
+        {
+            _messageHistory.Clear();
+            if (history != null) _messageHistory.AddRange(history);
+        }
+
+        /// <summary>
+        /// ?�용??쿼리�??�행?�고 ?�답???�트리밍 방식?�로 반환?�니?? ?�구 ?�출 �?결과 처리�??�함?�니??
+        /// </summary>
+        /// <param name="prompt">?�용???�력 ?�롬?�트</param>
+        /// <param name="model">?�용??모델�?(?�택 ?�항)</param>
+        /// <param name="ct">?�업 취소 ?�큰</param>
+        /// <returns>LLM ?�트�??�벤?�의 비동�??�거??/returns>
         public async IAsyncEnumerable<LLMStreamEvent> StreamQueryAsync(string prompt, string? model = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
         {
             _messageHistory.Add(new { role = "user", content = prompt });
             string actualModel = model ?? AppState.ActiveModel;
 
-            // 도구 레지스트리에서 도구 정의 추출 및 Anthropic 형식으로 변환
+            // ?�구 ?��??�트리에???�구 ?�의 추출 �?Anthropic ?�식?�로 변??
             var tools = _toolRegistry.GetTools();
             var anthropicTools = new List<object>();
             if (tools != null)
@@ -70,23 +90,23 @@ namespace Claude4Net.Api
                 }
             }
 
-            // 시스템 프롬프트 구성
+            // ?�스???�롬?�트 구성
             string systemPrompt = new SystemPromptBuilder().Build("claude");
 
-            var payload = new 
-            { 
-                model = actualModel, 
-                max_tokens = 4096, 
+            var payload = new
+            {
+                model = actualModel,
+                max_tokens = 4096,
                 system = systemPrompt,
-                messages = _messageHistory, 
+                messages = _messageHistory,
                 tools = anthropicTools.Any() ? anthropicTools : null,
-                stream = true 
+                stream = true
             };
             var finalResult = new LLMResponse();
             var toolCallsMap = new Dictionary<string, ToolUseRequest>();
             var toolInputsMap = new Dictionary<string, StringBuilder>();
 
-            // Anthropic 스트림 이벤트 처리
+            // Anthropic ?�트�??�벤??처리
             await foreach (var evt in _client.CreateMessageStreamAsync(payload, ct))
             {
                 if (evt.Type == "content_block_start")
@@ -119,7 +139,7 @@ namespace Claude4Net.Api
                 }
                 else if (evt.Type == "message_stop")
                 {
-                    // 메시지 종료 시 최종 결과 빌드 및 히스토리 업데이트
+                    // 메시지 종료 ??최종 결과 빌드 �??�스?�리 ?�데?�트
                     var assistantContent = new List<object>();
                     if (!string.IsNullOrEmpty(finalResult.Text))
                     {
@@ -130,12 +150,12 @@ namespace Claude4Net.Api
                     {
                         kvp.Value.Input = JsonSerializer.Deserialize<JsonElement>(toolInputsMap[kvp.Key].ToString());
                         finalResult.ToolCalls.Add(kvp.Value);
-                        assistantContent.Add(new 
-                        { 
-                            type = "tool_use", 
-                            id = kvp.Value.Id, 
-                            name = kvp.Value.Name, 
-                            input = kvp.Value.Input 
+                        assistantContent.Add(new
+                        {
+                            type = "tool_use",
+                            id = kvp.Value.Id,
+                            name = kvp.Value.Name,
+                            input = kvp.Value.Input
                         });
                     }
 

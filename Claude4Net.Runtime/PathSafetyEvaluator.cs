@@ -7,31 +7,31 @@ using Claude4Net.SDK;
 namespace Claude4Net.Runtime
 {
     /// <summary>
-    /// 경로 안전성 평가 결과 열거형입니다.
+    /// 경로 ?�전???��? 결과 ?�거?�입?�다.
     /// </summary>
     public enum PathSafetyResult
     {
-        /// <summary> 경로 평가가 해당되지 않음 (일반 텍스트 등) </summary>
+        /// <summary> 경로 ?��?가 ?�당?��? ?�음 (?�반 ?�스???? </summary>
         NotApplicable,
-        /// <summary> 시스템 보호 구역 (db, Skills 폴더 등) 내의 안전한 접근 </summary>
+        /// <summary> ?�스??보호 구역 (db, Skills ?�더 ?? ?�의 ?�전???�근 </summary>
         SafeSystem,
-        /// <summary> 설정된 작업 공간(Workspace) 내의 정상적인 접근 </summary>
+        /// <summary> ?�정???�업 공간(Workspace) ?�의 ?�상?�인 ?�근 </summary>
         Workspace,
-        /// <summary> 허용되지 않은 외부 경로 또는 금지된 구역 접근 </summary>
+        /// <summary> ?�용?��? ?��? ?��? 경로 ?�는 금�???구역 ?�근 </summary>
         Outside
     }
 
     /// <summary>
-    /// 도구에 입력된 경로의 안전성을 평가하는 엔진입니다.
-    /// 에이전트가 허용된 샌드박스(Workspace) 외부의 파일에 접근하거나 시스템 파일을 손상시키는 것을 방지합니다.
+    /// ?�구???�력??경로???�전?�을 ?��??�는 ?�진?�니??
+    /// ?�이?�트가 ?�용???�드박스(Workspace) ?��????�일???�근?�거???�스???�일???�상?�키??것을 방�??�니??
     /// </summary>
     public class PathSafetyEvaluator
     {
         /// <summary>
-        /// 도구의 입력 객체 전체를 재귀적으로 탐색하여 포함된 모든 경로의 안전성을 평가합니다.
+        /// ?�구???�력 객체 ?�체�??��??�으�??�색?�여 ?�함??모든 경로???�전?�을 ?��??�니??
         /// </summary>
-        /// <param name="input">도구 실행에 사용될 입력 데이터</param>
-        /// <returns>탐색된 경로 중 가장 위험한 수준의 결과</returns>
+        /// <param name="input">?�구 ?�행???�용???�력 ?�이??/param>
+        /// <returns>?�색??경로 �?가???�험???��???결과</returns>
         public PathSafetyResult EvaluateInputSafety(object? input)
         {
             if (input == null) return PathSafetyResult.NotApplicable;
@@ -46,7 +46,7 @@ namespace Claude4Net.Runtime
         }
 
         /// <summary>
-        /// JSON 요소를 재귀적으로 분석하여 경로 또는 명령어 필드를 식별하고 검사합니다.
+        /// JSON ?�소�??��??�으�?분석?�여 경로 ?�는 명령???�드�??�별?�고 검?�합?�다.
         /// </summary>
         private PathSafetyResult CheckElementSafety(JsonElement element)
         {
@@ -57,8 +57,8 @@ namespace Claude4Net.Runtime
                 foreach (var prop in element.EnumerateObject())
                 {
                     PathSafetyResult s;
-                    // 명령어 실행(Bash 등)이나 SQL 쿼리 내부의 경로도 가로채어 검사
-                    if (prop.Name.Equals("command", StringComparison.OrdinalIgnoreCase) || 
+                    // 명령???�행(Bash ???�나 SQL 쿼리 ?��???경로??가로채??검??
+                    if (prop.Name.Equals("command", StringComparison.OrdinalIgnoreCase) ||
                         prop.Name.Equals("sql", StringComparison.OrdinalIgnoreCase))
                     {
                         s = CheckCommandSafety(prop.Value.GetString());
@@ -88,21 +88,21 @@ namespace Claude4Net.Runtime
         }
 
         /// <summary>
-        /// 쉘 명령어 문자열을 토큰화하여 각 인자가 안전한 경로인지 검사합니다.
+        /// ??명령??문자?�을 ?�큰?�하??�??�자가 ?�전??경로?��? 검?�합?�다.
         /// </summary>
         private PathSafetyResult CheckCommandSafety(string? cmd)
         {
             if (string.IsNullOrWhiteSpace(cmd)) return PathSafetyResult.NotApplicable;
 
-            // 공백 및 쉘 제어 문자 단위로 분리
+            // 공백 �????�어 문자 ?�위�?분리
             string[] tokens = cmd.Split(new[] { ' ', '\t', '|', '>', '<', '&', ';' }, StringSplitOptions.RemoveEmptyEntries);
             PathSafetyResult maxRisk = PathSafetyResult.NotApplicable;
 
             foreach (var token in tokens)
             {
                 string t = token.Trim('\'', '\"');
-                
-                // Windows 스타일의 CLI 플래그(/f, /y 등)는 경로 검사에서 제외하는 휴리스틱 적용
+
+                // Windows ?��??�의 CLI ?�래�?/f, /y ????경로 검?�에???�외?�는 ?�리?�틱 ?�용
                 if (t.StartsWith("/") && t.Length <= 10 && !t.Contains("\\") && t.LastIndexOf('/') == 0)
                     continue;
 
@@ -110,94 +110,110 @@ namespace Claude4Net.Runtime
                 maxRisk = GetMinSafety(maxRisk, s);
                 if (maxRisk == PathSafetyResult.Outside) return PathSafetyResult.Outside;
             }
-            return maxRisk == PathSafetyResult.NotApplicable ? PathSafetyResult.Workspace : maxRisk; 
+            return maxRisk == PathSafetyResult.NotApplicable ? PathSafetyResult.Workspace : maxRisk;
         }
 
         /// <summary>
-        /// 단일 문자열이 나타내는 경로가 샌드박스 정책을 준수하는지 평가합니다.
+        /// ?�일 문자?�이 ?��??�는 경로가 ?�드박스 ?�책??준?�하?��? ?��??�니??
         /// </summary>
-        /// <param name="targetPath">검사할 대상 경로 문자열</param>
+        /// <param name="targetPath">검?�할 ?�??경로 문자??/param>
         public PathSafetyResult EvaluateSinglePathSafety(string? targetPath)
         {
             if (string.IsNullOrWhiteSpace(targetPath)) return PathSafetyResult.NotApplicable;
 
-            // CLI 플래그 여부 재확인 (휴리스틱)
+            // CLI ?�래�??��? ?�확??(?�리?�틱)
             if (targetPath.StartsWith("/"))
             {
                 bool hasInternalSlash = targetPath.IndexOf('/', 1) > 0;
                 bool isShortAlphanumeric = targetPath.Length <= 10 && targetPath.Substring(1).All(char.IsLetterOrDigit);
-                
+
                 if (!hasInternalSlash && isShortAlphanumeric) return PathSafetyResult.NotApplicable;
             }
 
             try
             {
-                // URI 형식 처리
+                // URI ?�식 처리
                 if (targetPath.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
                 {
                     targetPath = new Uri(targetPath).LocalPath;
                 }
 
-                // 단순 파일명만 있거나 경로 구분자가 없는 경우 상대 경로로 간주하고 허용 여부 유보
-                if (!targetPath.Contains(Path.DirectorySeparatorChar) && 
-                    !targetPath.Contains(Path.AltDirectorySeparatorChar) && 
-                    !targetPath.Contains("..")) return PathSafetyResult.NotApplicable;
+                // OS�?경로 구분???�규??(?�래????��?�시 ?�용 ?�??
+                string normalizedInput = targetPath.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
 
-                // 절대 경로로 변환하여 상대 경로 우회(Traversal) 방지
+                // ?�순 ?�일명만 ?�거??경로 구분?��? ?�는 경우 ?��? 경로�?간주?�고 ?�용 ?��? ?�보
+                if (!normalizedInput.Contains(Path.DirectorySeparatorChar) &&
+                    !normalizedInput.Contains("..")) return PathSafetyResult.NotApplicable;
+
+                // ?��? 경로�?변?�하???��? 경로 ?�회(Traversal) 방�?
                 string fullPath = ResolveFinalPath(Path.GetFullPath(targetPath));
-                
+
                 bool isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
                 var comparison = isWindows ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 
-                // 1. 시스템 내부 보호 구역(db, Skills) 체크
+                // 1. ?�스???��? 보호 구역(db, Skills) 체크
                 string sysPath = Path.GetFullPath(AppState.SystemBaseDir);
-                string normSys = sysPath.EndsWith(Path.DirectorySeparatorChar) ? sysPath : sysPath + Path.DirectorySeparatorChar;
+                string normSys = EnsureTrailingSeparator(sysPath);
 
-                if (fullPath.StartsWith(normSys, comparison) || fullPath.Equals(sysPath, comparison))
+                if (fullPath.StartsWith(normSys, comparison) || fullPath.Equals(sysPath.TrimEnd(Path.DirectorySeparatorChar), comparison))
                 {
-                    // 시스템 폴더 내에서도 오직 db와 Skills 폴더만 접근 허용
-                    if (fullPath.Contains($"{Path.DirectorySeparatorChar}db{Path.DirectorySeparatorChar}") || 
-                        fullPath.Contains($"{Path.DirectorySeparatorChar}Skills{Path.DirectorySeparatorChar}") ||
-                        fullPath.EndsWith($"{Path.DirectorySeparatorChar}db") ||
-                        fullPath.EndsWith($"{Path.DirectorySeparatorChar}Skills"))
+                    // ?�스???�더 ?�에?�도 ?�직 db?� Skills ?�더�??�근 ?�용
+                    string dbSeg = $"{Path.DirectorySeparatorChar}db{Path.DirectorySeparatorChar}";
+                    string skSeg = $"{Path.DirectorySeparatorChar}Skills{Path.DirectorySeparatorChar}";
+
+                    if (fullPath.Contains(dbSeg, comparison) ||
+                        fullPath.Contains(skSeg, comparison) ||
+                        fullPath.EndsWith($"{Path.DirectorySeparatorChar}db", comparison) ||
+                        fullPath.EndsWith($"{Path.DirectorySeparatorChar}Skills", comparison))
                     {
                         return PathSafetyResult.SafeSystem;
                     }
-                    return PathSafetyResult.Outside; 
+                    return PathSafetyResult.Outside;
                 }
 
-                // 2. 사용자 작업 공간(Workspace) 체크
+                // 2. ?�용???�업 공간(Workspace) 체크
                 if (!string.IsNullOrEmpty(AppState.CurrentCwd))
                 {
                     string wsPath = Path.GetFullPath(AppState.CurrentCwd);
-                    string normWs = wsPath.EndsWith(Path.DirectorySeparatorChar) ? wsPath : wsPath + Path.DirectorySeparatorChar;
-                    
-                    if (fullPath.StartsWith(normWs, comparison) || fullPath.Equals(wsPath, comparison))
+                    string normWs = EnsureTrailingSeparator(wsPath);
+
+                    if (fullPath.StartsWith(normWs, comparison) || fullPath.Equals(wsPath.TrimEnd(Path.DirectorySeparatorChar), comparison))
                     {
-                        // YOLO 모드가 아닐 경우 .git이나 .gemini 같은 민감한 내부 폴더 접근 차단
+                        // YOLO 모드가 ?�닐 경우 .git?�나 .gemini 같�? 민감???��? ?�더 ?�근 차단
                         if (AppState.CurrentPermissionMode != PermissionMode.Yolo)
                         {
-                            if (fullPath.Contains($"{Path.DirectorySeparatorChar}.git{Path.DirectorySeparatorChar}") || 
-                                fullPath.Contains($"{Path.DirectorySeparatorChar}.gemini{Path.DirectorySeparatorChar}"))
+                            string gitSeg = $"{Path.DirectorySeparatorChar}.git{Path.DirectorySeparatorChar}";
+                            string gemSeg = $"{Path.DirectorySeparatorChar}.gemini{Path.DirectorySeparatorChar}";
+
+                            if (fullPath.Contains(gitSeg, comparison) ||
+                                fullPath.Contains(gemSeg, comparison) ||
+                                fullPath.EndsWith($"{Path.DirectorySeparatorChar}.git", comparison) ||
+                                fullPath.EndsWith($"{Path.DirectorySeparatorChar}.gemini", comparison))
                                 return PathSafetyResult.Outside;
                         }
                         return PathSafetyResult.Workspace;
                     }
                 }
 
-                // 어디에도 속하지 않으면 외부 접근(위험)으로 간주
+                // ?�디?�도 ?�하지 ?�으�??��? ?�근(?�험)?�로 간주
                 return PathSafetyResult.Outside;
             }
-            catch { return PathSafetyResult.Outside; } 
+            catch { return PathSafetyResult.Outside; }
+        }
+
+        private static string EnsureTrailingSeparator(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return path;
+            return path.EndsWith(Path.DirectorySeparatorChar) ? path : path + Path.DirectorySeparatorChar;
         }
 
         /// <summary>
-        /// 두 안전성 결과 중 더 위험한(최소의 안전성을 가진) 결과를 선택합니다.
+        /// ???�전??결과 �????�험??최소???�전?�을 가�? 결과�??�택?�니??
         /// </summary>
         private PathSafetyResult GetMinSafety(PathSafetyResult current, PathSafetyResult @new)
         {
-            // 위험도 순위: Outside (최고 위험) > Workspace > SafeSystem > NotApplicable
-            
+            // ?�험???�위: Outside (최고 ?�험) > Workspace > SafeSystem > NotApplicable
+
             if (current == PathSafetyResult.Outside || @new == PathSafetyResult.Outside) return PathSafetyResult.Outside;
             if (current == PathSafetyResult.Workspace || @new == PathSafetyResult.Workspace) return PathSafetyResult.Workspace;
             if (current == PathSafetyResult.SafeSystem || @new == PathSafetyResult.SafeSystem) return PathSafetyResult.SafeSystem;
@@ -208,53 +224,71 @@ namespace Claude4Net.Runtime
         {
             try
             {
-                string? existingPath = fullPath;
+                string? current = fullPath;
                 var missingSegments = new Stack<string>();
 
-                while (!string.IsNullOrEmpty(existingPath) &&
-                       !File.Exists(existingPath) &&
-                       !Directory.Exists(existingPath))
+                // 1. 존재?�는 부�?경로�?찾을 ?�까지 거슬???�라�?
+                while (!string.IsNullOrEmpty(current) && !File.Exists(current) && !Directory.Exists(current))
                 {
-                    string? segment = Path.GetFileName(existingPath);
-                    if (!string.IsNullOrEmpty(segment))
-                    {
-                        missingSegments.Push(segment);
-                    }
-
-                    existingPath = Path.GetDirectoryName(existingPath);
+                    string? segment = Path.GetFileName(current);
+                    if (!string.IsNullOrEmpty(segment)) missingSegments.Push(segment);
+                    current = Path.GetDirectoryName(current);
                 }
 
-                if (string.IsNullOrEmpty(existingPath))
-                {
-                    return fullPath;
-                }
+                if (string.IsNullOrEmpty(current)) return fullPath;
 
-                string resolvedExistingPath = existingPath;
+                // 2. 존재?�는 부분의 ?�볼�?링크 체인???�결
+                string resolved = ResolveSymlinkChain(current);
 
-                if (File.Exists(existingPath))
-                {
-                    var fileInfo = new FileInfo(existingPath);
-                    var target = fileInfo.ResolveLinkTarget(true);
-                    resolvedExistingPath = target?.FullName ?? existingPath;
-                }
-                else if (Directory.Exists(existingPath))
-                {
-                    var directoryInfo = new DirectoryInfo(existingPath);
-                    var target = directoryInfo.ResolveLinkTarget(true);
-                    resolvedExistingPath = target?.FullName ?? existingPath;
-                }
-
+                // 3. ?�라?�던 ?�위 경로�??�시 결합
                 while (missingSegments.Count > 0)
                 {
-                    resolvedExistingPath = Path.Combine(resolvedExistingPath, missingSegments.Pop());
+                    resolved = Path.Combine(resolved, missingSegments.Pop());
                 }
 
-                return resolvedExistingPath;
+                return Path.GetFullPath(resolved);
             }
             catch
             {
                 return fullPath;
             }
+        }
+
+        private static string ResolveSymlinkChain(string path)
+        {
+            string current = Path.GetFullPath(path);
+            HashSet<string> visited = new(StringComparer.OrdinalIgnoreCase);
+            int depth = 0;
+            const int maxDepth = 10;
+
+            while (depth < maxDepth)
+            {
+                if (!visited.Add(current))
+                    throw new InvalidOperationException($"Circular symlink detected at: {current}");
+
+                FileSystemInfo info = File.Exists(current) ? new FileInfo(current) : new DirectoryInfo(current);
+
+                // immediate target�?가?�옴 (false)
+                var target = info.ResolveLinkTarget(false);
+
+                if (target == null) break;
+
+                // ?��? 경로??경우 부�?경로?� 결합
+                string targetPath = target.FullName;
+                if (!Path.IsPathRooted(targetPath))
+                {
+                    string? parent = Path.GetDirectoryName(current);
+                    targetPath = parent != null ? Path.Combine(parent, targetPath) : targetPath;
+                }
+
+                current = Path.GetFullPath(targetPath);
+                depth++;
+            }
+
+            if (depth >= maxDepth)
+                throw new InvalidOperationException($"Symlink chain too deep (max {maxDepth})");
+
+            return current;
         }
     }
 }

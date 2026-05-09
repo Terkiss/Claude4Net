@@ -1,0 +1,30 @@
+@page "/"
+@using Claude4Net.Dashboard.Client.Components
+
+<PageTitle>Claude4Net Dashboard</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8">
+            <ThoughtStream />
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-header bg-dark text-white">System Info</div>
+                <div class="card-body">
+                    <p><strong>Status:</strong> <span class="text-success">Connected</span></p>
+                    <p><strong>Workspace:</strong> <code>@Environment.CurrentDirectory</code></p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header bg-primary text-white">Active Tasks</div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item italic text-muted">No active tasks tracked yet.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

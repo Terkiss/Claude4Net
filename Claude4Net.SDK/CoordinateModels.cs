@@ -4,106 +4,179 @@ using System.Collections.Generic;
 namespace Claude4Net.SDK
 {
     /// <summary>
-    /// 작업 조정(Coordination)의 단계를 정의하는 열거형입니다.
+    /// ?�업 조정(Coordination)???�계�??�의?�는 ?�거?�입?�다.
     /// </summary>
     public enum CoordinatePhase
     {
-        /// <summary> 계획 단계 </summary>
+        /// <summary> 계획 ?�계 </summary>
         Planning,
-        /// <summary> 실행 단계 </summary>
+        /// <summary> ?�행 ?�계 </summary>
         Execution,
-        /// <summary> 검증 단계 </summary>
+        /// <summary> 검�??�계 </summary>
         Verification,
-        /// <summary> 완료됨 </summary>
+        /// <summary> ?�료??</summary>
         Completed,
-        /// <summary> 실패함 </summary>
+        /// <summary> ?�패??</summary>
         Failed
     }
 
     /// <summary>
-    /// 검토자의 결정 상태를 정의하는 열거형입니다.
+    /// ?�이?�트????��???�의?�니??
+    /// </summary>
+    public enum AgentRole
+    {
+        /// <summary> ?�체 목표�??�립?�고 ?�위 ?�업??관리하??중재??</summary>
+        Orchestrator,
+        /// <summary> ?�보 ?�집 �?조사�??�당 </summary>
+        Researcher,
+        /// <summary> ?�제 코드 구현???�당 </summary>
+        Coder,
+        /// <summary> 코드 �?결과물의 ?�질??검??</summary>
+        Reviewer,
+        /// <summary> 기�? ?�반 ?�업 ?�행 </summary>
+        Worker
+    }
+
+    /// <summary>
+    /// ?�이?�트???�세 ?�로???�보�??�는 ?�래?�입?�다.
+    /// </summary>
+    public class AgentProfile
+    {
+        /// <summary> ?�이?�트??고유 명칭 </summary>
+        public string Name { get; set; } = string.Empty;
+        /// <summary> 주된 ??�� </summary>
+        public AgentRole Role { get; set; } = AgentRole.Worker;
+        /// <summary> ?�문 분야 (?? "C#", "Security", "WebSearch") </summary>
+        public List<string> Specializations { get; set; } = new();
+        /// <summary> 권한 모드 </summary>
+        public PermissionMode MaxPermission { get; set; } = PermissionMode.Prompt;
+        /// <summary> ?�재 바쁜 ?�태 ?��? </summary>
+        public bool IsBusy { get; set; }
+    }
+
+    /// <summary>
+    /// ?�업 ?�당 ?�보�??�는 ?�래?�입?�다.
+    /// </summary>
+    public class TaskAssignment
+    {
+        public string TaskId { get; set; } = string.Empty;
+        public string AgentName { get; set; } = string.Empty;
+        public DateTime AssignedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? CompletedAt { get; set; }
+        public string? ResultSummary { get; set; }
+    }
+
+    /// <summary>
+    /// 공유 ?�업 보드(Shared Task Board) ?�터?�이?�입?�다.
+    /// </summary>
+    public interface ITaskBoard
+    {
+        /// <summary> ?�업??보드??추�??�니?? </summary>
+        void AddTask(CoordinateTask task);
+        /// <summary> ?�정 ?�업??가?�옵?�다. </summary>
+        CoordinateTask? GetTask(string taskId);
+        /// <summary> ?�정 조건??맞는 ?�용 가?�한 ?�업??검?�합?�다. </summary>
+        IEnumerable<CoordinateTask> GetPendingTasks();
+        /// <summary> ?�업 ?�태�??�데?�트?�니?? </summary>
+        void UpdateTask(CoordinateTask task);
+        /// <summary> ?�이?�트�??�정 ?�업???�당?�니?? </summary>
+        bool TryAssignTask(string taskId, string agentName);
+        /// <summary> ?�위 ?�업???�성?�고 ?�위 ?�업???�결?�니?? </summary>
+        void DecomposeTask(string parentTaskId, List<CoordinateTask> subTasks);
+    }
+
+    /// <summary>
+    /// 검?�자??결정 ?�태�??�의?�는 ?�거?�입?�다.
     /// </summary>
     public enum ReviewerDecision
     {
-        /// <summary> 대기 중 </summary>
+        /// <summary> ?��?�?</summary>
         Pending,
-        /// <summary> 승인됨 </summary>
+        /// <summary> ?�인??</summary>
         Approved,
-        /// <summary> 거절됨 </summary>
+        /// <summary> 거절??</summary>
         Rejected,
-        /// <summary> 수정 요청 </summary>
+        /// <summary> ?�정 ?�청 </summary>
         RequestChanges
     }
 
     /// <summary>
-    /// 작업 진행의 근거(Evidence)를 기록하는 클래스입니다.
+    /// ?�업 진행??근거(Evidence)�?기록?�는 ?�래?�입?�다.
     /// </summary>
     public class CoordinateEvidence
     {
         /// <summary> 근거 고유 ID </summary>
         public string Id { get; set; } = Guid.NewGuid().ToString().Substring(0, 8);
-        /// <summary> 작성자 (에이전트 이름 등) </summary>
+        /// <summary> ?�성??(?�이?�트 ?�름 ?? </summary>
         public string Author { get; set; } = string.Empty;
-        /// <summary> 기록 시간 </summary>
+        /// <summary> 기록 ?�간 </summary>
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
-        /// <summary> 기록 당시의 단계 </summary>
+        /// <summary> 기록 ?�시???�계 </summary>
         public CoordinatePhase Phase { get; set; }
-        /// <summary> 관련된 게이트 이름 </summary>
+        /// <summary> 관?�된 게이???�름 </summary>
         public string GateName { get; set; } = string.Empty;
-        /// <summary> 요약 내용 </summary>
+        /// <summary> ?�약 ?�용 </summary>
         public string Summary { get; set; } = string.Empty;
-        /// <summary> 상세 내용 (선택 사항) </summary>
+        /// <summary> ?�세 ?�용 (?�택 ?�항) </summary>
         public string? Details { get; set; }
     }
 
     /// <summary>
-    /// 단계 전환을 위해 통과해야 하는 검증 지점(Gate)을 정의합니다.
+    /// ?�계 ?�환???�해 ?�과?�야 ?�는 검�?지??Gate)???�의?�니??
     /// </summary>
     public class CoordinateGate
     {
-        /// <summary> 게이트 명칭 </summary>
+        /// <summary> 게이??명칭 </summary>
         public string Name { get; set; } = string.Empty;
-        /// <summary> 통과 여부 </summary>
+        /// <summary> ?�과 ?��? </summary>
         public bool IsPassed { get; set; }
-        /// <summary> 통과를 위해 근거(Evidence) 기록이 필수인지 여부 </summary>
+        /// <summary> ?�과�??�해 근거(Evidence) 기록???�수?��? ?��? </summary>
         public bool IsEvidenceRequired { get; set; } = true;
-        /// <summary> 추가 의견 </summary>
+        /// <summary> 추�? ?�견 </summary>
         public string? Comments { get; set; }
-        /// <summary> 마지막 업데이트 시간 </summary>
+        /// <summary> 마�?�??�데?�트 ?�간 </summary>
         public DateTime? UpdatedAt { get; set; }
-        /// <summary> 연결된 근거 목록 </summary>
+        /// <summary> ?�결??근거 목록 </summary>
         public List<CoordinateEvidence> Evidences { get; set; } = new();
-        /// <summary> 승인자 </summary>
+        /// <summary> ?�인??</summary>
         public string? ApprovedBy { get; set; }
     }
 
     /// <summary>
-    /// 여러 에이전트 간의 협업 및 단계별 승인이 필요한 조정 작업을 관리하는 클래스입니다.
+    /// ?�러 ?�이?�트 간의 ?�업 �??�계�??�인???�요??조정 ?�업??관리하???�래?�입?�다.
     /// </summary>
     public class CoordinateTask : TaskStateBase
     {
-        /// <summary> 작업 제목 </summary>
+        /// <summary> ?�업 ?�목 </summary>
         public string Title { get; set; } = string.Empty;
-        /// <summary> 작업 상세 설명 </summary>
+        /// <summary> ?�업 ?�세 ?�명 </summary>
         public string Description { get; set; } = string.Empty;
-        /// <summary> 현재 진행 단계 </summary>
+        /// <summary> ?�재 진행 ?�계 </summary>
         public CoordinatePhase CurrentPhase { get; set; } = CoordinatePhase.Planning;
-        /// <summary> 구성된 검증 게이트 목록 </summary>
+        /// <summary> 구성??검�?게이??목록 </summary>
         public List<CoordinateGate> Gates { get; set; } = new();
-        /// <summary> 검토 상태 </summary>
+        /// <summary> 검???�태 </summary>
         public ReviewerDecision ReviewStatus { get; set; } = ReviewerDecision.Pending;
-        /// <summary> 할당된 에이전트 명칭 </summary>
+        /// <summary> ?�당???�이?�트 명칭 </summary>
         public string? AssignedAgent { get; set; }
-        /// <summary> 생성 일시 </summary>
+        /// <summary> ?�구?�는 ?�이?�트 ??�� </summary>
+        public AgentRole RequiredRole { get; set; } = AgentRole.Worker;
+        /// <summary> ?�존?�고 ?�는 ?�업 ID 목록 </summary>
+        public List<string> Dependencies { get; set; } = new();
+        /// <summary> ?�위 ?�업 ID </summary>
+        public string? ParentTaskId { get; set; }
+        /// <summary> ?�위 ?�업 ID 목록 </summary>
+        public List<string> SubTaskIds { get; set; } = new();
+        /// <summary> ?�성 ?�시 </summary>
         public DateTime CreatedAt { get; set; } = DateTime.Now;
-        /// <summary> 마지막 수정 일시 </summary>
+        /// <summary> 마�?�??�정 ?�시 </summary>
         public DateTime LastUpdatedAt { get; set; } = DateTime.Now;
-        /// <summary> 작업 변경 이력 </summary>
+        /// <summary> ?�업 변�??�력 </summary>
         public List<string> History { get; set; } = new();
-        
-        /// <summary> 병합 준비 점수 (0~100) </summary>
+
+        /// <summary> 병합 준�??�수 (0~100) </summary>
         public double ReadinessScore { get; set; }
-        /// <summary> 진행을 가로막는 요소(Blocker) 목록 </summary>
+        /// <summary> 진행??가로막???�소(Blocker) 목록 </summary>
         public List<string> Blockers { get; set; } = new();
 
         public CoordinateTask()

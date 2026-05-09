@@ -5,12 +5,13 @@
     <ProjectReference Include="..\Claude4Net.Runtime\Claude4Net.Runtime.csproj" />
     <ProjectReference Include="..\Claude4Net.Commands\Claude4Net.Commands.csproj" />
     <ProjectReference Include="..\Claude4Net.Discord\Claude4Net.Discord.csproj" />
-    <!-- TeruTeruPandas는 MyPlugins의 의존성으로, 빌드 시 자동으로 메인 출력 폴더에 복사됩니다. -->
+    <!-- TeruTeruPandas??MyPlugins???�존?�으�? 빌드 ???�동?�로 메인 출력 ?�더??복사?�니?? -->
     <ProjectReference Include="..\Claude4Net.MyPlugins\Claude4Net.MyPlugins.csproj" Private="true" />
+    <ProjectReference Include="..\Claude4Net.Dashboard\Claude4Net.Dashboard.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.7" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
     <PackageReference Include="Spectre.Console" Version="0.55.0" />
   </ItemGroup>
@@ -22,7 +23,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <!-- 리소스 폴더를 출력 디렉토리로 복사 -->
+  <!-- 리소???�더�?출력 ?�렉?�리�?복사 -->
   <ItemGroup>
     <Content Include="..\.resources\**\*.*">
       <Link>.resources\%(RecursiveDir)%(FileName)%(Extension)</Link>
@@ -30,18 +31,16 @@
     </Content>
   </ItemGroup>
 
-  <!-- 빌드 후 '순수 플러그인 진입점'만 plugins 폴더로 이동/복사 -->
+  <!-- 빌드 ??'?�수 ?�러그인 진입??�?plugins ?�더�??�동/복사 -->
   <Target Name="CopyPlugins" AfterTargets="AfterBuild">
     <Message Text="[Auto-Build] Deploying Agent Plugins..." Importance="high" />
     <MakeDir Directories="$(OutDir)plugins" Condition="!Exists('$(OutDir)plugins')" />
-    
-    <!-- 오직 MyPlugins.dll만 plugins 폴더에 넣습니다. -->
-    <Copy SourceFiles="$(OutDir)Claude4Net.MyPlugins.dll" 
-          DestinationFolder="$(OutDir)plugins" 
-          SkipUnchangedFiles="true" />
-    
-    <!-- 메인 폴더에 남은 원본은 삭제하지 않아도 무방하며, 
-         plugins 폴더 안에는 의존성 라이브러리가 섞이지 않게 관리합니다. -->
+
+    <!-- ?�직 MyPlugins.dll�?plugins ?�더???�습?�다. -->
+    <Copy SourceFiles="$(OutDir)Claude4Net.MyPlugins.dll" DestinationFolder="$(OutDir)plugins" SkipUnchangedFiles="true" />
+
+    <!-- 메인 ?�더???��? ?�본?� ??��?��? ?�아??무방?�며,
+         plugins ?�더 ?�에???�존???�이브러리�? ?�이지 ?�게 관리합?�다. -->
     <Message Text="[Auto-Build] Plugin entry point successfully deployed to $(OutDir)plugins" Importance="high" />
   </Target>
 

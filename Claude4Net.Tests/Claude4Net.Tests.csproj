@@ -9,11 +9,12 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.7" />
     <PackageReference Include="xunit" Version="2.5.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
     <PackageReference Include="Moq" Version="4.20.70" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.7" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,9 +24,10 @@
     <ProjectReference Include="..\Claude4Net.MyPlugins\Claude4Net.MyPlugins.csproj" />
     <ProjectReference Include="..\Claude4Net.Commands\Claude4Net.Commands.csproj" />
     <ProjectReference Include="..\Claude4Net.Discord\Claude4Net.Discord.csproj" />
+    <ProjectReference Include="..\Claude4Net.Dashboard\Claude4Net.Dashboard.csproj" />
   </ItemGroup>
 
-  <!-- 리소스 폴더를 테스트 출력 디렉토리로 복사 (통합 테스트용) -->
+  <!-- 리소???�더�??�스??출력 ?�렉?�리�?복사 (?�합 ?�스?�용) -->
   <ItemGroup>
     <Content Include="..\.resources\**\*.*">
       <Link>.resources\%(RecursiveDir)%(FileName)%(Extension)</Link>

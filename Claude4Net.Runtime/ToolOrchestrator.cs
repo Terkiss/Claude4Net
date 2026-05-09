@@ -95,7 +95,7 @@ namespace Claude4Net.Runtime
             {
                 if (permission.Decision == PermissionDecision.Deny)
                 {
-                    await LogAuditAsync(tool.Name, jsonInput, safetyResult, null, "Forbidden");
+                    await LogAuditAsync(tool.Name, jsonInput, safetyResult, null, $"Forbidden: {permission.Reason}");
                     return new ToolUseResult { ToolUseId = request.Id, Content = $"Security Error: {permission.Reason}.", IsError = true };
                 }
 
@@ -103,7 +103,7 @@ namespace Claude4Net.Runtime
                 {
                     if (activeApprovalHandler == null)
                     {
-                        await LogAuditAsync(tool.Name, jsonInput, safetyResult, null, "Denied (No Handler)");
+                        await LogAuditAsync(tool.Name, jsonInput, safetyResult, null, $"Denied (No Handler): {permission.Reason}");
                         return new ToolUseResult { ToolUseId = request.Id, Content = $"Security Error: {permission.Reason}, but no approval handler is available.", IsError = true };
                     }
                     else
@@ -133,7 +133,8 @@ namespace Claude4Net.Runtime
 
                         if (approved != true)
                         {
-                            await LogAuditAsync(tool.Name, jsonInput, safetyResult, approved, "Denied");
+                            string status = approved == false ? "Denied" : "Cancelled/TimedOut";
+                            await LogAuditAsync(tool.Name, jsonInput, safetyResult, approved, $"{status}: {permission.Reason}");
                             string denial = safetyResult == PathSafetyResult.Outside
                                 ? "User denied outside-access. Security policy enforced."
                                 : "User denied permission.";

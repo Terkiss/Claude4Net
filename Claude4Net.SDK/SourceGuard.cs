@@ -6,54 +6,55 @@ using System.Linq;
 namespace Claude4Net.SDK
 {
     /// <summary>
-    /// 민감 정보 필터링 결과를 담는 모델입니다.
+    /// 민감 ?�보 ?�터�?결과�??�는 모델?�니??
     /// </summary>
     public class RedactionResult
     {
-        /// <summary> 원본 텍스트 </summary>
+        /// <summary> ?�본 ?�스??</summary>
         public string OriginalText { get; set; } = string.Empty;
-        /// <summary> 필터링된(마스킹된) 텍스트 </summary>
+        /// <summary> ?�터링된(마스?�된) ?�스??</summary>
         public string FilteredText { get; set; } = string.Empty;
-        /// <summary> 발견된 민감 정보 유형 목록 (예: API Key, Email) </summary>
+        /// <summary> 발견??민감 ?�보 ?�형 목록 (?? API Key, Email) </summary>
         public List<string> FoundTypes { get; set; } = new();
-        /// <summary> 총 매칭 횟수 </summary>
+        /// <summary> �?매칭 ?�수 </summary>
         public int TotalMatches { get; set; }
-        /// <summary> 민감 정보가 발견되지 않았는지 여부 </summary>
+        /// <summary> 민감 ?�보가 발견?��? ?�았?��? ?��? </summary>
         public bool IsClean => TotalMatches == 0;
     }
 
     /// <summary>
-    /// 로그나 출력물에서 API 키, 비밀번호 등 민감 정보를 탐지하고 마스킹하는 보안 유틸리티입니다.
+    /// 로그??출력물에??API ?? 비�?번호 ??민감 ?�보�??��??�고 마스?�하??보안 ?�틸리티?�니??
     /// </summary>
     public static class SourceGuard
     {
-        // 민감 정보 탐지를 위한 정규식 필터 목록
+        // 민감 ?�보 ?��?�??�한 ?�규???�터 목록
         private static readonly List<(string Name, Regex Pattern)> _filters = new()
         {
             ("API Key", new Regex(@"\b(sk-ant-[a-zA-Z0-9_\-]{16,}|sk-[a-zA-Z0-9]{20,}|AIza[0-9A-Za-z_\-]{20,}|gh[pousr]_[A-Za-z0-9_]{20,})\b", RegexOptions.Compiled)),
             ("AWS Access Key", new Regex(@"\b(AKIA[0-9A-Z]{16})\b", RegexOptions.Compiled)),
-            ("AWS Secret Key", new Regex(@"\b([a-zA-Z0-9/+=]{40})\b", RegexOptions.Compiled)), 
+            ("AWS Secret Key", new Regex(@"\b([a-zA-Z0-9/+=]{40})\b", RegexOptions.Compiled)),
             ("Discord Token", new Regex(@"([a-zA-Z0-9_\-]{24}\.[a-zA-Z0-9_\-]{6}\.[a-zA-Z0-9_\-]{27})", RegexOptions.Compiled)),
             ("Authorization Bearer", new Regex(@"(Bearer\s+[a-zA-Z0-9\-\._~+/]+=*)", RegexOptions.Compiled | RegexOptions.IgnoreCase)),
             ("SSH Private Key", new Regex(@"-----BEGIN [A-Z ]+ PRIVATE KEY-----[\s\S]+?-----END [A-Z ]+ PRIVATE KEY-----", RegexOptions.Compiled)),
             ("Connection String Password", new Regex(@"(password|pwd|pwd|secret|key)\s*=\s*([^;]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase)),
+            ("JSON Secret", new Regex(@"""([^""]*(?:password|pass|secret|token|key|auth|cred)[^""]*)""\s*:\s*""([^""]+)""", RegexOptions.Compiled | RegexOptions.IgnoreCase)),
             ("Generic Secret", new Regex(@"(password|pass|secret|token|key)\s*[:=]\s*([^\s,;\""\'<>]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase)),
             ("Email", new Regex(@"([a-zA-Z0-9_\-\.]+)@([a-zA-Z0-9_\-\.]+)\.([a-zA-Z]{2,5})", RegexOptions.Compiled))
         };
 
-        // 민감한 것으로 간주되는 키 이름의 키워드 목록
+        // 민감??것으�?간주?�는 ???�름???�워??목록
         private static readonly string[] _sensitiveKeyParts =
         {
-            "KEY", "TOKEN", "SECRET", "PASSWORD", "PASS", "PWD", "AUTH", 
-            "CONNECTION", "CREDENTIAL", "DATABASE", "CERTIFICATE", "PRIVATE", 
-            "API", "LICENSE"
+            "KEY", "TOKEN", "SECRET", "PASSWORD", "PASS", "PWD", "AUTH",
+            "CONNECTION", "CREDENTIAL", "DATABASE", "CERTIFICATE", "PRIVATE",
+            "API", "LICENSE", "ACCESS_KEY", "SECRET_KEY", "BEARER"
         };
 
         /// <summary>
-        /// 입력 텍스트에서 민감 정보를 찾아 마스킹 처리합니다.
+        /// ?�력 ?�스?�에??민감 ?�보�?찾아 마스??처리?�니??
         /// </summary>
-        /// <param name="input">검사할 입력 문자열</param>
-        /// <returns>필터링 결과 객체</returns>
+        /// <param name="input">검?�할 ?�력 문자??/param>
+        /// <returns>?�터�?결과 객체</returns>
         public static RedactionResult Filter(string? input)
         {
             var result = new RedactionResult { OriginalText = input ?? "" };
@@ -64,7 +65,7 @@ namespace Claude4Net.SDK
             }
 
             string filtered = input;
-            // 등록된 모든 필터를 순회하며 매칭 확인
+            // ?�록??모든 ?�터�??�회?�며 매칭 ?�인
             foreach (var filter in _filters)
             {
                 var matches = filter.Pattern.Matches(filtered);
@@ -74,13 +75,14 @@ namespace Claude4Net.SDK
                     if (!result.FoundTypes.Contains(filter.Name))
                         result.FoundTypes.Add(filter.Name);
 
-                    // 매칭된 부분을 마스킹 문자로 교체
-                    filtered = filter.Pattern.Replace(filtered, m => 
+                    // 매칭??부분을 마스??문자�?교체
+                    filtered = filter.Pattern.Replace(filtered, m =>
                     {
-                        // 'password=value' 형식인 경우 'password=' 부분은 보존하고 값만 마스킹
-                        if (m.Groups.Count > 1 && (filter.Name.Contains("Generic") || filter.Name.Contains("Connection")))
+                        // 'password=value' ?�는 '"password": "value"' ?�식??경우 ??부분�? 보존?�고 값만 마스??
+                        if (m.Groups.Count > 2 && (filter.Name.Contains("JSON") || filter.Name.Contains("Generic") || filter.Name.Contains("Connection")))
                         {
-                             return m.Groups[1].Value + "=****";
+                             string keyPart = m.Value.Substring(0, m.Value.IndexOf(m.Groups[2].Value));
+                             return keyPart + "****" + (filter.Name.Contains("JSON") ? "\"" : "");
                         }
                         return "****";
                     });
@@ -92,20 +94,20 @@ namespace Claude4Net.SDK
         }
 
         /// <summary>
-        /// 특정 값이나 키-값 쌍을 판단하여 마스킹된 문자열을 반환합니다.
+        /// ?�정 값이????�??�을 ?�단?�여 마스?�된 문자?�을 반환?�니??
         /// </summary>
-        /// <param name="value">값</param>
-        /// <param name="keyName">값이 속한 키 이름 (선택 사항)</param>
-        /// <returns>마스킹된 결과 문자열</returns>
+        /// <param name="value">�?/param>
+        /// <param name="keyName">값이 ?�한 ???�름 (?�택 ?�항)</param>
+        /// <returns>마스?�된 결과 문자??/returns>
         public static string MaskValue(string? value, string? keyName = null)
         {
             if (string.IsNullOrEmpty(value)) return "(not set)";
-            
-            // 1. 패턴 기반 필터링 수행
+
+            // 1. ?�턴 기반 ?�터�??�행
             var result = Filter(value);
             if (!result.IsClean) return result.FilteredText;
 
-            // 2. 키 이름 기반의 휴리스틱 검사 (예: 키 이름에 'PASS'가 포함된 경우)
+            // 2. ???�름 기반???�리?�틱 검??(?? ???�름??'PASS'가 ?�함??경우)
             if (LooksSensitiveKey(keyName))
                 return SecurityUtils.Mask(value);
 
@@ -113,15 +115,15 @@ namespace Claude4Net.SDK
         }
 
         /// <summary>
-        /// 키 이름이 보안상 민감한 정보를 담고 있을 가능성이 있는지 확인합니다.
+        /// ???�름??보안??민감???�보�??�고 ?�을 가?�성???�는지 ?�인?�니??
         /// </summary>
-        /// <param name="keyName">검사할 키 이름</param>
-        /// <returns>민감해 보이면 true</returns>
+        /// <param name="keyName">검?�할 ???�름</param>
+        /// <returns>민감??보이�?true</returns>
         public static bool LooksSensitiveKey(string? keyName)
         {
             if (string.IsNullOrWhiteSpace(keyName)) return false;
 
-            // 키워드 목록 중 하나라도 포함되어 있는지 대소문자 구분 없이 확인
+            // ?�워??목록 �??�나?�도 ?�함?�어 ?�는지 ?�?�문??구분 ?�이 ?�인
             string normalized = keyName.ToUpperInvariant();
             return _sensitiveKeyParts.Any(part => normalized.Contains(part));
         }

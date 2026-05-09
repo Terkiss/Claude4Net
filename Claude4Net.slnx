@@ -8,4 +8,6 @@
   <Project Path="Claude4Net.Tests/Claude4Net.Tests.csproj" />
   <Project Path="Claude4Net.Tools/Claude4Net.Tools.csproj" />
   <Project Path="Claude4Net.MyPlugins/Claude4Net.MyPlugins.csproj" />
+  <Project Path="Claude4Net.Dashboard/Claude4Net.Dashboard.csproj" />
+  <Project Path="Claude4Net.Dashboard.Client/Claude4Net.Dashboard.Client.csproj" />
 </Solution>
