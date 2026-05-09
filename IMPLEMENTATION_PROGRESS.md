@@ -1,4 +1,4 @@
-# Claude4Net Implementation Progress (D01-D10)
+﻿# Claude4Net Implementation Progress (D01-D10)
 
 ## Overview
 - Start Date: 2024-05-22
@@ -142,10 +142,10 @@
 - [x] Prepare handoff documentation (Documents/HANDOFF.md)
 - [x] Final release gate verification (85/85 tests pass)
 - [x] [Maintenance] K013-5: Preserve Gemini functionCall thoughtSignature metadata for Gemini 3 tool-use continuity (86/86 tests pass)
-- [x] [Maintenance] 명시적 프로바이더 선택 가중치 조정 및 `gemini-cli` 초기 후보 등록 버그 수정
-- [x] [Maintenance] K013-2: 명시적 모델 선택 오류 해결 (Respect AppState.ActiveModel)
-- [x] [Maintenance] K013-3: gemini-cli 프로바이더 전환 방어 및 모델 명칭 최신화 (gemini-2.0-flash 등)
-- [x] [Maintenance] K013-4: Gemini function calling 400 에러 수정 (Continuation prompt 생략)
+- [x] [Maintenance] 紐낆떆???꾨줈諛붿씠???좏깮 媛以묒튂 議곗젙 諛?`gemini-cli` 珥덇린 ?꾨낫 ?깅줉 踰꾧렇 ?섏젙
+- [x] [Maintenance] K013-2: 紐낆떆??紐⑤뜽 ?좏깮 ?ㅻ쪟 ?닿껐 (Respect AppState.ActiveModel)
+- [x] [Maintenance] K013-3: gemini-cli ?꾨줈諛붿씠???꾪솚 諛⑹뼱 諛?紐⑤뜽 紐낆묶 理쒖떊??(gemini-2.0-flash ??
+- [x] [Maintenance] K013-4: Gemini function calling 400 ?먮윭 ?섏젙 (Continuation prompt ?앸왂)
 
 ### K003: Release Gate Baseline
 - [x] Create `scripts/verify-release.ps1` with strict error handling
@@ -200,3 +200,13 @@
 - [x] Add end-to-end integration tests using mocked HttpClient and SSE streams
 - [x] Verify `thought_signature` preservation and synthetic ID resolution via provider history
 - [x] Official Release Gate passed (138/138 tests)
+
+### K022: Skill evolution proposal workflow
+- [x] Define `SkillProposalRecord`, `SkillProposalStatus`, and `SkillProposalRoot` in SDK
+- [x] Implement `SkillProposalService` for metadata-only proposal management
+- [x] Store proposals in `.claude4net/skill-proposals.json` (repo-local safe area)
+- [x] Implement path safety validation reusing `SkillRegistryService` logic
+- [x] Integrate `SkillProposalService` into DI container in `Program.cs`
+- [x] Add CLI commands: `!skill-proposals` (list) and `!skill-propose` (create)
+- [x] Add `K022SkillProposalTests` (Creation, Persistence, Path Safety, No Mutation)
+- [x] Official Release Gate passed (145/145 tests)

@@ -242,6 +242,85 @@ namespace Claude4Net.Commands
                 return $"Total {skills.Count} skills listed.";
             }},
 
+            /// <summary> 스킬 제안 목록 조회: 등록된 스킬 진화 제안들을 확인합니다. </summary>
+            new Command { Name = "skill-proposals", Description = "List skill evolution proposals", Handler = async (a, sp) => {
+                var proposalService = sp.GetService<SkillProposalService>();
+                if (proposalService == null) return "[red]Error:[/] SkillProposalService not available.";
+
+                string? ws = AppState.CurrentCwd;
+                if (string.IsNullOrEmpty(ws)) return "[red]Error:[/] Workspace is not set. Use /setworkspace <path> before managing proposals.";
+
+                await proposalService.LoadAsync(ws);
+                var proposals = proposalService.ListProposals();
+
+                if (!proposals.Any()) return "[grey]No skill proposals found.[/]";
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("[bold cyan]Skill Evolution Proposals:[/]");
+
+                var table = new Table().Border(TableBorder.Rounded);
+                table.AddColumn("[bold]ID[/]");
+                table.AddColumn("[bold]Target[/]");
+                table.AddColumn("[bold]Type[/]");
+                table.AddColumn("[bold]Summary[/]");
+                table.AddColumn("[bold]Status[/]");
+
+                foreach(var p in proposals.OrderByDescending(x => x.CreatedAt))
+                {
+                    string statusColor = p.Status switch {
+                        SkillProposalStatus.Approved => "green",
+                        SkillProposalStatus.Rejected => "red",
+                        SkillProposalStatus.Proposed => "yellow",
+                        _ => "grey"
+                    };
+                    string target = p.SkillId ?? (p.TargetPath != null ? Path.GetFileName(p.TargetPath) : "New");
+                    table.AddRow(
+                        Markup.Escape(p.Id),
+                        Markup.Escape(target),
+                        Markup.Escape(p.Type.ToString()),
+                        Markup.Escape(p.Summary),
+                        $"[{statusColor}]{p.Status}[/]"
+                    );
+                }
+
+                AnsiConsole.Write(table);
+                return $"Total {proposals.Count} proposals listed. Approving a proposal does not apply file changes.";
+            }},
+
+            /// <summary> 스킬 제안 생성: 특정 스킬에 대한 개선 제안을 작성합니다. </summary>
+            new Command { Name = "skill-propose", Description = "Propose an improvement for a skill", Handler = async (a, sp) => {
+                var proposalService = sp.GetService<SkillProposalService>();
+                if (proposalService == null) return "[red]Error:[/] SkillProposalService not available.";
+
+                string? ws = AppState.CurrentCwd;
+                if (string.IsNullOrEmpty(ws)) return "[red]Error:[/] Workspace is not set. Use /setworkspace <path> before managing proposals.";
+
+                var parts = a.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length < 2) return "Usage: !skill-propose <skillId_or_path> <summary>";
+
+                string target = parts[0];
+                string summary = parts[1];
+
+                var proposal = new SkillProposalRecord {
+                    Summary = summary,
+                    Status = SkillProposalStatus.Proposed
+                };
+
+                if (target.Contains("/") || target.Contains("\\") || target.EndsWith(".md"))
+                    proposal.TargetPath = target;
+                else
+                    proposal.SkillId = target;
+
+                try {
+                    await proposalService.LoadAsync(ws);
+                    proposalService.CreateProposal(ws, proposal);
+                    await proposalService.SaveAsync(ws);
+                    return $"[green]Proposal '{proposal.Id}' created successfully.[/] Use !skill-proposals to view status.";
+                } catch (Exception ex) {
+                    return $"[red]Error creating proposal:[/] {ex.Message}";
+                }
+            }},
+
             // --- [인증 및 모델 관리] ---
 
             /// <summary> 로그인: 특정 프로바이더(Claude, Gemini 등)의 API 키를 설정하거나 활성화합니다. </summary>

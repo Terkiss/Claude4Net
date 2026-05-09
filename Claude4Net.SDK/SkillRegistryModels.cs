@@ -65,4 +65,80 @@ namespace Claude4Net.SDK
         /// <summary>Last registry update timestamp.</summary>
         public DateTime LastUpdatedAt { get; set; } = DateTime.UtcNow;
     }
+
+    /// <summary>
+    /// Status of a skill evolution proposal.
+    /// </summary>
+    public enum SkillProposalStatus
+    {
+        Draft,
+        Proposed,
+        Approved,
+        Rejected,
+        Superseded
+    }
+
+    /// <summary>
+    /// Type of improvement being proposed.
+    /// </summary>
+    public enum SkillProposalType
+    {
+        BugFix,
+        Feature,
+        Refactoring,
+        Optimization,
+        Documentation
+    }
+
+    /// <summary>
+    /// Represents a proposed improvement for a skill.
+    /// </summary>
+    public class SkillProposalRecord
+    {
+        /// <summary>Unique proposal ID (e.g., PROP-001).</summary>
+        public string Id { get; set; } = string.Empty;
+
+        /// <summary>Target skill ID. Can be null if targeting a new or unresolved skill.</summary>
+        public string? SkillId { get; set; }
+
+        /// <summary>Target source path if skill ID is not yet assigned or for external skills.</summary>
+        public string? TargetPath { get; set; }
+
+        /// <summary>Type of the proposal.</summary>
+        public SkillProposalType Type { get; set; } = SkillProposalType.BugFix;
+
+        /// <summary>Short summary of the change.</summary>
+        public string Summary { get; set; } = string.Empty;
+
+        /// <summary>Detailed rationale for why this change is needed.</summary>
+        public string Rationale { get; set; } = string.Empty;
+
+        /// <summary>The suggested change text or patch preview.</summary>
+        public string SuggestedChange { get; set; } = string.Empty;
+
+        /// <summary>Current status of the proposal.</summary>
+        public SkillProposalStatus Status { get; set; } = SkillProposalStatus.Draft;
+
+        /// <summary>Creation timestamp.</summary>
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>Last update timestamp.</summary>
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>Optional list of evidence IDs or links related to this proposal.</summary>
+        public List<string> EvidenceReferences { get; set; } = new();
+
+        /// <summary>Additional metadata.</summary>
+        public Dictionary<string, string> Metadata { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Root model for skill proposals persistence.
+    /// </summary>
+    public class SkillProposalRoot
+    {
+        public List<SkillProposalRecord> Proposals { get; set; } = new();
+        public string SchemaVersion { get; set; } = "1.0";
+        public DateTime LastUpdatedAt { get; set; } = DateTime.UtcNow;
+    }
 }

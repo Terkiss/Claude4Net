@@ -52,6 +52,12 @@ services.AddSingleton<SkillRegistryService>(sp =>
     return new SkillRegistryService(ws);
 });
 
+services.AddSingleton<SkillProposalService>(sp =>
+{
+    var registry = sp.GetRequiredService<SkillRegistryService>();
+    return new SkillProposalService(registry);
+});
+
 services.AddSingleton<ToolOrchestrator>(sp => new ToolOrchestrator(
     sp.GetServices<ITool>(),
     sp.GetService<IUserApprovalHandler>(),
