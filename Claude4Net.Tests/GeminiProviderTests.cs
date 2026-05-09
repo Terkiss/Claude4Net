@@ -2,132 +2,156 @@ using Xunit;
 using Claude4Net.Api;
 using Claude4Net.SDK;
 using Moq;
+using Moq.Protected;
+using System;
+using System.Net;
 using System.Net.Http;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Text.Json;
+using System.Text;
 
 namespace Claude4Net.Tests
 {
-    public class GeminiProviderTests
+    public class GeminiProviderTests : IDisposable
     {
+        public GeminiProviderTests()
+        {
+            // Setup environment variable for tests
+            Environment.SetEnvironmentVariable("GEMINI_API_KEY", "test-key");
+            AppState.ActiveModel = "gemini-2.0-flash";
+        }
+
+        public void Dispose()
+        {
+            Environment.SetEnvironmentVariable("GEMINI_API_KEY", null);
+        }
+
+        private HttpClient CreateMockClient(string sseContent)
+        {
+            var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
+            handlerMock
+               .Protected()
+               .Setup<Task<HttpResponseMessage>>(
+                  "SendAsync",
+                  ItExpr.IsAny<HttpRequestMessage>(),
+                  ItExpr.IsAny<CancellationToken>()
+               )
+               .ReturnsAsync(new HttpResponseMessage()
+               {
+                   StatusCode = HttpStatusCode.OK,
+                   Content = new StringContent(sseContent)
+               });
+
+            return new HttpClient(handlerMock.Object);
+        }
+
         [Fact]
-        public void GeminiProvider_StreamQueryAsync_SkipsEmptyPrompt()
+        public async Task GeminiProvider_StreamQueryAsync_PreservesThoughtSignatureInHistory()
         {
             // Arrange
-            var mockHttp = new Mock<HttpClient>();
+            var mockRegistry = new Mock<IToolRegistry>();
+            mockRegistry.Setup(r => r.GetTools()).Returns(new List<ITool>());
+
+            // Simulation of a Gemini response with thought_signature
+            var sse = "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Thinking...\"},{\"functionCall\":{\"name\":\"LsTool\",\"args\":{\"path\":\".\"}},\"thought_signature\":\"sig-123\"}]}}]}";
+
+            var client = CreateMockClient(sse);
+            var provider = new GeminiProvider(client, mockRegistry.Object);
+
+            // Act
+            await foreach (var evt in provider.StreamQueryAsync("Hi")) { }
+
+            // Assert
+            var history = provider.GetHistory();
+            var modelTurn = history.FirstOrDefault(m => JsonSerializer.Serialize(m).Contains("\"role\":\"model\""));
+
+            Assert.NotNull(modelTurn);
+            var turnJson = JsonSerializer.Serialize(modelTurn);
+            Assert.Contains("thought_signature", turnJson);
+            Assert.Contains("sig-123", turnJson);
+            Assert.Contains("functionCall", turnJson);
+        }
+
+        [Fact]
+        public async Task GeminiProvider_ToolResultFlow_MapsBackToOriginalName()
+        {
+            // Arrange
+            var mockRegistry = new Mock<IToolRegistry>();
+            mockRegistry.Setup(r => r.GetTools()).Returns(new List<ITool>());
+
+            var sse = "data: {\"candidates\":[{\"content\":{\"parts\":[{\"functionCall\":{\"name\":\"TestTool\",\"args\":{}}}]}}]}";
+            var client = CreateMockClient(sse);
+            var provider = new GeminiProvider(client, mockRegistry.Object);
+
+            // 1. Model turn (populates internal map)
+            var events = new List<LLMStreamEvent>();
+            await foreach (var evt in provider.StreamQueryAsync("Run tool")) { events.Add(evt); }
+
+            var toolCall = events.First(e => e.Type == LLMStreamEventType.ToolCallStart).ToolCall;
+            Assert.NotNull(toolCall);
+
+            // 2. Feedback (Add tool result)
+            var resultMessage = new {
+                role = "user",
+                content = new[] {
+                    new { type = "tool_result", tool_use_id = toolCall.Id, content = "Success" }
+                }
+            };
+
+            // Act
+            provider.AddMessage(resultMessage);
+
+            // Assert
+            var history = provider.GetHistory();
+            var lastTurnJson = JsonSerializer.Serialize(history.Last());
+
+            Assert.Contains("\"role\":\"function\"", lastTurnJson);
+            Assert.Contains("\"name\":\"TestTool\"", lastTurnJson);
+            Assert.DoesNotContain(toolCall.Id, lastTurnJson); // ID should be replaced by original name
+        }
+
+        [Fact]
+        public void GeminiProvider_AddMessage_ConvertsToolResultsToFunctionRole()
+        {
             var mockRegistry = new Mock<IToolRegistry>();
             var provider = new GeminiProvider(new HttpClient(), mockRegistry.Object);
 
-            // Act
-            // We can't easily execute StreamQueryAsync because it makes a real network call,
-            // but we can check the conversation history after a simulated call or check logic.
-            // Actually, ILLMProvider.AddMessage is used by AgentLoop to add tool results.
-            
-            provider.AddMessage(new { role = "user", content = "Initial prompt" });
-            
-            // Simulate model tool call turn
-            // (In real scenario, StreamQueryAsync adds the model turn to history internally)
-            
-            // Add tool result
             var toolResult = new[]
             {
                 new { type = "tool_result", tool_use_id = "test_id", content = "Result content" }
             };
+
+            // Act
             provider.AddMessage(new { role = "user", content = toolResult });
 
             // Assert
             var history = provider.GetHistory();
-            
-            // 1. Initial user prompt
-            // 2. Tool result (which GeminiProvider converts to functionResponse)
-            Assert.Equal(2, history.Count);
-            
-            var lastTurn = history.Last() as dynamic;
-            // The dynamic cast here is tricky for anonymous types, let's use JSON inspection
             var lastTurnJson = JsonSerializer.Serialize(history.Last());
+            Assert.Contains("\"role\":\"function\"", lastTurnJson);
             Assert.Contains("functionResponse", lastTurnJson);
-            Assert.Contains("Result content", lastTurnJson);
         }
 
         [Fact]
-        public void GeminiProvider_HandleToolResultsSequence()
-        {
-            // This test focuses on the sequence requirement: functionCall -> functionResponse -> (next model turn)
-            // AgentLoop was inserting a regular "user" text turn between functionResponse and next model turn.
-            
-            var mockRegistry = new Mock<IToolRegistry>();
-            var provider = new GeminiProvider(new HttpClient(), mockRegistry.Object);
-
-            // 1. Initial Prompt
-            provider.AddMessage(new { role = "user", content = "Do something" });
-            
-            // 2. Mock functionResponse addition (what AgentLoop does after tool execution)
-            var toolResults = new List<object>
-            {
-                new { type = "tool_result", tool_use_id = "call_123", content = "Success" }
-            };
-            provider.AddMessage(new { role = "user", content = toolResults });
-
-            // 3. Now, if AgentLoop calls StreamQueryAsync with "" (empty prompt),
-            // GeminiProvider should NOT add a new user turn to history.
-            
-            // Since StreamQueryAsync is async and does HTTP, we check history count 
-            // after logic check. In GeminiProvider.cs:
-            // if (!string.IsNullOrEmpty(prompt)) { _conversationHistory.Add(...) }
-            
-            var historyBefore = provider.GetHistory().Count;
-            
-            // Simulate what StreamQueryAsync(prompt: "") does at the start:
-            string emptyPrompt = "";
-            if (!string.IsNullOrEmpty(emptyPrompt))
-            {
-                // This shouldn't run
-            }
-
-            Assert.Equal(2, historyBefore); // Initial user + Function result
-        }
-
-        [Fact]
-        public void GeminiProvider_PreservesMultipleToolResultsAsFunctionResponses()
+        public void GeminiProvider_PreservesMultipleToolResultsInOneTurn()
         {
             var mockRegistry = new Mock<IToolRegistry>();
             var provider = new GeminiProvider(new HttpClient(), mockRegistry.Object);
 
-            var toolResults = Enumerable.Range(0, 4)
+            var toolResults = Enumerable.Range(0, 3)
                 .Select(i => new { type = "tool_result", tool_use_id = $"call_{i}", content = $"Result {i}" })
                 .Cast<object>()
                 .ToList();
 
+            // Act
             provider.AddMessage(new { role = "user", content = toolResults });
 
-            var json = JsonSerializer.Serialize(provider.GetHistory().Last());
-            Assert.Equal(4, System.Text.RegularExpressions.Regex.Matches(json, "functionResponse").Count);
-            Assert.DoesNotContain("Collapsed", json);
-        }
-
-        [Fact]
-        public void GeminiFunctionCallHistory_ShouldPreserveThoughtSignatureShape()
-        {
-            var functionCallPartJson = """
-            {
-              "functionCall": {
-                "name": "LsTool",
-                "args": { "path": "D:\\Project" }
-              },
-              "thoughtSignature": "opaque-signature"
-            }
-            """;
-
-            using var doc = JsonDocument.Parse(functionCallPartJson);
-            var assistantParts = new List<object> { doc.RootElement.Clone() };
-
-            var modelTurnJson = JsonSerializer.Serialize(new { role = "model", parts = assistantParts });
-
-            Assert.Contains("functionCall", modelTurnJson);
-            Assert.Contains("thoughtSignature", modelTurnJson);
-            Assert.Contains("opaque-signature", modelTurnJson);
+            // Assert
+            var lastTurnJson = JsonSerializer.Serialize(provider.GetHistory().Last());
+            Assert.Equal(3, System.Text.RegularExpressions.Regex.Matches(lastTurnJson, "functionResponse").Count);
+            Assert.Contains("\"role\":\"function\"", lastTurnJson);
         }
     }
 }

@@ -30,10 +30,10 @@ namespace Claude4Net.Api
         /// </summary>
         /// <param name="httpClient">HTTP 요청을 위한 클라이언트</param>
         /// <param name="toolRegistry">도구 등록 정보를 관리하는 레지스트리</param>
-        public GeminiProvider(HttpClient httpClient, IToolRegistry toolRegistry) 
-        { 
+        public GeminiProvider(HttpClient httpClient, IToolRegistry toolRegistry)
+        {
             _httpClient = httpClient;
-            _toolRegistry = toolRegistry; 
+            _toolRegistry = toolRegistry;
         }
 
         /// <summary>
@@ -63,6 +63,7 @@ namespace Claude4Net.Api
                     if (root.TryGetProperty("content", out var contentProp))
                     {
                         var parts = new List<object>();
+                        bool hasFunctionResponse = false;
 
                         if (contentProp.ValueKind == JsonValueKind.Array)
                         {
@@ -70,6 +71,7 @@ namespace Claude4Net.Api
                             {
                                 if (item.TryGetProperty("type", out var typeProp) && typeProp.GetString() == "tool_result")
                                 {
+                                    hasFunctionResponse = true;
                                     // 도구 실행 결과 변환
                                     string toolUseId = item.GetProperty("tool_use_id").GetString() ?? "unknown";
                                     string functionName = _toolCallIdToNameMap.TryGetValue(toolUseId, out var name) ? name : toolUseId;
@@ -98,7 +100,7 @@ namespace Claude4Net.Api
                             parts.Add(new { text = contentProp.GetString() ?? "" });
                         }
 
-                        string geminiRole = (parts.Any(p => json.Contains("functionResponse"))) ? "function" : role;
+                        string geminiRole = hasFunctionResponse ? "function" : role;
                         _conversationHistory.Add(new { role = geminiRole, parts = parts });
                         ApplySlidingWindow();
                         return;
@@ -172,8 +174,8 @@ namespace Claude4Net.Api
             object? generationCfg;
             if (actualModel.Contains("think", StringComparison.OrdinalIgnoreCase) || actualModel.StartsWith("gemini-3", StringComparison.OrdinalIgnoreCase))
             {
-                generationCfg = new { 
-                    maxOutputTokens = 8192, 
+                generationCfg = new {
+                    maxOutputTokens = 8192,
                     temperature = 0.7,
                     thinkingConfig = new { thinkingLevel = "HIGH", includeThoughts = true }
                 };
@@ -238,24 +240,28 @@ namespace Claude4Net.Api
                     {
                         foreach (var part in parts.EnumerateArray())
                         {
+                            // Capture the entire part to preserve metadata like thought_signature
+                            assistantParts.Add(part.Clone());
+
                             if (part.TryGetProperty("text", out var textProp))
                             {
                                 string text = textProp.GetString() ?? "";
                                 fullText.Append(text);
-                                assistantParts.Add(new { text = text });
                                 yield return new LLMStreamEvent { Type = LLMStreamEventType.TextDelta, Delta = text };
                             }
                             else if (part.TryGetProperty("functionCall", out var funcCall))
                             {
                                 // 도구 호출 처리
                                 string callName = funcCall.GetProperty("name").GetString()!;
+                                // Gemini requires that the response name matches the call name EXACTLY.
+                                // We use a synthetic ID for internal tracking in ToolUseRequest,
+                                // but we MUST map it back to the original name in AddMessage.
                                 string callId = $"{callName}_{toolCallIndex++}";
                                 var call = new ToolUseRequest { Id = callId, Name = callName, Input = funcCall.GetProperty("args").Clone() };
-                                
+
                                 _toolCallIdToNameMap[callId] = callName;
-                                
+
                                 toolCalls.Add(call);
-                                assistantParts.Add(part.Clone());
                                 yield return new LLMStreamEvent { Type = LLMStreamEventType.ToolCallStart, ToolCall = call };
                             }
                         }

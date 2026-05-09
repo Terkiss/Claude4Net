@@ -41,6 +41,7 @@
 | K016 | P1 Session Store and Task Board | Completed | 118/118 pass |
 | K017 | P2 Diff Approval Workflow | Completed | 123/123 pass |
 | K018 | P3 Skill Registry Foundation | Completed | 138/138 pass |
+| K021 | Gemini thought-signature/tool-turn compatibility hardening | Completed | 138/138 pass |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -190,4 +191,12 @@
 - [x] Integrate with `!skills` command and `!doctor` diagnostics
 - [x] Implement path traversal protection for skill registration
 - [x] Add `K018SkillRegistryTests` (Registration, Discovery, Metrics, Security)
+- [x] Official Release Gate passed (138/138 tests)
+
+### K021: Gemini thought-signature/tool-turn compatibility hardening
+- [x] Refactor SSE parser to preserve all candidate content part properties (including `thought_signature`)
+- [x] Fix function response turn sequence in `GeminiProvider.AddMessage`
+- [x] Implement synthetic ID to original function name mapping for multi-turn tool calling
+- [x] Add end-to-end integration tests using mocked HttpClient and SSE streams
+- [x] Verify `thought_signature` preservation and synthetic ID resolution via provider history
 - [x] Official Release Gate passed (138/138 tests)
