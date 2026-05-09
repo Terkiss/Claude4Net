@@ -28,7 +28,7 @@ namespace Claude4Net.Runtime
         private readonly IInputBroker _broker;
         private readonly ISmartRouter _router;
         private readonly IEmbeddingProvider? _embedding;
-        private readonly IAgentEventStore _eventStore;
+        private IAgentEventStore CurrentEventStore => new FileAgentEventStore(AppState.CurrentCwd ?? Directory.GetCurrentDirectory());
         private readonly IAgentEventBroadcaster? _broadcaster;
         private AgentSessionStore? _sessionStore;
         private long _currentVersion = 0;
@@ -44,12 +44,16 @@ namespace Claude4Net.Runtime
             _router = router;
             _embedding = embedding;
             _broadcaster = broadcaster;
-            _eventStore = new FileAgentEventStore(AppState.CurrentCwd ?? Directory.GetCurrentDirectory());
+
         }
 
         private async Task EnsureSessionInitializedAsync(string providerName, string modelName)
         {
-            if (_sessionStore != null || string.IsNullOrEmpty(AppState.CurrentCwd)) return;
+            if (string.IsNullOrEmpty(AppState.CurrentCwd)) return;
+
+            // Ensure session store matches current workspace
+            if (_sessionStore != null && _sessionStore.WorkspaceRoot == AppState.CurrentCwd && _sessionStore.SessionId == AppState.SessionId)
+                return;
 
             _sessionStore = new AgentSessionStore(AppState.CurrentCwd, AppState.SessionId);
             var record = new AgentSessionRecord
@@ -479,8 +483,8 @@ namespace Claude4Net.Runtime
                     AnsiConsole.MarkupLine($"- Model: {sessionRecord.Model}");
                     AnsiConsole.MarkupLine($"- Permission: {sessionRecord.PermissionMode}");
 
-                    var resumeEvents = await _eventStore.GetEventsAsync(targetId);
-                    var resumeSnapshot = await _eventStore.GetLatestSnapshotAsync(targetId);
+                    var resumeEvents = await CurrentEventStore.GetEventsAsync(targetId);
+                    var resumeSnapshot = await CurrentEventStore.GetLatestSnapshotAsync(targetId);
                     var state = AgentStateReconstructor.Reconstruct(resumeEvents, resumeSnapshot);
 
                     AppState.SessionId = targetId;
@@ -505,7 +509,7 @@ namespace Claude4Net.Runtime
 
                 case "replay":
                     string replaySessionId = parts.Length > 1 ? parts[1].Trim() : AppState.SessionId;
-                    var events = await _eventStore.GetEventsAsync(replaySessionId);
+                    var events = await CurrentEventStore.GetEventsAsync(replaySessionId);
                     if (!events.Any())
                     {
                         AnsiConsole.MarkupLine($"[yellow]No events found for session {replaySessionId}[/]");
@@ -686,7 +690,7 @@ namespace Claude4Net.Runtime
             {
                 baseEv.Version = ++_currentVersion;
             }
-            await _eventStore.AppendEventAsync(AppState.SessionId, @event);
+            await CurrentEventStore.AppendEventAsync(AppState.SessionId, @event);
             if (_broadcaster != null)
             {
                 await _broadcaster.BroadcastAsync(@event);
@@ -721,7 +725,7 @@ namespace Claude4Net.Runtime
             while (!ct.IsCancellationRequested && turnCount < MAX_TURNS)
             {
                 // --- Self-Healing Pattern Detection & Strategy Switch (K026) ---
-                var recentEvents = await _eventStore.GetEventsAsync(AppState.SessionId);
+                var recentEvents = await CurrentEventStore.GetEventsAsync(AppState.SessionId);
                 var pattern = SelfHealingService.Instance.ClassifyPattern(recentEvents.TakeLast(10));
                 if (pattern != FailurePattern.None)
                 {

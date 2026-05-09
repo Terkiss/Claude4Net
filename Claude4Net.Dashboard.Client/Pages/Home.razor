@@ -1,30 +1,176 @@
 @page "/"
 @using Claude4Net.Dashboard.Client.Components
+@using System.Text.Json
 
-<PageTitle>Claude4Net Dashboard</PageTitle>
+<PageTitle>Claude4Net Control Center</PageTitle>
 
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-md-8">
-            <ThoughtStream />
+<div class="container-fluid py-3 bg-light min-vh-100">
+    <!-- Top Info Bar -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body py-2 px-4 d-flex justify-content-between align-items-center bg-dark text-white rounded">
+                    <div class="d-flex gap-4">
+                        <div>
+                            <small class="text-secondary d-block uppercase font-monospace">Workspace</small>
+                            <span class="fw-bold">@workspace</span>
+                        </div>
+                        <div class="border-start border-secondary ps-4">
+                            <small class="text-secondary d-block uppercase font-monospace">Session ID</small>
+                            <span class="font-monospace" style="font-size: 0.9rem;">@sessionId</span>
+                        </div>
+                        <div class="border-start border-secondary ps-4">
+                            <small class="text-secondary d-block uppercase font-monospace">Provider / Model</small>
+                            <span class="badge bg-primary me-1">@provider</span>
+                            <span class="badge bg-outline-info border border-info text-info">@model</span>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="badge @(isConnected ? "bg-success" : "bg-danger") p-2">
+                            <i class="bi @(isConnected ? "bi-record-circle" : "bi-exclamation-triangle") me-1"></i>
+                            @(isConnected ? "LIVE" : "DISCONNECTED")
+                        </span>
+                    </div>
+                </div>
+            </div>
         </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Event Stream (Left) -->
+        <div class="col-md-8">
+            <ThoughtStream OnStateReceived="HandleStateReceived" />
+        </div>
+
+        <!-- Sidebar (Right) -->
         <div class="col-md-4">
-            <div class="card mb-3">
-                <div class="card-header bg-dark text-white">System Info</div>
-                <div class="card-body">
-                    <p><strong>Status:</strong> <span class="text-success">Connected</span></p>
-                    <p><strong>Workspace:</strong> <code>@Environment.CurrentDirectory</code></p>
+            <!-- Coordination Tasks (Formerly Active Tasks) -->
+            <div class="card shadow-sm border-0 mb-4 h-50 overflow-auto">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-stack me-2 text-primary"></i>Coordination Tasks</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        @if (tasks.Count == 0)
+                        {
+                            <div class="p-4 text-center text-muted">
+                                <i class="bi bi-inbox d-block fs-3 mb-2 opacity-25"></i>
+                                <small>No active coordination tasks</small>
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (var task in tasks)
+                            {
+                                <div class="list-group-item p-3">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="fw-bold small text-truncate" title="@task.Title">@task.Title</span>
+                                        <span class="badge @GetPhaseClass(task.Phase)">@task.Phase</span>
+                                    </div>
+                                    <div class="progress" style="height: 4px;">
+                                        <div class="progress-bar" role="progressbar" style="width: @(GetProgress(task.Phase))%"></div>
+                                    </div>
+                                    <div class="mt-2 d-flex justify-content-between align-items-center">
+                                        <small class="text-muted"><i class="bi bi-person me-1"></i>@task.Agent</small>
+                                        <small class="text-secondary font-monospace" style="font-size: 0.7rem;">@task.Id</small>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
                 </div>
             </div>
 
-            <div class="card">
-                <div class="card-header bg-primary text-white">Active Tasks</div>
-                <div class="card-body">
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item italic text-muted">No active tasks tracked yet.</li>
-                    </ul>
+            <!-- Approvals Quick View -->
+            <div class="card shadow-sm border-0 h-50 overflow-auto">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-shield-lock me-2 text-warning"></i>Security Approvals</h6>
+                </div>
+                <div class="card-body p-3">
+                    <div class="alert alert-warning p-2 small mb-0">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Use the <strong>Approvals</strong> page for detailed response.
+                        <a href="approvals" class="btn btn-sm btn-outline-warning d-block mt-2">Open Approval Queue</a>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+@code {
+    private string workspace = "Detecting...";
+    private string sessionId = "N/A";
+    private string provider = "N/A";
+    private string model = "N/A";
+    private bool isConnected = false;
+    private List<DashboardTask> tasks = new();
+
+    private class DashboardTask
+    {
+        public string Id { get; set; } = "";
+        public string Title { get; set; } = "";
+        public string Phase { get; set; } = "";
+        public string Agent { get; set; } = "";
+    }
+
+    private void HandleStateReceived(dynamic state)
+    {
+        try
+        {
+            var json = (JsonElement)state;
+
+            sessionId = GetProp(json, "SessionId", "N/A");
+            workspace = GetProp(json, "Workspace", "Unknown");
+            provider = GetProp(json, "Provider", "Unknown");
+            model = GetProp(json, "Model", "Unknown");
+            isConnected = true;
+
+            tasks.Clear();
+            if (json.TryGetProperty("Tasks", out var tasksJson) || json.TryGetProperty("tasks", out tasksJson))
+            {
+                foreach (var item in tasksJson.EnumerateArray())
+                {
+                    tasks.Add(new DashboardTask
+                    {
+                        Id = GetProp(item, "Id", "id"),
+                        Title = GetProp(item, "Title", "No Title"),
+                        Phase = GetProp(item, "CurrentPhase", "Unknown"),
+                        Agent = GetProp(item, "AssignedAgent", "Unassigned")
+                    });
+                }
+            }
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"UI Error: {ex.Message}");
+        }
+    }
+
+    private string GetProp(JsonElement el, string name, string fallback)
+    {
+        if (el.TryGetProperty(name, out var p)) return p.ValueKind == JsonValueKind.Number ? p.GetInt32().ToString() : p.GetString() ?? fallback;
+        string camel = char.ToLower(name[0]) + name.Substring(1);
+        if (el.TryGetProperty(camel, out p)) return p.ValueKind == JsonValueKind.Number ? p.GetInt32().ToString() : p.GetString() ?? fallback;
+        return fallback;
+    }
+
+    private string GetPhaseClass(string phase) => phase switch
+    {
+        "Completed" or "3" => "bg-success",
+        "Failed" or "4" => "bg-danger",
+        "Execution" or "1" => "bg-primary",
+        "Verification" or "2" => "bg-info",
+        _ => "bg-secondary"
+    };
+
+    private int GetProgress(string phase) => phase switch
+    {
+        "Completed" or "3" => 100,
+        "Verification" or "2" => 75,
+        "Execution" or "1" => 50,
+        "Planning" or "0" => 25,
+        _ => 10
+    };
+}

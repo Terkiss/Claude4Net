@@ -9,6 +9,10 @@ using Claude4Net.SDK;
 using Claude4Net.SDK.Events;
 using Claude4Net.Dashboard.Hubs;
 using Claude4Net.Dashboard.Services;
+using Claude4Net.Dashboard;
+using System.Net.Http;
+using System.Net.Sockets;
+using System.Net;
 
 namespace Claude4Net.Tests
 {
@@ -65,6 +69,47 @@ namespace Claude4Net.Tests
                     It.Is<object[]>(o => o[0].ToString() == requestId && o[1].ToString() == message),
                     default),
                 Times.Once);
+        }
+
+        [Fact]
+        public async Task DashboardServer_StartAsync_ThrowsOnPortConflict()
+        {
+            // Arrange: Occupy port 5001 beforehand
+            int testPort = 5001;
+            var listener = new TcpListener(IPAddress.Loopback, testPort);
+            listener.Start();
+
+            try
+            {
+                // Act & Assert: Verify exception when trying to start on the same port
+                await Assert.ThrowsAnyAsync<Exception>(() => DashboardServer.StartAsync(Array.Empty<string>(), testPort));
+            }
+            finally
+            {
+                listener.Stop();
+            }
+        }
+
+        [Fact]
+        public async Task DashboardServer_StartupAndRoute_ShouldNotHaveAmbiguity()
+        {
+            // Arrange: Real startup test on port 5002
+            int testPort = 5002;
+            try
+            {
+                await DashboardServer.StartAsync(Array.Empty<string>(), testPort);
+
+                using var client = new HttpClient();
+                // Act: Call root path
+                var response = await client.GetAsync($"http://localhost:{testPort}/");
+
+                // Assert: Verify 200 OK (Avoids 500 AmbiguousMatchException)
+                Assert.True(response.IsSuccessStatusCode, $"Dashboard should return success, but got {response.StatusCode}");
+            }
+            finally
+            {
+                await DashboardServer.StopAsync();
+            }
         }
     }
 }

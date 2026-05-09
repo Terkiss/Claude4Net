@@ -4,32 +4,51 @@
 @implements IAsyncDisposable
 @inject NavigationManager Navigation
 
-<div class="thought-stream border rounded p-3 bg-light" style="height: 600px; overflow-y: auto;">
-    <h5>Thinking Stream</h5>
+<div class="thought-stream border rounded p-3 bg-white shadow-sm" style="height: calc(100vh - 250px); overflow-y: auto;">
+    <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+        <h5 class="mb-0"><i class="bi bi-journal-text me-2"></i>Thinking Stream</h5>
+        <span class="badge bg-secondary">@events.Count Events</span>
+    </div>
+
     @if (events.Count == 0)
     {
-        <p class="text-muted italic">Waiting for events...</p>
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary mb-3" role="status"></div>
+            <p class="text-muted italic">Waiting for events from agent...</p>
+        </div>
     }
     else
     {
-        @foreach (var evt in events)
-        {
-            <div class="event-item mb-2 border-bottom pb-2">
-                <div class="d-flex justify-content-between">
-                    <span class="badge @GetBadgeClass(evt)">@evt.EventType</span>
-                    <small class="text-muted">@evt.Timestamp.ToString("HH:mm:ss.fff")</small>
+        <div class="timeline">
+            @foreach (var evt in events.OrderByDescending(e => e.Timestamp))
+            {
+                <div class="event-item mb-3 p-2 border-start border-4 @GetBorderClass(evt) bg-light rounded-end shadow-sm">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="badge @GetBadgeClass(evt) text-uppercase" style="font-size: 0.7rem;">@evt.EventType</span>
+                        <small class="text-muted font-monospace">@evt.Timestamp.ToString("HH:mm:ss")</small>
+                    </div>
+                    <div class="event-content mt-2 small text-break" style="white-space: pre-wrap;">
+                        @GetEventSummary(evt)
+                    </div>
                 </div>
-                <div class="event-content mt-1">
-                    @GetEventSummary(evt)
-                </div>
-            </div>
-        }
+            }
+        </div>
     }
 </div>
+
+<style>
+    .timeline { position: relative; }
+    .event-item { transition: all 0.2s ease-in-out; }
+    .event-item:hover { transform: translateX(5px); background-color: #f8f9fa !important; }
+</style>
 
 @code {
     private HubConnection? hubConnection;
     private List<IAgentEvent> events = new();
+    private HashSet<string> eventIds = new();
+    private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
+
+    [Parameter] public EventCallback<dynamic> OnStateReceived { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -39,48 +58,113 @@
 
         hubConnection.On<JsonElement>("ReceiveEvent", (json) =>
         {
-            // Note: In a real app, we'd use a custom JsonConverter for polymorphic deserialization
-            // Here we'll do a simple mapping for the demo/MVP
-            var eventType = json.GetProperty("EventType").GetString();
+            AddEvent(json);
+        });
+
+        await hubConnection.StartAsync();
+
+        // Initial state load
+        try
+        {
+            var state = await hubConnection.InvokeAsync<JsonElement>("GetInitialState");
+            if (state.ValueKind != JsonValueKind.Null)
+            {
+                await OnStateReceived.InvokeAsync(state);
+
+                JsonElement evtsJson;
+                bool found = false;
+                if (state.TryGetProperty("RecentEvents", out evtsJson) || state.TryGetProperty("recentEvents", out evtsJson))
+                {
+                    found = true;
+                }
+
+                if (found)
+                {
+                    foreach (var item in evtsJson.EnumerateArray())
+                    {
+                        AddEvent(item);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching initial state: {ex.Message}");
+        }
+    }
+
+    private void AddEvent(JsonElement json)
+    {
+        try
+        {
+            string? eventType = null;
+            if (json.TryGetProperty("EventType", out var et)) eventType = et.GetString();
+            else if (json.TryGetProperty("eventType", out var etc)) eventType = etc.GetString();
+
+            if (string.IsNullOrEmpty(eventType)) return;
+
             IAgentEvent? evt = eventType switch
             {
-                "UserPromptReceived" => System.Text.Json.JsonSerializer.Deserialize<UserPromptReceivedEvent>(json.GetRawText()),
-                "AgentThought" => System.Text.Json.JsonSerializer.Deserialize<AgentThoughtEvent>(json.GetRawText()),
-                "ToolCalled" => System.Text.Json.JsonSerializer.Deserialize<ToolCalledEvent>(json.GetRawText()),
-                "ToolResult" => System.Text.Json.JsonSerializer.Deserialize<ToolResultEvent>(json.GetRawText()),
-                "FinalResponseGenerated" => System.Text.Json.JsonSerializer.Deserialize<FinalResponseGeneratedEvent>(json.GetRawText()),
+                "UserPromptReceived" => JsonSerializer.Deserialize<UserPromptReceivedEvent>(json.GetRawText(), _jsonOptions),
+                "AgentThought" => JsonSerializer.Deserialize<AgentThoughtEvent>(json.GetRawText(), _jsonOptions),
+                "ToolCalled" => JsonSerializer.Deserialize<ToolCalledEvent>(json.GetRawText(), _jsonOptions),
+                "ToolResult" => JsonSerializer.Deserialize<ToolResultEvent>(json.GetRawText(), _jsonOptions),
+                "FinalResponseGenerated" => JsonSerializer.Deserialize<FinalResponseGeneratedEvent>(json.GetRawText(), _jsonOptions),
+                "SessionStarted" => JsonSerializer.Deserialize<SessionStartedEvent>(json.GetRawText(), _jsonOptions),
                 _ => null
             };
 
             if (evt != null)
             {
-                events.Add(evt);
-                if (events.Count > 100) events.RemoveAt(0);
-                InvokeAsync(StateHasChanged);
+                var key = $"{evt.Timestamp.Ticks}_{evt.EventType}";
+                if (!eventIds.Contains(key))
+                {
+                    eventIds.Add(key);
+                    events.Add(evt);
+                    if (events.Count > 200)
+                    {
+                        var old = events[0];
+                        eventIds.Remove($"{old.Timestamp.Ticks}_{old.EventType}");
+                        events.RemoveAt(0);
+                    }
+                    InvokeAsync(StateHasChanged);
+                }
             }
-        });
-
-        await hubConnection.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Parse error: {ex.Message} Data: {json.GetRawText()}");
+        }
     }
 
     private string GetBadgeClass(IAgentEvent evt) => evt.EventType switch
     {
         "UserPromptReceived" => "bg-primary",
-        "AgentThought" => "bg-info",
+        "AgentThought" => "bg-info text-dark",
         "ToolCalled" => "bg-warning text-dark",
         "ToolResult" => "bg-success",
-        "FinalResponseGenerated" => "bg-secondary",
-        _ => "bg-dark"
+        "FinalResponseGenerated" => "bg-dark",
+        _ => "bg-secondary"
+    };
+
+    private string GetBorderClass(IAgentEvent evt) => evt.EventType switch
+    {
+        "UserPromptReceived" => "border-primary",
+        "AgentThought" => "border-info",
+        "ToolCalled" => "border-warning",
+        "ToolResult" => "border-success",
+        "FinalResponseGenerated" => "border-dark",
+        _ => "border-secondary"
     };
 
     private string GetEventSummary(IAgentEvent evt) => evt switch
     {
         UserPromptReceivedEvent up => up.Prompt,
         AgentThoughtEvent at => at.Thought,
-        ToolCalledEvent tc => $"Called {tc.ToolName}({tc.Arguments})",
-        ToolResultEvent tr => $"Result: {tr.Result}",
-        FinalResponseGeneratedEvent fr => fr.Response,
-        _ => "Unknown event"
+        ToolCalledEvent tc => $"🛠️ Calling {tc.ToolName}\nArguments: {tc.Arguments}",
+        ToolResultEvent tr => $"✅ Result:\n{tr.Result}",
+        FinalResponseGeneratedEvent fr => $"🤖 Response:\n{fr.Response}",
+        _ => "Unknown event type"
     };
 
     public async ValueTask DisposeAsync()

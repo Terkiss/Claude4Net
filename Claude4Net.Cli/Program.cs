@@ -98,8 +98,17 @@ services.AddSingleton<OllamaProvider>(sp =>
 bool startDashboard = args.Contains("--dashboard", StringComparer.OrdinalIgnoreCase);
 if (startDashboard)
 {
-    _ = Task.Run(() => DashboardServer.StartAsync(Array.Empty<string>(), 5000));
-    AnsiConsole.MarkupLine("[bold green]?? Web Dashboard starting at http://localhost:5000[/]");
+    AnsiConsole.MarkupLine("[grey][[INFO]] Web Dashboard starting on http://localhost:5000...[/]");
+    try
+    {
+        await DashboardServer.StartAsync(Array.Empty<string>(), DashboardServer.DefaultPort);
+        AnsiConsole.MarkupLine("[bold green][[OK]] Web Dashboard started at http://localhost:5000[/]");
+    }
+    catch (Exception ex)
+    {
+        AnsiConsole.MarkupLine($"[bold red][[ERROR]] Web Dashboard failed to start:[/] [yellow]{Markup.Escape(ex.Message)}[/]");
+        AnsiConsole.MarkupLine("[grey][[INFO]] CLI will continue without Dashboard.[/]");
+    }
 }
 
 var serviceProvider = services.BuildServiceProvider();

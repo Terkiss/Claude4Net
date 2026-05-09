@@ -18,6 +18,7 @@ namespace Claude4Net.Runtime
         private readonly string _workspaceRoot;
         private readonly string _sessionBaseDir;
 
+        public string WorkspaceRoot => _workspaceRoot;
         public string SessionId { get; }
         public string SessionDir { get; }
 
