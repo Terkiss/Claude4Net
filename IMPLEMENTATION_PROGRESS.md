@@ -48,7 +48,7 @@
 | K025 | Security Hardening and Symbolic Link Protection | Completed | 162/162 pass |
 | K026 | Self-Healing Loop Hardening | Completed | 167/167 pass |
 | K027 | Multi-Agent Coordination MVP | Completed | 173/173 pass |
-| K028 | Monitoring Dashboard | Completed | 175/175 pass |
+| K028 | Monitoring Dashboard | Completed | 180/180 pass (dashboard startup, workspace replay, and payload preservation hotfixes) |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -270,4 +270,7 @@
 - [x] Implement `Approvals.razor` for web-based manual approval queue
 - [x] Integrate `DashboardServer` into CLI and Runtime
 - [x] Add `K028DashboardTests` (Hub broadcast, Approval flow, Client-Server connectivity)
-- [x] Official Release Gate passed (175/175 tests)
+- [x] Add dashboard startup, route ambiguity, and port-conflict coverage
+- [x] Fix dashboard history replay to use active workspace session events
+- [x] Preserve concrete event payloads in `RecentEvents` replay JSON
+- [x] Official Release Gate passed (180/180 tests)
