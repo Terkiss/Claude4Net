@@ -52,6 +52,11 @@
 | K029 | Checkpoint and Rewind Foundation | Completed | 187/187 pass |
 | K030 | State Machine and Oscillation Detection | Completed | 190/190 pass (rework included) |
 | K2930-1 | Encoding & Corrupted String Fix (P1) | Completed | Build Pass, Korean strings restored |
+| K032 | Verification Gate Hardening | Completed | 219/219 pass |
+| K031 | Provider Descriptor and Router V2 | Completed | 233/233 pass |
+| K034 | Event Store v2 and CQRS Projections | Completed | 246/246 pass |
+| K033 | Skill and Hook Operations | Completed | 258/258 pass |
+| K035 | Agentic Search, Memory Strategy, and Audit Traceability | Completed | 274/274 pass |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -295,3 +300,70 @@
 - [x] Capture per-attempt goals and success/failure records
 - [x] Add `K030StateMachineTests` (Oscillation detection, State transition, Attempt tracking)
 - [x] Official Release Gate passed (190/190 tests)
+
+### K032: Verification Gate Hardening
+- [x] Define `VerificationVerdict` enum (Pass, Fail, Partial) with default-fail policy
+- [x] Define `VerificationCheck` record with evidence, notes, skipped tracking
+- [x] Define `VerificationResult` record for structured verification output
+- [x] Define `VerifierSessionRecord` for independent read-only verification sessions
+- [x] Implement `VerificationOrchestrator` with default-fail check execution
+- [x] Implement evidence file verification and command output-based pass/fail judgment
+- [x] Implement explicit skipped check recording
+- [x] Implement machine-readable JSON result storage (.claude4net/sessions/{id}/verification-result.json)
+- [x] Implement CLI result formatting with verdict display
+- [x] Add `EvaluateForVerifier` to `PermissionEnforcer` for read-only verification sessions
+- [x] Add verification result save/load methods to `AgentSessionStore`
+- [x] Add `/verify` command to `CommandRegistry`
+- [x] Add `K032VerificationGateTests` (Default-fail, Pass/Fail/Partial, Skipped, JSON roundtrip, Evidence)
+- [x] Add `K032VerifierPermissionTests` (ReadOnly, WriteBlocking, PathTraversal, Session independence)
+- [x] Official Release Gate passed (219/219 tests)
+
+### K031: Provider Descriptor and Router V2
+- [x] Define `ProviderDescriptor` record with capabilities, auth, default models, cost, categories
+- [x] Define `ProviderCapabilities` record (ToolCalling, Vision, ThoughtSignature, Streaming, Embeddings, Local)
+- [x] Define `ProviderAuth` record and `ProviderDefaultModels` record
+- [x] Define `RoutingCategory` enum (QuickFix, DeepCode, Planner, Verifier, VisualEngineering, Librarian, LocalPrivate, CheapUtility)
+- [x] Implement `ProviderRegistry` with default descriptors for Claude, Gemini, Ollama, Gemini-CLI
+- [x] Add capability check, category filtering, default model lookup, local provider detection
+- [x] Integrate `ProviderRegistry` into `SmartRouter` (constructor injection, descriptor-based initialization)
+- [x] Refactor `SmartRouter.DefaultModelFor()` to use registry descriptors with fallback
+- [x] Refactor `SmartRouter.IsLocalProvider()` to use registry capability check
+- [x] Add `K031ProviderDescriptorTests` (Load, Reject, Capability, Local, DefaultModel, Category, Custom)
+- [x] Add `K031RoutingV2Tests` (DescriptorModel, ForcedProvider, Registry, CustomRegistry, LocalOnly, LocalPrivate)
+- [x] Official Release Gate passed (233/233 tests)
+
+### K034: Event Store v2 and CQRS Projections
+- [x] Define `IEventProjection` interface (Apply, Reset, Name)
+- [x] Define `SessionSummaryReadModel` and `ToolUsageReadModel` read models
+- [x] Implement `SessionSummaryProjection` (prompt count, tool calls, errors, provider, model tracking)
+- [x] Implement `ToolUsageProjection` (per-tool call count, success/error tracking with ToolUseId correlation)
+- [x] Implement `EventProjectionEngine` (Replay, Rebuild, CatchUp, ApplyEvents, GetProjection)
+- [x] Add `VerificationCompletedEvent` to AgentEvents (K032 integration)
+- [x] Extend `FileAgentEventStore` with v2 query methods (GetEventCount, GetEventsByTimeRange, GetEventsByType)
+- [x] Add StateTransition, TaskAttempt, VerificationCompleted deserialization to FileAgentEventStore
+- [x] Add `K034EventStoreV2Tests` (13 tests: Projection, Summary, ToolUsage, Replay, Filter, Roundtrip)
+- [x] Official Release Gate passed (246/246 tests)
+
+### K033: Skill and Hook Operations
+- [x] Define `HookTiming` enum (BeforeToolExecution, AfterToolExecution, OnToolError)
+- [x] Define `HookContext` (ToolName, Arguments, Result, IsError, ElapsedMs, SessionId, Metadata)
+- [x] Define `HookResult` with factory methods (Ok, Fail, Abort)
+- [x] Define `IToolHook` interface (Name, Timing, Priority, IsEnabled, ExecuteAsync)
+- [x] Implement `HookPipeline` (Register, Execute by timing, priority-ordered chaining)
+- [x] Implement Before hook abort support (ShouldAbort stops pipeline)
+- [x] Implement fail-safe exception handling (individual hook failure doesn't crash pipeline)
+- [x] Implement dynamic hook enable/disable (EnableHook, DisableHook, FindHook)
+- [x] Add `K033SkillHookTests` (12 tests: Register, Abort, Allow, Metrics, Error, Chain, FailSafe, Disable, Find, Mixed, Factory, Metadata)
+- [x] Official Release Gate passed (258/258 tests)
+
+### K035: Agentic Search, Memory Strategy, and Audit Traceability
+- [x] Define `MemoryStrategyType` enum (FullHistory, SlidingWindow, SummaryBased, Hybrid)
+- [x] Define `MemoryConfig`, `ConversationMessage`, `MemoryWindow`, `IMemoryStrategy` records
+- [x] Implement `FullHistoryStrategy` (retain all messages)
+- [x] Implement `SlidingWindowStrategy` (system/pinned message preservation, recent N window)
+- [x] Implement `SummaryBasedStrategy` (old messages replaced with summary)
+- [x] Implement `MemoryStrategyManager` with default strategy registration and config updates
+- [x] Define `AuditCategory` enum (8 categories), `AuditSeverity` enum (3 levels), `AuditEntry` record
+- [x] Implement `AuditTrailService` with category/severity/session/time filtering and circular buffer
+- [x] Add `K035MemoryAndAuditTests` (16 tests: Memory strategies, Audit filters, Buffer, Metadata)
+- [x] Official Release Gate passed (274/274 tests)
