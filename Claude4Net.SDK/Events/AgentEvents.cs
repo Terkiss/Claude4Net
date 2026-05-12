@@ -122,8 +122,25 @@ namespace Claude4Net.SDK.Events
     }
 
     /// <summary>
-    /// ?이?트 ?태 ?냅??(?벤???싱 ?생 최적?용)
+    /// K034: 검증 완료 이벤트 — 검증 게이트 결과를 이벤트 스트림에 기록합니다.
+    /// </summary>
+    public class VerificationCompletedEvent : AgentEventBase
+    {
+        public override string EventType => "VerificationCompleted";
+        /// <summary> 검증 세션 ID </summary>
+        public string VerifierSessionId { get; set; } = string.Empty;
+        /// <summary> 검증 대상 생성자 세션 ID </summary>
+        public string? GeneratorSessionId { get; set; }
+        /// <summary> 최종 판정 (Pass, Fail, Partial) </summary>
+        public string Verdict { get; set; } = "Fail";
+        /// <summary> 통과한 체크 수 </summary>
+        public int PassedChecks { get; set; }
+        /// <summary> 전체 체크 수 </summary>
+        public int TotalChecks { get; set; }
+    }
 
+    /// <summary>
+    /// 에이전트 상태 스냅샷 (이벤트 소싱 재생 최적화용)
     /// </summary>
     public class AgentStateSnapshot
     {

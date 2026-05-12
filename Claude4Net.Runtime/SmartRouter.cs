@@ -10,11 +10,22 @@ namespace Claude4Net.Runtime
     /// 스마트 라우팅 엔진으로, 지수 이동 평균(EMA) 및 비용/지연 시간 스코어링을 통해
     /// 최적의 LLM 프로바이더를 동적으로 선정합니다.
     /// 서킷 브레이커 패턴을 통해 장애 발생 시 안정적인 Fallback을 보장합니다.
+    /// K031: ProviderRegistry 기반 디스크립터 라우팅을 지원합니다.
     /// </summary>
     public class SmartRouter : ISmartRouter
     {
         private readonly ConcurrentDictionary<string, ProviderMetric> _metrics = new();
         
+        /// <summary>
+        /// 프로바이더 디스크립터 레지스트리 (K031)
+        /// </summary>
+        private readonly ProviderRegistry _registry;
+
+        /// <summary>
+        /// 프로바이더 레지스트리에 대한 읽기 전용 접근을 제공합니다.
+        /// </summary>
+        public ProviderRegistry Registry => _registry;
+
         /// <summary>
         /// EMA(Exponential Moving Average) 가중치 (0.3).
         /// 최근 측정값에 더 높은 비중을 두어 변화에 민감하게 반응하도록 설정함.
@@ -32,15 +43,24 @@ namespace Claude4Net.Runtime
         private static readonly TimeSpan BaseBackoff = TimeSpan.FromSeconds(30);
 
         /// <summary>
-        /// SmartRouter의 새 인스턴스를 초기화하고 알려진 프로바이더의 메트릭을 기본값으로 설정합니다.
+        /// SmartRouter의 새 인스턴스를 초기화하고 ProviderRegistry 기반으로 메트릭을 설정합니다.
         /// </summary>
-        public SmartRouter()
+        public SmartRouter() : this(ProviderRegistry.CreateWithDefaults())
         {
-            // 초기 비용 점수 설정 (0.0: 무료/로컬, 1.0: 고가용성 유료 서비스)
-            InitializeProvider("claude", 0.8);
-            InitializeProvider("gemini", 0.4);
-            InitializeProvider("ollama", 0.1);
-            InitializeProvider("gemini-cli", 0.0);
+        }
+
+        /// <summary>
+        /// 외부에서 제공한 ProviderRegistry로 SmartRouter를 초기화합니다.
+        /// </summary>
+        public SmartRouter(ProviderRegistry registry)
+        {
+            _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+
+            // 레지스트리의 디스크립터 기반으로 메트릭 초기화
+            foreach (var descriptor in _registry.All)
+            {
+                InitializeProvider(descriptor.Id, descriptor.CostScore);
+            }
         }
 
         private void InitializeProvider(string name, double costScore)
@@ -186,7 +206,8 @@ namespace Claude4Net.Runtime
 
         private bool IsLocalProvider(string name)
         {
-            return name == "ollama" || name == "gemini-cli";
+            // K031: ProviderRegistry 기반으로 로컬 여부 판단
+            return _registry.IsLocal(name);
         }
 
         private string DefaultModelFor(string provider, RoutingIntent intent)
@@ -197,14 +218,17 @@ namespace Claude4Net.Runtime
                 return AppState.ActiveModel;
             }
 
-            return provider switch
+            // K031: ProviderRegistry 디스크립터 기반 모델 선택
+            bool preferLarge = (intent == RoutingIntent.LargeModel);
+            string? descriptorModel = _registry.GetDefaultModel(provider, preferLarge);
+
+            if (!string.IsNullOrEmpty(descriptorModel))
             {
-                "claude" => (intent == RoutingIntent.LargeModel) ? "claude-3-5-sonnet-20240620" : "claude-3-haiku-20240307",
-                "gemini" => (intent == RoutingIntent.LargeModel) ? "gemini-1.5-pro" : "gemini-1.5-flash",
-                "ollama" => "llama3",
-                "gemini-cli" => AppState.ActiveModel ?? "gemini-3.1-pro",
-                _ => AppState.ActiveModel ?? "gemini-3.1-pro"
-            };
+                return descriptorModel;
+            }
+
+            // 레지스트리에 없는 경우 기존 폴백
+            return AppState.ActiveModel ?? "gemini-3.1-pro";
         }
 
         /// <summary>

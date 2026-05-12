@@ -64,6 +64,32 @@ namespace Claude4Net.Runtime
             _ => mode
         };
 
+        /// <summary>
+        /// 검증 세션 전용 권한 평가입니다.
+        /// 검증 세션은 워크스페이스에 쓸 수 없으며, 읽기 및 비파괴적 명령만 허용됩니다.
+        /// </summary>
+        public PermissionEnforcementResult EvaluateForVerifier(
+            string toolName,
+            PathSafetyResult pathSafety,
+            bool isSensitiveTool)
+        {
+            // 검증 세션은 항상 ReadOnly로 강제됩니다.
+            if (pathSafety == PathSafetyResult.Outside)
+            {
+                return new PermissionEnforcementResult(PermissionDecision.Deny,
+                    "verifier session: outside workspace access is blocked");
+            }
+
+            if (IsWriteOrExecutionTool(toolName, isSensitiveTool))
+            {
+                return new PermissionEnforcementResult(PermissionDecision.Deny,
+                    "verifier session: write and execution tools are blocked in read-only verification mode");
+            }
+
+            return new PermissionEnforcementResult(PermissionDecision.Allow,
+                "verifier session: read-only access allowed");
+        }
+
         private static bool IsWriteOrExecutionTool(string toolName, bool isSensitiveTool)
         {
             if (!isSensitiveTool) return false;

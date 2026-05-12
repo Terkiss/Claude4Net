@@ -726,8 +726,114 @@ namespace Claude4Net.Commands
                 };
                 await store.SaveHandoffAsync(record);
                 return $"[bold green]Handoff record saved.[/] Status: {record.Status}";
+            }},
+
+            // --- [K032: 검증 게이트 명령어] ---
+
+            /// <summary> 검증 게이트: 독립 검증 세션을 생성하고 릴리스 체크를 실행합니다. </summary>
+            new Command { Name = "verify", Description = "Run verification checks with default-fail policy and generate machine-readable results", Handler = async (a, sp) => {
+                if (string.IsNullOrEmpty(AppState.CurrentCwd)) return "[red]Error:[/] Workspace not set.";
+
+                var orchestrator = new VerificationOrchestrator(AppState.CurrentCwd);
+                var session = orchestrator.CreateVerifierSession(AppState.SessionId);
+                var checks = new List<VerificationCheck>();
+
+                // 검증 세션은 읽기 전용입니다.
+                try
+                {
+                    VerificationOrchestrator.EnforceReadOnly(session, "test-write");
+                    // 위 호출이 예외를 던져야 정상입니다.
+                }
+                catch (System.Security.SecurityException)
+                {
+                    // 예상되는 정상 동작 - 읽기 전용 정책이 작동 중
+                }
+
+                // Check 1: Standard Build
+                try
+                {
+                    var buildPsi = new ProcessStartInfo("dotnet", "build -p:UseAppHost=false")
+                    {
+                        WorkingDirectory = AppState.CurrentCwd,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+                    using var buildProcess = Process.Start(buildPsi);
+                    string buildOutput = buildProcess != null ? await buildProcess.StandardOutput.ReadToEndAsync() : "";
+                    string buildError = buildProcess != null ? await buildProcess.StandardError.ReadToEndAsync() : "";
+                    buildProcess?.WaitForExit();
+                    int? buildExit = buildProcess?.ExitCode;
+
+                    checks.Add(orchestrator.RunCheck("Standard Build", "dotnet build -p:UseAppHost=false",
+                        buildOutput + buildError, buildExit));
+                }
+                catch
+                {
+                    checks.Add(orchestrator.RunCheck("Standard Build", "dotnet build -p:UseAppHost=false", null, null));
+                }
+
+                // Check 2: Strict Nullable Build
+                try
+                {
+                    var strictPsi = new ProcessStartInfo("dotnet", "build -p:UseAppHost=false -p:TreatWarningsAsErrors=true")
+                    {
+                        WorkingDirectory = AppState.CurrentCwd,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+                    using var strictProcess = Process.Start(strictPsi);
+                    string strictOutput = strictProcess != null ? await strictProcess.StandardOutput.ReadToEndAsync() : "";
+                    string strictError = strictProcess != null ? await strictProcess.StandardError.ReadToEndAsync() : "";
+                    strictProcess?.WaitForExit();
+                    int? strictExit = strictProcess?.ExitCode;
+
+                    checks.Add(orchestrator.RunCheck("Strict Nullable Build", "dotnet build -p:UseAppHost=false -p:TreatWarningsAsErrors=true",
+                        strictOutput + strictError, strictExit));
+                }
+                catch
+                {
+                    checks.Add(orchestrator.RunCheck("Strict Nullable Build", "dotnet build -p:UseAppHost=false -p:TreatWarningsAsErrors=true", null, null));
+                }
+
+                // Check 3: Unit Tests
+                try
+                {
+                    var testPsi = new ProcessStartInfo("dotnet", "test --no-build")
+                    {
+                        WorkingDirectory = AppState.CurrentCwd,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+                    using var testProcess = Process.Start(testPsi);
+                    string testOutput = testProcess != null ? await testProcess.StandardOutput.ReadToEndAsync() : "";
+                    string testError = testProcess != null ? await testProcess.StandardError.ReadToEndAsync() : "";
+                    testProcess?.WaitForExit();
+                    int? testExit = testProcess?.ExitCode;
+
+                    checks.Add(orchestrator.RunCheck("Unit Tests", "dotnet test --no-build",
+                        testOutput + testError, testExit));
+                }
+                catch
+                {
+                    checks.Add(orchestrator.RunCheck("Unit Tests", "dotnet test --no-build", null, null));
+                }
+
+                // 결과 집계 및 저장
+                var result = orchestrator.AggregateResult(session.VerifierSessionId, session.GeneratorSessionId, checks);
+                await orchestrator.WriteResultAsync(result);
+
+                // CLI 출력 포맷
+                string cliOutput = VerificationOrchestrator.FormatResultForCli(result);
+                return cliOutput;
             }}
         };
+
 
         /// <summary>
         /// ?�록??모든 명령??목록??가?�옵?�다.

@@ -158,5 +158,35 @@ namespace Claude4Net.Runtime
                 Directory.CreateDirectory(SessionDir);
             }
         }
+
+        /// <summary>
+        /// 검증 결과를 세션 디렉토리에 저장합니다.
+        /// </summary>
+        public async Task SaveVerificationResultAsync(VerificationResult result)
+        {
+            EnsureSessionDirectory();
+            string filePath = Path.Combine(SessionDir, "verification-result.json");
+            string json = JsonSerializer.Serialize(result, _jsonOptions);
+            await File.WriteAllTextAsync(filePath, json);
+        }
+
+        /// <summary>
+        /// 세션 디렉토리에서 검증 결과를 로드합니다.
+        /// </summary>
+        public async Task<VerificationResult?> LoadVerificationResultAsync()
+        {
+            string filePath = Path.Combine(SessionDir, "verification-result.json");
+            if (!File.Exists(filePath)) return null;
+
+            try
+            {
+                string json = await File.ReadAllTextAsync(filePath);
+                return JsonSerializer.Deserialize<VerificationResult>(json);
+            }
+            catch
+            {
+                return null; // Fail-closed
+            }
+        }
     }
 }

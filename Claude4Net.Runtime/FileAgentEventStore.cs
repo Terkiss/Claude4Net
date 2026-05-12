@@ -66,6 +66,10 @@ namespace Claude4Net.Runtime
                     "ToolCalled" => JsonSerializer.Deserialize<ToolCalledEvent>(envelope.Payload.GetRawText()),
                     "ToolResult" => JsonSerializer.Deserialize<ToolResultEvent>(envelope.Payload.GetRawText()),
                     "FinalResponseGenerated" => JsonSerializer.Deserialize<FinalResponseGeneratedEvent>(envelope.Payload.GetRawText()),
+                    "StateTransition" => JsonSerializer.Deserialize<StateTransitionEvent>(envelope.Payload.GetRawText()),
+                    "TaskAttemptStarted" => JsonSerializer.Deserialize<TaskAttemptStartedEvent>(envelope.Payload.GetRawText()),
+                    "TaskAttemptCompleted" => JsonSerializer.Deserialize<TaskAttemptCompletedEvent>(envelope.Payload.GetRawText()),
+                    "VerificationCompleted" => JsonSerializer.Deserialize<VerificationCompletedEvent>(envelope.Payload.GetRawText()),
                     _ => null
                 };
 
@@ -95,6 +99,45 @@ namespace Claude4Net.Runtime
 
             string json = await File.ReadAllTextAsync(path);
             return JsonSerializer.Deserialize<AgentStateSnapshot>(json);
+        }
+
+        // --- K034: Event Store v2 쿼리 메서드 ---
+
+        /// <summary>
+        /// 세션의 총 이벤트 수를 반환합니다.
+        /// </summary>
+        public async Task<int> GetEventCountAsync(string sessionId)
+        {
+            var path = GetEventsPath(sessionId);
+            if (!File.Exists(path)) return 0;
+
+            int count = 0;
+            using var reader = new StreamReader(path);
+            string? line;
+            while ((line = await reader.ReadLineAsync()) != null)
+            {
+                if (!string.IsNullOrWhiteSpace(line)) count++;
+            }
+            return count;
+        }
+
+        /// <summary>
+        /// 시간 범위 내의 이벤트만 필터링하여 반환합니다.
+        /// </summary>
+        public async Task<IEnumerable<IAgentEvent>> GetEventsByTimeRangeAsync(
+            string sessionId, DateTime from, DateTime to)
+        {
+            var allEvents = await GetEventsAsync(sessionId, 0);
+            return allEvents.Where(e => e.Timestamp >= from && e.Timestamp <= to);
+        }
+
+        /// <summary>
+        /// 특정 이벤트 타입만 필터링하여 반환합니다.
+        /// </summary>
+        public async Task<IEnumerable<T>> GetEventsByTypeAsync<T>(string sessionId) where T : IAgentEvent
+        {
+            var allEvents = await GetEventsAsync(sessionId, 0);
+            return allEvents.OfType<T>();
         }
 
         private class EventEnvelope
