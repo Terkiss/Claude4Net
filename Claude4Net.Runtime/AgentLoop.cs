@@ -18,8 +18,8 @@ using TeruTeruPandas.Core;
 namespace Claude4Net.Runtime
 {
     /// <summary>
-    /// Claude4Net???�심 ?�행 ?�진?�로, ?�이?�트???�고-?�동-관�?Reasoning Loop) 과정??총괄?�니??
-    /// ?�력 처리, ?�마???�우?? RAG 검?? ?�구 ?�행 �??��? 치유�??�한 궤적 ?�집???�당?�니??
+    /// Claude4Net 핵심 실행 엔진으로, 에이전트의 사고-행동-관찰(Reasoning Loop) 과정을 총괄합니다.
+    /// 입력 처리, 스마트 라우팅, RAG 검색, 도구 실행 및 자가 치유를 위한 궤적 수집을 담당합니다.
     /// </summary>
     public class AgentLoop
     {
@@ -32,9 +32,10 @@ namespace Claude4Net.Runtime
         private readonly IAgentEventBroadcaster? _broadcaster;
         private AgentSessionStore? _sessionStore;
         private long _currentVersion = 0;
+        private readonly OscillationDetector _oscillationDetector = new();
 
         /// <summary>
-        /// AgentLoop?????�스?�스�?초기?�합?�다.
+        /// AgentLoop의 인스턴스를 초기화합니다.
         /// </summary>
         public AgentLoop(ToolOrchestrator orchestrator, IServiceProvider serviceProvider, IInputBroker broker, ISmartRouter router, IEmbeddingProvider? embedding = null, IAgentEventBroadcaster? broadcaster = null)
         {
@@ -44,7 +45,6 @@ namespace Claude4Net.Runtime
             _router = router;
             _embedding = embedding;
             _broadcaster = broadcaster;
-
         }
 
         private async Task EnsureSessionInitializedAsync(string providerName, string modelName)
@@ -109,7 +109,7 @@ namespace Claude4Net.Runtime
         }
 
         /// <summary>
-        /// 메인 메시지 ?�신 루프�??�작?�니??
+        /// 메인 메시지 수신 루프를 시작합니다.
         /// </summary>
         public async Task ListenAsync(CancellationToken ct = default)
         {
@@ -118,35 +118,35 @@ namespace Claude4Net.Runtime
             {
                 try
                 {
-                    // 1. ?�용???�력 ?�신
+                    // 1. 사용자 입력 수신
                     var context = await _broker.ReadAsync(ct);
                     string finalPrompt = context.Text;
 
-                    // 2. ?�수 명령 처리: !reflect (?��? ?�찰 �?가?�드 ?�데?�트)
+                    // 2. 특수 명령 처리: !reflect (자가 성찰 및 가이드 업데이트)
                     if (finalPrompt.Trim().ToLower() == "!reflect")
                     {
                         AnsiConsole.MarkupLine("[bold cyan]Analyzing agent_trajectories...[/]");
                         string diagnosis = await GenerateReflectionSummaryAsync();
                         if (string.IsNullOrEmpty(diagnosis))
                         {
-                            AnsiConsole.MarkupLine("[red]분석??궤적(agent_trajectories) ?�이?��? ?�습?�다.[/]");
+                            AnsiConsole.MarkupLine("[red]분석할 궤적(agent_trajectories) 데이터가 없습니다.[/]");
                             await context.Output.WriteAsync("No trajectories found to reflect on.");
                             Console.Write("\n> ");
                             continue;
                         }
 
-                        // 진단 결과�?바탕?�로 Self-Healing 가?�드 ?�데?�트
+                        // 진단 결과를 바탕으로 Self-Healing 가이드 업데이트
                         SelfHealingService.Instance.UpdateGuide(diagnosis);
                         AnsiConsole.MarkupLine("[bold green]SELF_HEAL_GUIDE.md updated successfully.[/]");
 
-                        finalPrompt = "?�신??최근 궤적 ?�계 진단?�입?�다.\n\n" + diagnosis + "\n\n???�이??기반 ?�패 ?�계�?바탕?�로 ?�업 방식???�찰 �??�설계하�??�율?�으�?`Skills` ?�더 ?�에 마크?�운 ?�일(?? `Skills/SKILL.md`)???�성/?�데?�트?�여 ?�드�?루프�??�성?�세?? Skills ?�더가 ?�다�??�선 ?�성?�십?�오. 가?�드?�인?� 반드??마크?�운 ?�맷?�로 구체?�으�??�성?�세?? ?�데?�트 ???�심 변경사??�� ?�국?�로 보고?�세??";
+                        finalPrompt = "당신의 최근 궤적 통계 진단 결과입니다.\n\n" + diagnosis + "\n\n이 데이터 기반 실패 통계를 바탕으로 작업 방식을 성찰 및 재설계하고 효율적으로 `Skills` 폴더 내에 마크다운 파일(예: `Skills/SKILL.md`)을 작성/업데이트하여 피드백 루프를 형성하세요. Skills 폴더가 없다면 우선 생성하십시오. 가이드라인은 반드시 마크다운 포맷으로 구체적으로 작성하세요. 업데이트 후 핵심 변경사항을 한국어로 보고하세요.";
                     }
                     else
                     {
-                        // 3. ?�텐??기반 쿼리 ?�우??(?? ?�연?��? ?�스??명령?�로 변??
+                        // 3. 인텐트 기반 쿼리 라우팅 (예: 자연어를 테스트 명령으로 변환)
                         string? routedCommand = QueryRouter.Route(context.Text);
 
-                        // 4. ?�스??명령??가로채�?�?처리
+                        // 4. 시스템 명령을 가로채서 처리
                         var effectiveContext = routedCommand != null ? new InputContext(routedCommand, context.Output, context.Approval) : context;
                         if (await HandleSystemCommand(effectiveContext, ct))
                         {
@@ -156,7 +156,7 @@ namespace Claude4Net.Runtime
                         finalPrompt = effectiveContext.Text;
                     }
 
-                    // ?�업 공간 ?�정 ?�인 (보안 �?경로 기�???
+                    // 작업 공간 설정 확인 (보안 및 경로 기준점)
                     if (string.IsNullOrEmpty(AppState.CurrentCwd))
                     {
                         AnsiConsole.MarkupLine("[bold red]Error:[/] Workspace is not set. Conversations are blocked. Use [bold]/setworkspace <path>[/] first.");
@@ -165,7 +165,7 @@ namespace Claude4Net.Runtime
                         continue;
                     }
 
-                    // 5. Smart Routing: ?�력??복잡?��? 비용, ?�공률을 고려?�여 최적??LLM ?�정
+                    // 5. Smart Routing: 입력의 복잡도, 비용, 성공률을 고려하여 최적의 LLM 선정
                     var decision = _router.Route(finalPrompt);
                     ILLMProvider provider = decision.SelectedProvider switch
                     {
@@ -177,15 +177,15 @@ namespace Claude4Net.Runtime
 
                     AnsiConsole.MarkupLine($"[grey]Routing:[/] [bold cyan]{decision.SelectedProvider}[/] ([italic]{decision.SelectedModel}[/]) - [grey]{decision.Reason ?? "Auto"}[/]");
 
-                    // 6. RAG(Retrieval-Augmented Generation): 과거???�사???�업 기억 추출
+                    // 6. RAG(Retrieval-Augmented Generation): 과거의 유사한 작업 기억 추출
                     string relevantContext = await RetrieveRelevantMemoriesAsync(finalPrompt);
                     if (!string.IsNullOrEmpty(relevantContext))
                     {
-                        AnsiConsole.MarkupLine("[bold blue]?�� Context Retrieved:[/] Found relevant past interactions in agent_memory.");
+                        AnsiConsole.MarkupLine("[bold blue]RAG Context Retrieved:[/] Found relevant past interactions in agent_memory.");
                     }
                     string promptWithContext = relevantContext + finalPrompt;
 
-                    // 7. ?�고-?�동-관�?루프 ?�행
+                    // 7. 사고-행동-관찰 루프 실행
                     await RunAsync(promptWithContext, context.Output, provider, decision.SelectedModel, context.Approval, ct);
 
                     Console.Write("\n> ");
@@ -198,9 +198,6 @@ namespace Claude4Net.Runtime
             }
         }
 
-        /// <summary>
-        /// ?�용?�의 ?�롬?�트?� 관?�된 과거 기록??검?�하??컨텍?�트�?증강?�니??
-        /// </summary>
         private async Task<string> RetrieveRelevantMemoriesAsync(string userPrompt)
         {
             if (_embedding == null) return "";
@@ -208,7 +205,6 @@ namespace Claude4Net.Runtime
             var sw = Stopwatch.StartNew();
             float[]? targetVector = null;
 
-            // ?�계 1: TeruTeruPandas L2 캐시(embedding_cache)?�서 기존 ?�베??검??
             targetVector = await PandasUniverseManager.Instance.ExecuteAsync(u =>
             {
                 if (!u.ContainsTable("embedding_cache")) return null;
@@ -223,7 +219,6 @@ namespace Claude4Net.Runtime
                 return null;
             });
 
-            // ?�계 2: 캐시???�는 경우 API�??�출?�여 ?�베???�성 �??�??
             if (targetVector == null)
             {
                 try { targetVector = await _embedding.GetEmbeddingAsync(userPrompt); } catch { }
@@ -249,7 +244,6 @@ namespace Claude4Net.Runtime
                 }
             }
 
-            // ?�계 3: 벡터 ?�사??기반 메모�?검??(Vector Search)
             string result = await PandasUniverseManager.Instance.ExecuteAsync(u =>
             {
                 if (!u.ContainsTable("agent_memory")) return "";
@@ -258,7 +252,6 @@ namespace Claude4Net.Runtime
 
                 DataFrame topMemories;
 
-                // ?�효??벡터가 ?�고 Embedding 컬럼??존재?�는 경우 SIMD 가??코사???�사??계산
                 if (targetVector != null && targetVector.Length > 0 && df.Columns.Contains("Embedding"))
                 {
                     var embCol = df["Embedding"];
@@ -281,7 +274,6 @@ namespace Claude4Net.Runtime
                         topMemories = SearchByKeywords(df, userPrompt);
                     }
 
-                    // ?�사?��? ?�무 ??��??결과가 ?�는 경우 ?�워??매칭?�로 Fallback
                     var topSim = topMemories.Columns.Contains("Similarity") ? (double)(topMemories["Similarity"].GetValue(0) ?? -1.0) : -1.0;
                     if (topSim <= 0)
                     {
@@ -290,19 +282,18 @@ namespace Claude4Net.Runtime
                 }
                 else
                 {
-                    // ?�계 4: 벡터 검?�이 불�??�한 경우 ?�워??매칭 ?�행
                     topMemories = SearchByKeywords(df, userPrompt);
                 }
 
                 if (topMemories.RowCount == 0) return "";
 
                 var sb = new System.Text.StringBuilder();
-                sb.AppendLine("\n[?�스??주의: 과거 ?�호?�용 기록 �??�재 ?�청�?관?�된 ?�용??발견?�었?�니?? 참고?�십?�오.]");
+                sb.AppendLine("\n[시스템 주의: 과거 상호작용 기록 및 현재 요청과 관련된 내용을 발견하였습니다. 참고하십시오.]");
                 for (int i = 0; i < topMemories.RowCount; i++)
                 {
-                    sb.AppendLine($"--- 기록 (?�덱?? {i}) ---");
-                    sb.AppendLine($"?�청: {topMemories["UserPrompt"].GetValue(i)}");
-                    sb.AppendLine($"?�?? {topMemories["AgentResponse"].GetValue(i)}");
+                    sb.AppendLine($"--- 기록 (인덱스 {i}) ---");
+                    sb.AppendLine($"요청: {topMemories["UserPrompt"].GetValue(i)}");
+                    sb.AppendLine($"응답: {topMemories["AgentResponse"].GetValue(i)}");
                 }
                 sb.AppendLine("--------------------------------------------------------------------------\n");
                 return sb.ToString();
@@ -311,14 +302,11 @@ namespace Claude4Net.Runtime
             sw.Stop();
             if (sw.ElapsedMilliseconds > 200)
             {
-                AnsiConsole.MarkupLine($"[yellow]??Performance Warning:[/] RAG retrieval took {sw.ElapsedMilliseconds}ms.");
+                AnsiConsole.MarkupLine($"[yellow]?? Performance Warning:[/] RAG retrieval took {sw.ElapsedMilliseconds}ms.");
             }
             return result;
         }
 
-        /// <summary>
-        /// ?�롬?�트?�서 추출???�워?��? 기반?�로 메모리�? 검?�합?�다.
-        /// </summary>
         private DataFrame SearchByKeywords(DataFrame df, string userPrompt)
         {
             var keywordsStr = ExtractKeywords(userPrompt);
@@ -339,9 +327,6 @@ namespace Claude4Net.Runtime
             return df.Reorder(indices);
         }
 
-        /// <summary>
-        /// ?�집???�이?�트 궤적(Trajectories)??분석?�여 ?�구 ?�용 ?�계 �??�패 ?�인??분석?�니??
-        /// </summary>
         private async Task<string> GenerateReflectionSummaryAsync()
         {
             return await PandasUniverseManager.Instance.ExecuteAsync(u =>
@@ -374,11 +359,11 @@ namespace Claude4Net.Runtime
                 }).OrderByDescending(x => x.Rate).ThenByDescending(x => x.Fails).ToList();
 
                 var sb = new System.Text.StringBuilder();
-                sb.AppendLine("=== 지?�형 ?�계 진단??(DataUniverse Agent Trajectories) ===");
-                sb.AppendLine($"�????�출 ?�수: {totalCount}");
+                sb.AppendLine("=== 지능형 통계 진단 보고(DataUniverse Agent Trajectories) ===");
+                sb.AppendLine($"전체 도구 호출 횟수: {totalCount}");
                 foreach (var s in stats)
                 {
-                    sb.AppendLine($"- {s.ToolName} : {s.Total}???�도, {s.Fails}???�패 (?�패??{s.Rate * 100:0.1}%)");
+                    sb.AppendLine($"- {s.ToolName} : {s.Total}회 시도, {s.Fails}회 실패 (실패율 {s.Rate * 100:0.1}%)");
                 }
 
                 var failCategories = categories.Where(c => c != "Success" && c != "Unknown")
@@ -387,8 +372,8 @@ namespace Claude4Net.Runtime
 
                 if (failCategories.Any())
                 {
-                    sb.AppendLine("\n���� ī�װ��� ����:");
-                    foreach (var c in failCategories) sb.AppendLine($" - {c.Key}: {c.Count()}ȸ");
+                    sb.AppendLine("\n실패 카테고리 분포:");
+                    foreach (var c in failCategories) sb.AppendLine($" - {c.Key}: {c.Count()}회");
                 }
 
                 var topErrors = errorReasons.Where(e => !string.IsNullOrWhiteSpace(e) && e.Length > 3)
@@ -398,16 +383,13 @@ namespace Claude4Net.Runtime
 
                 if (topErrors.Any())
                 {
-                    sb.AppendLine("\n�ֿ� �߻� ���� ���� (Top 3):");
-                    foreach (var e in topErrors) sb.AppendLine($" - [{e.Count()}ȸ �߻�] {e.Key.Replace("\n", " ").Substring(0, Math.Min(150, e.Key.Length))}");
+                    sb.AppendLine("\n주요 발생 오류 내용 (Top 3):");
+                    foreach (var e in topErrors) sb.AppendLine($" - [{e.Count()}회 발생] {e.Key.Replace("\n", " ").Substring(0, Math.Min(150, e.Key.Length))}");
                 }
                 return sb.ToString();
             });
         }
 
-        /// <summary>
-        /// ?�스??명령?��? 처리?�니?? (!) ?�는 (/)�??�작?�는 명령?��? 감�??�니??
-        /// </summary>
         private async Task<bool> HandleSystemCommand(InputContext context, CancellationToken ct)
         {
             string text = context.Text.Trim();
@@ -706,7 +688,6 @@ namespace Claude4Net.Runtime
 
             string currentPrompt = userPrompt;
 
-            // Inject Self-Healing Guide if available (K026)
             string initialGuide = SelfHealingService.Instance.GetGuide();
             if (!string.IsNullOrEmpty(initialGuide) && !initialGuide.Contains("No active self-healing guidelines"))
             {
@@ -715,18 +696,17 @@ namespace Claude4Net.Runtime
 
             bool isFirstTurn = true;
             int turnCount = 0;
-            const int MAX_TURNS = 200; // 무한 루프 방�?�??�한 Circuit Breaker
+            const int MAX_TURNS = 200;
 
             var sw = Stopwatch.StartNew();
             bool hasError = false;
             string lastTurnResponse = "";
 
-            // --- ���-�ൿ-����(Reasoning) ���� ���� ---
             while (!ct.IsCancellationRequested && turnCount < MAX_TURNS)
             {
-                // --- Self-Healing Pattern Detection & Strategy Switch (K026) ---
-                var recentEvents = await CurrentEventStore.GetEventsAsync(AppState.SessionId);
-                var pattern = SelfHealingService.Instance.ClassifyPattern(recentEvents.TakeLast(10));
+                var allEvents = await CurrentEventStore.GetEventsAsync(AppState.SessionId);
+                var recentEventsList = allEvents.ToList();
+                var pattern = SelfHealingService.Instance.ClassifyPattern(recentEventsList.TakeLast(10).Cast<object>());
                 if (pattern != FailurePattern.None)
                 {
                     if (SelfHealingService.Instance.IncrementReflectionDepth())
@@ -735,7 +715,6 @@ namespace Claude4Net.Runtime
                         AnsiConsole.MarkupLine($"[bold yellow]?? Self-Healing Triggered:[/] Detected {pattern}. Injecting directive.");
                         await LogProgressAsync("SelfHealing", message: $"Detected {pattern}", data: directive.Instruction);
 
-                        // Inject directive immediately into current turn if not first turn
                         if (!isFirstTurn)
                         {
                             provider.AddMessage(new { role = "user", content = $"[SELF-HEALING] {directive.Instruction}" });
@@ -745,14 +724,10 @@ namespace Claude4Net.Runtime
                     {
                         AnsiConsole.MarkupLine("[bold red]?? Max Reflection Depth Reached. Switching Strategy...[/]");
                         await LogProgressAsync("StrategySwitch", message: "Max reflection depth reached. Switching strategy.");
-
-                        // Strategy Switch: Force model change if possible, or just break with error
-                        // For K026, we'll simulate strategy switch by adding a strong intervention message
                         provider.AddMessage(new { role = "user", content = "CRITICAL: Previous strategy failed repeatedly. Abandon current approach and try a fundamentally different one." });
                     }
                 }
 
-                // --- ���ؽ�Ʈ ���� ���� (K023) ---
                 var history = provider.GetHistory();
                 int currentTokens = provider.TokenCounter.CountTokens(history);
                 int limit = provider.ContextLimit;
@@ -763,7 +738,7 @@ namespace Claude4Net.Runtime
                     var compressedHistory = ContextCompressor.Compress(history.ToList(), provider.TokenCounter, limit);
                     provider.SetHistory(compressedHistory);
                     int compressedTokens = provider.TokenCounter.CountTokens(compressedHistory);
-                    AnsiConsole.MarkupLine($"[green]? Context compressed: {currentTokens} -> {compressedTokens} tokens.[/]");
+                    AnsiConsole.MarkupLine($"[green]?? Context compressed: {currentTokens} -> {compressedTokens} tokens.[/]");
                     await LogProgressAsync("ContextCompressed", message: $"Compressed from {currentTokens} to {compressedTokens} tokens.");
                 }
 
@@ -778,10 +753,8 @@ namespace Claude4Net.Runtime
                     AnsiConsole.Markup($"[grey]Thinking... ({providerName} T{turnCount}) [/]");
                     await LogProgressAsync("ThinkingStart", message: $"Turn {turnCount}");
 
-                    // ?�계 1: LLM?�게 ?�재 ?�황???�달?�고 ?�트리밍 ?�답 ?�신
                     string turnPrompt = isFirstTurn ? currentPrompt : "Proceed based on previous tool results.";
 
-                    // Gemini fix: Do not add regular user prompt immediately after function response
                     if (!isFirstTurn && (provider.Name == "gemini" || provider.Name == "gemini-cli"))
                     {
                         turnPrompt = "";
@@ -834,12 +807,19 @@ namespace Claude4Net.Runtime
 
                 isFirstTurn = false;
 
-                // ?�계 2: ?�구 ?�출(Tool Call)??발생??경우 ?�행 처리
                 if (toolCalls.Count > 0)
                 {
+                    // --- K030: Oscillation Detection ---
+                    if (_oscillationDetector.IsOscillating(recentEventsList.TakeLast(10)))
+                    {
+                        AnsiConsole.MarkupLine("[bold red]?? Oscillation Detected![/] Same tool calls repeating. Intervening...");
+                        provider.AddMessage(new { role = "user", content = "SYSTEM: Oscillation detected. You are repeating the same tool calls. Please rethink your strategy and try a different approach." });
+                        continue;
+                    }
+
                     foreach (var tc in toolCalls)
                     {
-                        AnsiConsole.MarkupLine($"[grey]? [bold yellow]Tool Call:[/] {Markup.Escape(tc.Name)}[/]");
+                        AnsiConsole.MarkupLine($"[grey]?? [bold yellow]Tool Call:[/] {Markup.Escape(tc.Name)}[/]");
                         await LogProgressAsync("ToolCall", message: tc.Name, data: tc.Input);
                         await AppendEventAsync(new ToolCalledEvent
                         {
@@ -849,7 +829,6 @@ namespace Claude4Net.Runtime
                         });
                     }
 
-                    // ?�구 ?��??�트?�이?��? ?�한 배치 ?�행 (보안 검??�?병렬 처리 ?�함)
                     var batchResults = await _orchestrator.ExecuteBatchAsync(toolCalls, new { }, approval, ct);
 
                     var toolResults = new List<object>();
@@ -864,7 +843,6 @@ namespace Claude4Net.Runtime
                             IsError = result.IsError
                         });
 
-                        // ?��?지 ?�성 결과 처리 (Discord ???��? 출력 ?�동)
                         if (!result.IsError && result.Content != null)
                         {
                             try
@@ -889,14 +867,13 @@ namespace Claude4Net.Runtime
                         string escapedSummary = Markup.Escape(summary);
 
                         if (result.IsError)
-                            AnsiConsole.MarkupLine($"  [red]? {escapedId}:[/] [grey]{escapedSummary}[/]");
+                            AnsiConsole.MarkupLine($"  [red]?? {escapedId}:[/] [grey]{escapedSummary}[/]");
                         else
-                            AnsiConsole.MarkupLine($"  [green]? {escapedId}:[/] [grey]{escapedSummary}[/]");
+                            AnsiConsole.MarkupLine($"  [green]?? {escapedId}:[/] [grey]{escapedSummary}[/]");
 
                         toolResults.Add(new { type = "tool_result", tool_use_id = result.ToolUseId, content = result.Content?.ToString() ?? "Success", is_error = result.IsError });
                     }
 
-                    // Step 3: [Data Evolution Strategy] Collect execution trajectories and telemetry
                     if (batchResults.Count > 0)
                     {
                         var telemetryList = new List<string>();
@@ -921,7 +898,6 @@ namespace Claude4Net.Runtime
                         }
 
                         var jsonArrayStr = "[" + string.Join(",", telemetryList) + "]";
-                        // Save trajectories in background to avoid performance overhead
                         _ = PandasUniverseManager.Instance.ExecuteAsync(u =>
                         {
                             string tmpFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
@@ -949,18 +925,13 @@ namespace Claude4Net.Runtime
                         });
                     }
 
-                    // Step 4: Context summary and tool result feedback
-                    // 결과가 ?�무 �?경우 ?�약?�여 LLM?�게 ?�시 ???�달 (?�큰 ?�약 �?컨텍?�트 ?��?)
-                    // Gemini requires a functionResponse for every functionCall. Collapsing tool
-                    // results into plain text breaks that protocol when a turn has many tool calls.
-                    var processedResults = provider.Name == "gemini"
+                    var processedResults = provider.Name == "gemini" || provider.Name == "gemini-cli"
                         ? toolResults
                         : ContextCompressor.SummarizeToolResults(toolResults);
                     provider.AddMessage(new { role = "user", content = processedResults });
                     continue;
                 }
 
-                // ???�상???�구 ?�출???�으�?루프 종료
                 break;
             }
 
@@ -972,10 +943,8 @@ namespace Claude4Net.Runtime
             await output.CompleteAsync(lastTurnResponse);
 
             sw.Stop();
-            // ?�우???�능 메트�??�데?�트 (지???�동 ?�균 반영)
             _router.UpdateMetric(provider.Name, sw.Elapsed.TotalMilliseconds, hasError);
 
-            // ?�계 5: [RAG Ingestion] ?�공?�인 ?�호?�용 기록 ?�??
             if (!hasError && !string.IsNullOrEmpty(lastTurnResponse))
             {
                 if (_sessionStore != null)
@@ -1039,9 +1008,6 @@ namespace Claude4Net.Runtime
             "this", "that", "there", "their", "where", "which", "could", "should", "would", "about", "above", "after", "again"
         };
 
-        /// <summary>
-        /// ?�스?�에??검?�에 ?�용??주요 ?�워?��? 추출?�니??
-        /// </summary>
         private string ExtractKeywords(string text)
         {
             try

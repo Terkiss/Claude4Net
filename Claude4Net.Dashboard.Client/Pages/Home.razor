@@ -81,8 +81,8 @@
                 </div>
             </div>
 
-            <!-- Approvals Quick View -->
-            <div class="card shadow-sm border-0 h-50 overflow-auto">
+            <!-- Security Approvals -->
+            <div class="card shadow-sm border-0 mb-4 h-25 overflow-auto">
                 <div class="card-header bg-white border-bottom py-3">
                     <h6 class="mb-0 fw-bold"><i class="bi bi-shield-lock me-2 text-warning"></i>Security Approvals</h6>
                 </div>
@@ -91,6 +91,42 @@
                         <i class="bi bi-info-circle me-1"></i>
                         Use the <strong>Approvals</strong> page for detailed response.
                         <a href="approvals" class="btn btn-sm btn-outline-warning d-block mt-2">Open Approval Queue</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attempt Timeline -->
+            <div class="card shadow-sm border-0 h-50 overflow-auto">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-clock-history me-2 text-info"></i>Attempt Timeline</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        @if (attempts.Count == 0)
+                        {
+                            <div class="p-4 text-center text-muted">
+                                <small>No attempts recorded</small>
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (var attempt in attempts.OrderByDescending(a => a.StartedAt))
+                            {
+                                <div class="list-group-item p-3">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="fw-bold small">#@attempt.Sequence: @attempt.Goal</span>
+                                        <span class="badge @(attempt.IsSuccess ? "bg-success" : "bg-warning")">@(attempt.IsSuccess ? "Success" : "Failed")</span>
+                                    </div>
+                                    <div class="mt-1">
+                                        <small class="text-muted d-block">Start: @attempt.StartedAt.ToLocalTime()</small>
+                                        @if (attempt.DurationMs > 0)
+                                        {
+                                            <small class="text-muted">Duration: @(attempt.DurationMs)ms</small>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        }
                     </div>
                 </div>
             </div>
@@ -105,6 +141,7 @@
     private string model = "N/A";
     private bool isConnected = false;
     private List<DashboardTask> tasks = new();
+    private List<DashboardAttempt> attempts = new();
 
     private class DashboardTask
     {
@@ -112,6 +149,15 @@
         public string Title { get; set; } = "";
         public string Phase { get; set; } = "";
         public string Agent { get; set; } = "";
+    }
+
+    private class DashboardAttempt
+    {
+        public int Sequence { get; set; }
+        public string Goal { get; set; } = "";
+        public bool IsSuccess { get; set; }
+        public DateTime StartedAt { get; set; }
+        public long DurationMs { get; set; }
     }
 
     private void HandleStateReceived(dynamic state)
@@ -140,6 +186,23 @@
                     });
                 }
             }
+
+            attempts.Clear();
+            if (json.TryGetProperty("Attempts", out var attemptsJson) || json.TryGetProperty("attempts", out attemptsJson))
+            {
+                foreach (var item in attemptsJson.EnumerateArray())
+                {
+                    attempts.Add(new DashboardAttempt
+                    {
+                        Sequence = int.Parse(GetProp(item, "Sequence", "0")),
+                        Goal = GetProp(item, "Goal", "Unknown"),
+                        IsSuccess = GetProp(item, "IsSuccess", "false").ToLower() == "true",
+                        StartedAt = DateTime.TryParse(GetProp(item, "StartedAt", ""), out var d) ? d : DateTime.MinValue,
+                        DurationMs = long.Parse(GetProp(item, "DurationMs", "0"))
+                    });
+                }
+            }
+
             StateHasChanged();
         }
         catch (Exception ex)

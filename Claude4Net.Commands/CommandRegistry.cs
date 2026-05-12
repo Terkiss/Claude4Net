@@ -683,6 +683,49 @@ namespace Claude4Net.Commands
                     default:
                         return Task.FromResult($"[red]Unknown subcommand:[/] {sub}");
                 }
+            }},
+
+            // --- [K029: 체크포인트 및 핸드오프 명령어] ---
+
+            new Command { Name = "checkpoint", Description = "체크포인트 목록 조회 또는 복구 (list | restore <id>)", Handler = async (a, sp) => {
+                if (string.IsNullOrEmpty(AppState.CurrentCwd)) return "[red]Error:[/] Workspace not set.";
+                var store = new CheckpointStore(AppState.CurrentCwd, AppState.SessionId);
+                var parts = a.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+                string sub = parts.Length > 0 ? parts[0].ToLowerInvariant() : "list";
+
+                if (sub == "list") {
+                    var cps = await store.ListCheckpointsAsync();
+                    if (!cps.Any()) return "[grey]No checkpoints found for this session.[/]";
+                    var table = new Table().Border(TableBorder.Rounded);
+                    table.AddColumn("ID");
+                    table.AddColumn("Time");
+                    table.AddColumn("Tool");
+                    table.AddColumn("Files");
+                    foreach(var cp in cps) table.AddRow(cp.Id, cp.CreatedAt.ToString("HH:mm:ss"), cp.ToolName, string.Join(", ", cp.ChangedFiles));
+                    AnsiConsole.Write(table);
+                    return $"Total {cps.Count} checkpoints.";
+                } else if (sub == "restore" && parts.Length > 1) {
+                    string id = parts[1].Trim();
+                    await store.RestoreCheckpointAsync(id);
+                    return $"[bold green]Checkpoint {id} restored successfully.[/]";
+                }
+                return "Usage: /checkpoint list | restore <id>";
+            }},
+
+            new Command { Name = "handoff", Description = "다른 에이전트에게 세션 인계를 위한 준비 (handoff <status> <summary> [evidenceFiles...])", Handler = async (a, sp) => {
+                if (string.IsNullOrEmpty(AppState.CurrentCwd)) return "[red]Error:[/] Workspace not set.";
+                var parts = a.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length < 2) return "Usage: /handoff <Completed|Blocked|Partial> <summary> [evidenceFiles...]";
+
+                var store = new HandoffStore(AppState.CurrentCwd, AppState.SessionId);
+                var record = new SessionHandoffRecord {
+                    SessionId = AppState.SessionId,
+                    Status = parts[0],
+                    Summary = parts[1],
+                    EvidenceFiles = parts.Skip(2).ToList()
+                };
+                await store.SaveHandoffAsync(record);
+                return $"[bold green]Handoff record saved.[/] Status: {record.Status}";
             }}
         };
 

@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using Claude4Net.SDK;
 
 namespace Claude4Net.SDK.Events
 {
     /// <summary>
-    /// ?�이?�트??모든 ?�벤?��? ?�한 기본 ?�터?�이?�입?�다.
+    /// ?�이?�트??모든 ?�벤?��? ?�한 기본 ?�터?�이?�입?�다.
     /// </summary>
     public interface IAgentEvent
     {
@@ -16,7 +17,7 @@ namespace Claude4Net.SDK.Events
     }
 
     /// <summary>
-    /// 공통 ?�벤???�성???��? 기본 ?�래?�입?�다.
+    /// 공통 ?�벤???�성???��? 기본 ?�래?�입?�다.
     /// </summary>
     public abstract class AgentEventBase : IAgentEvent
     {
@@ -27,7 +28,7 @@ namespace Claude4Net.SDK.Events
     }
 
     /// <summary>
-    /// ?�션 ?�작 ?�벤??
+    /// ?�션 ?�작 ?�벤??
     /// </summary>
     public class SessionStartedEvent : AgentEventBase
     {
@@ -38,7 +39,7 @@ namespace Claude4Net.SDK.Events
     }
 
     /// <summary>
-    /// ?�용???�력 ?�신 ?�벤??
+    /// ?�용???�력 ?�신 ?�벤??
     /// </summary>
     public class UserPromptReceivedEvent : AgentEventBase
     {
@@ -47,7 +48,7 @@ namespace Claude4Net.SDK.Events
     }
 
     /// <summary>
-    /// ?�이?�트???�고(Thinking) 기록 ?�벤??
+    /// ?�이?�트???�고(Thinking) 기록 ?�벤??
     /// </summary>
     public class AgentThoughtEvent : AgentEventBase
     {
@@ -56,7 +57,7 @@ namespace Claude4Net.SDK.Events
     }
 
     /// <summary>
-    /// ?�구 ?�출 ?�벤??
+    /// ?�구 ?�출 ?�벤??
     /// </summary>
     public class ToolCalledEvent : AgentEventBase
     {
@@ -67,7 +68,7 @@ namespace Claude4Net.SDK.Events
     }
 
     /// <summary>
-    /// ?�구 ?�행 결과 ?�벤??
+    /// ?�구 ?�행 결과 ?�벤??
     /// </summary>
     public class ToolResultEvent : AgentEventBase
     {
@@ -78,7 +79,7 @@ namespace Claude4Net.SDK.Events
     }
 
     /// <summary>
-    /// 최종 ?�답 ?�성 ?�벤??
+    /// 최종 ?답 ?성 ?벤??
     /// </summary>
     public class FinalResponseGeneratedEvent : AgentEventBase
     {
@@ -87,7 +88,42 @@ namespace Claude4Net.SDK.Events
     }
 
     /// <summary>
-    /// ?�이?�트 ?�태 ?�냅??(?�벤???�싱 ?�생 최적?�용)
+    /// 상태 전이 이벤트
+    /// </summary>
+    public class StateTransitionEvent : AgentEventBase
+    {
+        public override string EventType => "StateTransition";
+        public AgentRunState FromState { get; set; }
+        public AgentRunState ToState { get; set; }
+        public string? Reason { get; set; }
+    }
+
+    /// <summary>
+    /// 작업 시도 시작 이벤트
+    /// </summary>
+    public class TaskAttemptStartedEvent : AgentEventBase
+    {
+        public override string EventType => "TaskAttemptStarted";
+        public string AttemptId { get; set; } = string.Empty;
+        public int AttemptNumber { get; set; }
+        public string? ProviderId { get; set; }
+        public string? ModelId { get; set; }
+    }
+
+    /// <summary>
+    /// 작업 시도 완료 이벤트
+    /// </summary>
+    public class TaskAttemptCompletedEvent : AgentEventBase
+    {
+        public override string EventType => "TaskAttemptCompleted";
+        public string AttemptId { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string? Error { get; set; }
+    }
+
+    /// <summary>
+    /// ?이?트 ?태 ?냅??(?벤???싱 ?생 최적?용)
+
     /// </summary>
     public class AgentStateSnapshot
     {

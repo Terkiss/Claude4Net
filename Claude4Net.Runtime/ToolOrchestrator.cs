@@ -149,6 +149,34 @@ namespace Claude4Net.Runtime
                     return new ToolUseResult { ToolUseId = request.Id, Content = "Error: Workspace not set. Use /setworkspace <path> first.", IsError = true };
                 }
 
+                // --- K029: Automatic Checkpointing before file-modifying tools ---
+                if (!string.IsNullOrEmpty(AppState.CurrentCwd) && IsFileModifyingTool(tool.Name))
+                {
+                    try
+                    {
+                        var checkpointStore = new CheckpointStore(AppState.CurrentCwd, AppState.SessionId);
+                        var targetFiles = ExtractTargetFiles(tool.Name, request.Input);
+                        if (targetFiles.Any())
+                        {
+                            string cpId = await checkpointStore.CreateCheckpointAsync(request.Id, tool.Name, targetFiles);
+                            AnsiConsole.MarkupLine($"[grey]Auto-checkpoint created: {cpId} (pre-{tool.Name})[/]");
+
+                            if (tool is IPreviewableTool previewTool)
+                            {
+                                var diff = await previewTool.GetPreviewAsync(jsonInput);
+                                if (diff != null && !string.IsNullOrEmpty(diff.DiffContent))
+                                {
+                                    await checkpointStore.SaveDiffAsync(cpId, diff.DiffContent);
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception cpEx)
+                    {
+                        AnsiConsole.MarkupLine($"[yellow]Warning: Checkpoint failed: {cpEx.Message}[/]");
+                    }
+                }
+
                 var result = await tool.ExecuteAsync(jsonInput, context, ct);
 
                 if (isSensitive || safetyResult != PathSafetyResult.NotApplicable || commandRisk.RequiresApproval)
@@ -200,6 +228,37 @@ namespace Claude4Net.Runtime
         {
             var sensitivePrefixes = new[] { "bash", "write", "edit", "delete", "shell", "sh", "sensitive" };
             return sensitivePrefixes.Any(p => name.Contains(p, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static bool IsFileModifyingTool(string name)
+        {
+            var modifiers = new[] { "write", "edit", "replace", "sed", "patch", "delete", "remove", "save" };
+            return modifiers.Any(m => name.Contains(m, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private List<string> ExtractTargetFiles(string toolName, object? input)
+        {
+            var files = new List<string>();
+            if (input == null) return files;
+
+            try
+            {
+                var json = JsonSerializer.Serialize(input);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                // common patterns: file_path, path, file, target
+                string[] keys = { "file_path", "path", "file", "target" };
+                foreach (var key in keys)
+                {
+                    if (root.TryGetProperty(key, out var prop))
+                    {
+                        files.Add(prop.GetString() ?? "");
+                    }
+                }
+            }
+            catch { }
+            return files.Where(f => !string.IsNullOrEmpty(f)).ToList();
         }
 
         public async Task<List<ToolUseResult>> ExecuteBatchAsync(IEnumerable<ToolUseRequest> requests, object context, IUserApprovalHandler? overrideHandler = null, CancellationToken ct = default)

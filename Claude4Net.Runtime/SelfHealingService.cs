@@ -44,11 +44,11 @@ namespace Claude4Net.Runtime
         public void ResetReflectionDepth() => _currentReflectionDepth = 0;
 
         /// <summary>
-        /// ?�이?�트 궤적??분석?�여 ?�패 ?�턴??분류?�니??
+        /// 에이전트 궤적을 분석하여 실패 패턴을 분류합니다.
         /// </summary>
-        public FailurePattern ClassifyPattern(IEnumerable<Claude4Net.SDK.Events.IAgentEvent> events)
+        public FailurePattern ClassifyPattern(IEnumerable<object> events)
         {
-            var eventList = events.ToList();
+            var eventList = events.Cast<Claude4Net.SDK.Events.IAgentEvent>().ToList();
             if (eventList.Count < 3) return FailurePattern.None;
 
             // 1. 무한 루프 감�? (?�일 ?�구 & ?�일 ?�자 ?�속 3??

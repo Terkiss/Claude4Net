@@ -49,6 +49,9 @@
 | K026 | Self-Healing Loop Hardening | Completed | 167/167 pass |
 | K027 | Multi-Agent Coordination MVP | Completed | 173/173 pass |
 | K028 | Monitoring Dashboard | Completed | 180/180 pass (dashboard startup, workspace replay, and payload preservation hotfixes) |
+| K029 | Checkpoint and Rewind Foundation | Completed | 187/187 pass |
+| K030 | State Machine and Oscillation Detection | Completed | 190/190 pass (rework included) |
+| K2930-1 | Encoding & Corrupted String Fix (P1) | Completed | Build Pass, Korean strings restored |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -149,10 +152,10 @@
 - [x] Prepare handoff documentation (Documents/HANDOFF.md)
 - [x] Final release gate verification (85/85 tests pass)
 - [x] [Maintenance] K013-5: Preserve Gemini functionCall thoughtSignature metadata for Gemini 3 tool-use continuity (86/86 tests pass)
-- [x] [Maintenance] 명시???�로바이???�택 가중치 조정 �?`gemini-cli` 초기 ?�보 ?�록 버그 ?�정
-- [x] [Maintenance] K013-2: 명시??모델 ?�택 ?�류 ?�결 (Respect AppState.ActiveModel)
-- [x] [Maintenance] K013-3: gemini-cli ?�로바이???�환 방어 �?모델 명칭 최신??(gemini-2.0-flash ??
-- [x] [Maintenance] K013-4: Gemini function calling 400 ?�러 ?�정 (Continuation prompt ?�략)
+- [x] [Maintenance] 명시???�로바이???�택 가중치 조정 �?`gemini-cli` 초기 ?�보 ?�록 버그 ?�정
+- [x] [Maintenance] K013-2: 명시??모델 ?�택 ?�류 ?�결 (Respect AppState.ActiveModel)
+- [x] [Maintenance] K013-3: gemini-cli ?�로바이???�환 방어 �?모델 명칭 최신??(gemini-2.0-flash ??
+- [x] [Maintenance] K013-4: Gemini function calling 400 ?�러 ?�정 (Continuation prompt ?�략)
 
 ### K003: Release Gate Baseline
 - [x] Create `scripts/verify-release.ps1` with strict error handling
@@ -274,3 +277,21 @@
 - [x] Fix dashboard history replay to use active workspace session events
 - [x] Preserve concrete event payloads in `RecentEvents` replay JSON
 - [x] Official Release Gate passed (180/180 tests)
+
+### K029: Checkpoint and Rewind Foundation
+- [x] Create checkpoint storage layer under `.claude4net/sessions/{sessionId}/checkpoints/`
+- [x] Capture file state before write/edit operations
+- [x] Capture tool-call metadata, diff preview, provider/model, and prompt summary
+- [x] Add CLI commands for listing and restoring checkpoints
+- [x] Add session handoff and evidence files
+- [x] Add `K029CheckpointRewindTests` (Created before write/edit, Restore, No-Op, Path Traversal)
+- [x] Official Release Gate passed (187/187 tests)
+
+### K030: State Machine and Oscillation Detection
+- [x] Define `AgentRunState` and `AgentRunStateModel` in SDK
+- [x] Implement `OscillationDetector` with pattern recognition (Stagnation, Repetition, Alternation)
+- [x] Fix: Add detection for repeated `ToolCalledEvent` with same `ToolName`
+- [x] Integrate state machine transitions in `AgentLoop`
+- [x] Capture per-attempt goals and success/failure records
+- [x] Add `K030StateMachineTests` (Oscillation detection, State transition, Attempt tracking)
+- [x] Official Release Gate passed (190/190 tests)
