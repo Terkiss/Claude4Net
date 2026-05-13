@@ -79,6 +79,19 @@ namespace Claude4Net.Runtime
             }
 
             string jsonInput = JsonSerializer.Serialize(request.Input);
+
+            // --- K033: HookPipeline Integration (Before Execution) ---
+            var hookPipeline = _serviceProvider?.GetService<HookPipeline>();
+            var hookCtx = new HookContext { ToolName = tool.Name, Arguments = jsonInput, SessionId = AppState.SessionId };
+            if (hookPipeline != null)
+            {
+                var beforeResult = await hookPipeline.ExecuteBeforeAsync(hookCtx);
+                if (beforeResult?.ShouldAbort == true)
+                {
+                    await LogAuditAsync(tool.Name, jsonInput, PathSafetyResult.NotApplicable, null, $"Aborted by Hook: {beforeResult.AbortReason}");
+                    return new ToolUseResult { ToolUseId = request.Id, Content = $"Execution aborted by hook: {beforeResult.AbortReason}", IsError = true };
+                }
+            }
             var safetyResult = new PathSafetyEvaluator().EvaluateInputSafety(request.Input);
             bool isSensitive = IsSensitiveTool(tool.Name);
             var commandRisk = _commandRiskClassifier.ClassifyFromToolInput(tool.Name, request.Input);
@@ -177,7 +190,32 @@ namespace Claude4Net.Runtime
                     }
                 }
 
+                var sw = System.Diagnostics.Stopwatch.StartNew();
                 var result = await tool.ExecuteAsync(jsonInput, context, ct);
+                sw.Stop();
+
+                // --- K033: HookPipeline Integration (After Execution) ---
+                if (hookPipeline != null)
+                {
+                    hookCtx.Result = result?.ToString();
+                    hookCtx.ElapsedMs = sw.ElapsedMilliseconds;
+                    await hookPipeline.ExecuteAfterAsync(hookCtx);
+                }
+
+                // --- K035: AuditTrailService Integration (Success) ---
+                var auditService = _serviceProvider?.GetService<AuditTrailService>();
+                if (auditService != null)
+                {
+                    auditService.Record(new AuditEntry
+                    {
+                        Action = tool.Name,
+                        Category = AuditCategory.ToolExecution,
+                        Outcome = "Success",
+                        Severity = AuditSeverity.Info,
+                        SessionId = AppState.SessionId,
+                        Metadata = new Dictionary<string, string> { ["ElapsedMs"] = sw.ElapsedMilliseconds.ToString() }
+                    });
+                }
 
                 if (isSensitive || safetyResult != PathSafetyResult.NotApplicable || commandRisk.RequiresApproval)
                 {
@@ -188,12 +226,31 @@ namespace Claude4Net.Runtime
             }
             catch (OperationCanceledException)
             {
-                await LogAuditAsync(tool.Name, jsonInput, safetyResult, approved, "Cancelled");
+                await LogAuditAsync(tool.Name, jsonInput, PathSafetyResult.NotApplicable, approved, "Cancelled");
                 return new ToolUseResult { ToolUseId = request.Id, Content = "Execution Cancelled by User.", IsError = true };
             }
             catch (Exception ex)
             {
-                await LogAuditAsync(tool.Name, jsonInput, safetyResult, approved, $"Error: {ex.Message}");
+                // --- K033: HookPipeline Integration (Error) ---
+                if (hookPipeline != null)
+                {
+                    hookCtx.IsError = true;
+                    hookCtx.Result = ex.Message;
+                    await hookPipeline.ExecuteOnErrorAsync(hookCtx);
+                }
+
+                // --- K035: AuditTrailService Integration (Error) ---
+                var auditService = _serviceProvider?.GetService<AuditTrailService>();
+                auditService?.Record(new AuditEntry
+                {
+                    Action = tool.Name,
+                    Category = AuditCategory.ToolExecution,
+                    Outcome = $"Error: {ex.Message}",
+                    Severity = AuditSeverity.Critical,
+                    SessionId = AppState.SessionId
+                });
+
+                await LogAuditAsync(tool?.Name ?? request.Name, jsonInput, PathSafetyResult.NotApplicable, approved, $"Error: {ex.Message}");
                 return new ToolUseResult { ToolUseId = request.Id, Content = $"Execution Error: {ex.Message}", IsError = true };
             }
         }

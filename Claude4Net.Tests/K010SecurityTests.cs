@@ -38,44 +38,54 @@ namespace Claude4Net.Tests
         [Fact]
         public async Task ToolOrchestrator_AuditLogging_Works()
         {
-            // 1. Arrange: Setup Mock Tool
-            var mockTool = new Mock<ITool>();
-            mockTool.Setup(t => t.Name).Returns("sensitive_test_tool");
-            mockTool.Setup(t => t.ExecuteAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<System.Threading.CancellationToken>()))
-                    .ReturnsAsync("Tool Executed");
-
-            var services = new ServiceCollection();
-            var sp = services.BuildServiceProvider();
-            var orchestrator = new ToolOrchestrator(new[] { mockTool.Object }, null, sp);
-
-            // 2. Act: Execute sensitive tool
-            var request = new ToolUseRequest { Id = "test-1", Name = "sensitive_test_tool", Input = new Dictionary<string, object> { ["path"] = "test.txt" } };
-            await orchestrator.ExecuteToolAsync(request, new object());
-
-            // Wait a bit for async logging
-            await Task.Delay(500);
-
-            // 3. Assert: Check audit_logs table
-            await PandasUniverseManager.Instance.ExecuteAsync(u =>
+            var originalMode = AppState.CurrentPermissionMode;
+            try
             {
-                var df = u.GetTableOrThrow("audit_logs");
-                Assert.True(df.RowCount > 0);
+                AppState.CurrentPermissionMode = PermissionMode.Prompt;
 
-                // Find our tool log. K015 policy denies sensitive tools without an approval handler.
-                bool found = false;
-                for (int i = 0; i < df.RowCount; i++)
+                // 1. Arrange: Setup Mock Tool
+                var mockTool = new Mock<ITool>();
+                mockTool.Setup(t => t.Name).Returns("sensitive_test_tool");
+                mockTool.Setup(t => t.ExecuteAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<System.Threading.CancellationToken>()))
+                        .ReturnsAsync("Tool Executed");
+
+                var services = new ServiceCollection();
+                var sp = services.BuildServiceProvider();
+                var orchestrator = new ToolOrchestrator(new[] { mockTool.Object }, null, sp);
+
+                // 2. Act: Execute sensitive tool
+                var request = new ToolUseRequest { Id = "test-1", Name = "sensitive_test_tool", Input = new Dictionary<string, object> { ["path"] = "test.txt" } };
+                await orchestrator.ExecuteToolAsync(request, new object());
+
+                // Wait a bit for async logging
+                await Task.Delay(500);
+
+                // 3. Assert: Check audit_logs table
+                await PandasUniverseManager.Instance.ExecuteAsync(u =>
                 {
-                    if (df["ToolName"].GetValue(i)?.ToString() == "sensitive_test_tool")
+                    var df = u.GetTableOrThrow("audit_logs");
+                    Assert.True(df.RowCount > 0);
+
+                    // Find our tool log. K015 policy denies sensitive tools without an approval handler.
+                    bool found = false;
+                    for (int i = 0; i < df.RowCount; i++)
                     {
-                        found = true;
-                        var status = df["Status"].GetValue(i)?.ToString() ?? "";
-                        Assert.StartsWith("Denied (No Handler)", status);
-                        break;
+                        if (df["ToolName"].GetValue(i)?.ToString() == "sensitive_test_tool")
+                        {
+                            found = true;
+                            var status = df["Status"].GetValue(i)?.ToString() ?? "";
+                            Assert.StartsWith("Denied (No Handler)", status);
+                            break;
+                        }
                     }
-                }
-                Assert.True(found, "Audit log for sensitive_test_tool not found.");
-                return null!;
-            });
+                    Assert.True(found, "Audit log for sensitive_test_tool not found.");
+                    return null!;
+                });
+            }
+            finally
+            {
+                AppState.CurrentPermissionMode = originalMode;
+            }
         }
 
         [Fact]

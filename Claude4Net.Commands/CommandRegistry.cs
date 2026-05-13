@@ -528,7 +528,7 @@ namespace Claude4Net.Commands
             }},
 
             /// <summary> ?�태 ?�인: ?�스??�??�플리�??�션???�재 ?�태(메모�? ?�레?? ?�성 ?�로바이????�??�약?�니?? </summary>
-            new Command { Name = "status", Description = "Show system and application status", Handler = (a, sp) => {
+            new Command { Name = "status", Description = "Show system and application status", Handler = async (a, sp) => {
                 var proc = Process.GetCurrentProcess();
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine("[bold cyan]System Status:[/]");
@@ -542,7 +542,30 @@ namespace Claude4Net.Commands
                 sb.AppendLine($"  Active Provider: {Markup.Escape(AppState.ActiveProvider)}");
                 sb.AppendLine($"  Active Model: {Markup.Escape(AppState.ActiveModel)}");
                 sb.AppendLine($"  YOLO Mode: {(AppState.CurrentPermissionMode == PermissionMode.Yolo ? "[red]ON[/]" : "[green]OFF[/]")}");
-                return Task.FromResult(sb.ToString());
+
+                // --- K034: EventProjectionEngine Integration (Read Path) ---
+                if (!string.IsNullOrEmpty(AppState.CurrentCwd) && !string.IsNullOrEmpty(AppState.SessionId))
+                {
+                    try
+                    {
+                        var eventStore = new FileAgentEventStore(AppState.CurrentCwd);
+                        var engine = new EventProjectionEngine(eventStore);
+                        engine.RegisterProjection(new SessionSummaryProjection());
+                        await engine.CatchUpAsync(AppState.SessionId);
+
+                        var summary = engine.GetProjection<SessionSummaryProjection>()?.Model;
+                        if (summary != null)
+                        {
+                            sb.AppendLine();
+                            sb.AppendLine("[bold blue]Session Projection (CQRS Read Model):[/]");
+                            sb.AppendLine($"  Total Events: {summary.TotalEventCount}");
+                            sb.AppendLine($"  Tool Calls: {summary.ToolCallCount}");
+                        }
+                    }
+                    catch { /* Ignore projection errors in status output */ }
+                }
+
+                return sb.ToString();
             }},
 
             /// <summary> ?�용???�인: 모델�??�큰 ?�용???�계�?보여줍니?? </summary>

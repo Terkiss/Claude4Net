@@ -27,6 +27,13 @@ var services = new ServiceCollection();
 // HTTP ?´ë¼?´ì–¸???©í† ë¦??±ë¡ (Anthropic, Gemini, Ollama ?±ì˜ API ?µì‹ ???¬ìš©)
 services.AddHttpClient();
 
+// --- K031, K033-K035 Runtime Services ---
+services.AddSingleton<ProviderRegistry>(sp => ProviderRegistry.CreateWithDefaults());
+services.AddSingleton<HookPipeline>();
+services.AddSingleton<AuditTrailService>(sp => new AuditTrailService(maxEntries: 100));
+services.AddSingleton<MemoryStrategyManager>(sp => MemoryStrategyManager.CreateWithDefaults());
+
+
 // [Messaging] ?¬ìš©???…ë ¥ ë°??ì´?„íŠ¸ ê°„ì˜ ?µì‹ ??ì¤‘ê³„?˜ëŠ” ë¸Œë¡œì»??±ë¡
 services.AddSingleton<IInputBroker, ChannelBroker>();
 

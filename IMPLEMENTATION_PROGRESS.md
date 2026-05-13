@@ -56,7 +56,7 @@
 | K031 | Provider Descriptor and Router V2 | Completed | 233/233 pass |
 | K034 | Event Store v2 and CQRS Projections | Completed | 246/246 pass |
 | K033 | Skill and Hook Operations | Completed | 258/258 pass |
-| K035 | Agentic Search, Memory Strategy, and Audit Traceability | Completed | 274/274 pass |
+| K035 | Agentic Search, Memory Strategy, and Audit Traceability | Completed | 279/279 pass after P1 integration stabilization |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -367,3 +367,4 @@
 - [x] Implement `AuditTrailService` with category/severity/session/time filtering and circular buffer
 - [x] Add `K035MemoryAndAuditTests` (16 tests: Memory strategies, Audit filters, Buffer, Metadata)
 - [x] Official Release Gate passed (274/274 tests)
+- [x] P1 Integration Stabilization regression coverage added and release gate verified (279/279 tests)

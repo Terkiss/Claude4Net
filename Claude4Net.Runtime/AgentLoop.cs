@@ -474,6 +474,17 @@ namespace Claude4Net.Runtime
                     AppState.ActiveModel = sessionRecord.Model;
                     AppState.CurrentPermissionMode = sessionRecord.PermissionMode;
 
+                    // --- K031: Provider Registry Integration ---
+                    var providerRegistry = _serviceProvider.GetService<ProviderRegistry>();
+                    if (providerRegistry != null && !string.IsNullOrEmpty(sessionRecord.Provider))
+                    {
+                        var descriptor = providerRegistry.Get(sessionRecord.Provider);
+                        if (descriptor != null)
+                        {
+                            AnsiConsole.MarkupLine($"[grey]Provider details: {descriptor.Label} (Transport: {descriptor.TransportKind})[/]");
+                        }
+                    }
+
                     ILLMProvider resumeProvider = sessionRecord.Provider switch
                     {
                         "gemini" => _serviceProvider.GetRequiredService<GeminiProvider>(),
