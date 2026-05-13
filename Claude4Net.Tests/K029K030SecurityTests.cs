@@ -105,7 +105,10 @@ namespace Claude4Net.Tests
             try
             {
                 var cmd = CommandRegistry.FindCommand("env");
-                string result = await cmd.Handler!("all", services);
+                Assert.NotNull(cmd);
+                var handler = cmd.Handler;
+                Assert.NotNull(handler);
+                string result = await handler("all", services);
 
                 Assert.Contains("MY_TEST_SECRET_KEY", result);
                 Assert.DoesNotContain("VERY-SECRET-TOKEN", result);
@@ -125,7 +128,10 @@ namespace Claude4Net.Tests
             var services = sc.BuildServiceProvider();
 
             var cmd = CommandRegistry.FindCommand("doctor");
-            string result = await cmd.Handler!("", services);
+            Assert.NotNull(cmd);
+            var handler = cmd.Handler;
+            Assert.NotNull(handler);
+            string result = await handler("", services);
 
             Assert.Contains("Security Audit:", result);
             Assert.Contains("Plugins:", result);
@@ -143,7 +149,10 @@ namespace Claude4Net.Tests
 
             var services = new ServiceCollection().BuildServiceProvider();
             var cmd = CommandRegistry.FindCommand("coordinate");
-            string result = await cmd.Handler!($"status {taskId}", services);
+            Assert.NotNull(cmd);
+            var handler = cmd.Handler;
+            Assert.NotNull(handler);
+            string result = await handler($"status {taskId}", services);
 
             Assert.Contains("Merge Readiness:", result);
             Assert.Contains("Evidence: Summary Evidence", result);

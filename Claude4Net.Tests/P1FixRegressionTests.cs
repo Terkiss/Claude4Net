@@ -226,9 +226,13 @@ namespace Claude4Net.Tests
             // The mocks keep the test focused on resume wiring rather than provider behavior.
 
             services.AddSingleton<ClaudeService>(sp => new Mock<ClaudeService>(new Mock<AnthropicClient>(new Mock<System.Net.Http.HttpClient>().Object).Object).Object);
-            services.AddSingleton<GeminiProvider>(sp => new Mock<GeminiProvider>(new Mock<System.Net.Http.HttpClient>().Object, null).Object);
+            var toolRegistry = new Mock<IToolRegistry>();
+            toolRegistry.Setup(r => r.GetTools()).Returns(new List<ITool>());
+            services.AddSingleton(toolRegistry.Object);
+
+            services.AddSingleton<GeminiProvider>(sp => new Mock<GeminiProvider>(new System.Net.Http.HttpClient(), toolRegistry.Object).Object);
             services.AddSingleton<GeminiCliProvider>(sp => new Mock<GeminiCliProvider>().Object);
-            services.AddSingleton<OllamaProvider>(sp => new Mock<OllamaProvider>(new Mock<System.Net.Http.HttpClient>().Object, null).Object);
+            services.AddSingleton<OllamaProvider>(sp => new Mock<OllamaProvider>(new System.Net.Http.HttpClient(), toolRegistry.Object).Object);
 
             var serviceProvider = services.BuildServiceProvider();
             var orchestrator = new ToolOrchestrator(Enumerable.Empty<ITool>(), null, serviceProvider);

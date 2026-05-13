@@ -17,7 +17,7 @@ namespace Claude4Net.Tests
         private readonly string _tempBase;
         private readonly string _ws1;
         private readonly string _ws2;
-        private readonly string _originalCwd;
+        private readonly string? _originalCwd;
         private readonly string _originalSessionId;
 
         public P1DynamicWorkspaceTests()
@@ -45,7 +45,9 @@ namespace Claude4Net.Tests
         public async Task AgentLoop_ShouldUseCurrentWorkspaceForEvents()
         {
             // Arrange
-            var mockOrchestrator = new Mock<ToolOrchestrator>(new ITool[0], null, null);
+            var approvalHandler = new Mock<IUserApprovalHandler>().Object;
+            var orchestratorServices = new ServiceCollection().BuildServiceProvider();
+            var mockOrchestrator = new Mock<ToolOrchestrator>(new ITool[0], approvalHandler, orchestratorServices);
             var mockBroker = new Mock<IInputBroker>();
             var mockRouter = new Mock<ISmartRouter>();
             var services = new ServiceCollection();

@@ -3,7 +3,6 @@ using Claude4Net.Api;
 using Claude4Net.SDK;
 using Claude4Net.Runtime;
 using Moq;
-using Moq.Protected;
 using System;
 using System.Net.Http;
 using System.Collections.Generic;
@@ -117,27 +116,9 @@ namespace Claude4Net.Tests
         public async Task OllamaProvider_StreamQuery_ShouldSendNumCtxOption()
         {
             // Arrange
-            var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
             var sse = "{\"message\": {\"content\": \"Done\"}, \"done\": true}";
-
-            handlerMock
-               .Protected()
-               .Setup<Task<HttpResponseMessage>>(
-                  "SendAsync",
-                  ItExpr.IsAny<HttpRequestMessage>(),
-                  ItExpr.IsAny<CancellationToken>()
-               )
-               .Callback<HttpRequestMessage, CancellationToken>((req, ct) => {
-                   var payload = req.Content!.ReadAsStringAsync().Result;
-                   Assert.Contains("\"num_ctx\":" + OllamaProvider.GetEffectiveContextLimit(), payload);
-               })
-               .ReturnsAsync(new HttpResponseMessage()
-               {
-                   StatusCode = System.Net.HttpStatusCode.OK,
-                   Content = new StringContent(sse)
-               });
-
-            var client = new HttpClient(handlerMock.Object);
+            var handler = new CapturingOllamaHandler(sse);
+            var client = new HttpClient(handler);
             var mockRegistry = new Mock<IToolRegistry>();
             mockRegistry.Setup(r => r.GetTools()).Returns(new List<ITool>());
 
@@ -147,12 +128,36 @@ namespace Claude4Net.Tests
             await foreach (var evt in provider.StreamQueryAsync("Test")) { }
 
             // Assert
-            handlerMock.Protected().Verify(
-                "SendAsync",
-                Times.Once(),
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>()
-            );
+            Assert.Equal(1, handler.SendCount);
+            Assert.NotNull(handler.CapturedPayload);
+            Assert.Contains("\"num_ctx\":" + OllamaProvider.GetEffectiveContextLimit(), handler.CapturedPayload);
+        }
+
+        private sealed class CapturingOllamaHandler : HttpMessageHandler
+        {
+            private readonly string _sse;
+
+            public CapturingOllamaHandler(string sse)
+            {
+                _sse = sse;
+            }
+
+            public int SendCount { get; private set; }
+            public string? CapturedPayload { get; private set; }
+
+            protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                SendCount++;
+                CapturedPayload = request.Content is null
+                    ? null
+                    : await request.Content.ReadAsStringAsync(cancellationToken);
+
+                return new HttpResponseMessage()
+                {
+                    StatusCode = System.Net.HttpStatusCode.OK,
+                    Content = new StringContent(_sse)
+                };
+            }
         }
     }
 
@@ -162,7 +167,9 @@ namespace Claude4Net.Tests
         public async Task AgentLoop_ToolResultPayload_ShouldPreserveStructuredContent()
         {
             // Arrange
-            var mockOrchestrator = new Mock<ToolOrchestrator>(new List<ITool>(), null, null);
+            var approvalHandler = new Mock<IUserApprovalHandler>().Object;
+            var orchestratorServices = new ServiceCollection().BuildServiceProvider();
+            var mockOrchestrator = new Mock<ToolOrchestrator>(new List<ITool>(), approvalHandler, orchestratorServices);
             var mockBroker = new Mock<IInputBroker>();
             var mockRouter = new Mock<ISmartRouter>();
             var mockProvider = new Mock<ILLMProvider>();

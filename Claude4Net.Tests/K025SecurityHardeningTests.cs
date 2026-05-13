@@ -13,7 +13,7 @@ namespace Claude4Net.Tests
         private readonly string _workspace;
         private readonly string _outside;
         private readonly string _originalSystemBaseDir;
-        private readonly string _originalCwd;
+        private readonly string? _originalCwd;
 
         public K025SecurityHardeningTests()
         {
