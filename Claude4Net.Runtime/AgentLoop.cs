@@ -882,7 +882,7 @@ namespace Claude4Net.Runtime
                         else
                             AnsiConsole.MarkupLine($"  [green]?? {escapedId}:[/] [grey]{escapedSummary}[/]");
 
-                        toolResults.Add(new { type = "tool_result", tool_use_id = result.ToolUseId, content = result.Content?.ToString() ?? "Success", is_error = result.IsError });
+                        toolResults.Add(new { type = "tool_result", tool_use_id = result.ToolUseId, content = result.Content ?? "Success", is_error = result.IsError });
                     }
 
                     if (batchResults.Count > 0)

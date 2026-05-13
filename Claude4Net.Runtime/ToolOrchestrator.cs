@@ -70,7 +70,7 @@ namespace Claude4Net.Runtime
                 (t.Aliases != null && t.Aliases.Any(a => a.Equals(name, StringComparison.OrdinalIgnoreCase))));
         }
 
-        public async Task<ToolUseResult> ExecuteToolAsync(ToolUseRequest request, object context, IUserApprovalHandler? overrideHandler = null, CancellationToken ct = default)
+        public virtual async Task<ToolUseResult> ExecuteToolAsync(ToolUseRequest request, object context, IUserApprovalHandler? overrideHandler = null, CancellationToken ct = default)
         {
             var tool = GetTool(request.Name);
             if (tool == null)
@@ -318,7 +318,7 @@ namespace Claude4Net.Runtime
             return files.Where(f => !string.IsNullOrEmpty(f)).ToList();
         }
 
-        public async Task<List<ToolUseResult>> ExecuteBatchAsync(IEnumerable<ToolUseRequest> requests, object context, IUserApprovalHandler? overrideHandler = null, CancellationToken ct = default)
+        public virtual async Task<List<ToolUseResult>> ExecuteBatchAsync(IEnumerable<ToolUseRequest> requests, object context, IUserApprovalHandler? overrideHandler = null, CancellationToken ct = default)
         {
             var results = new List<ToolUseResult>();
             var concurrentRequests = new List<ToolUseRequest>();

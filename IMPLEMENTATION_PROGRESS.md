@@ -368,3 +368,11 @@
 - [x] Add `K035MemoryAndAuditTests` (16 tests: Memory strategies, Audit filters, Buffer, Metadata)
 - [x] Official Release Gate passed (274/274 tests)
 - [x] P1 Integration Stabilization regression coverage added and release gate verified (279/279 tests)
+
+### K036: Ollama ToolResult Grounding and Context Window Hotfix
+- [x] Preserve structured tool result payloads in `AgentLoop` (removed `.ToString()` collapse)
+- [x] Implement `GetRawText()` handling for non-string tool results in `OllamaProvider.AddMessage`
+- [x] Explicitly set `num_ctx` in Ollama API requests (StreamQueryAsync)
+- [x] Raise Ollama context limit to 256k (262144) in Provider and Registry
+- [x] Add `K036OllamaTests` and `K036ToolResultTests` (Context, Payload preservation, num_ctx verification)
+- [x] Official Release Gate passed (285/285 tests)

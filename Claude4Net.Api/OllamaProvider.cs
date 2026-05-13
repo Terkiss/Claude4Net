@@ -12,8 +12,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Claude4Net.Api
 {
     /// <summary>
-    /// 로컬?�서 ?�행?�는 Ollama ?�스?�스�??�해 LLM 기능???�공?�는 ?�로바이?�입?�다.
-    /// 로컬 ?�스??http://localhost:11434) ?�신 �??�구 ?�출??지?�합?�다.
+    /// 로컬?�서 ?�행?�는 Ollama ?�스?�스�??�해 LLM 기능???�공?�는 ?�로바이?�입?�다.
+    /// 로컬 ?�스??http://localhost:11434) ?�신 �??�구 ?�출??지?�합?�다.
     /// </summary>
     public class OllamaProvider : ILLMProvider
     {
@@ -22,10 +22,10 @@ namespace Claude4Net.Api
         private readonly IToolRegistry _toolRegistry;
 
         /// <summary>
-        /// OllamaProvider?????�스?�스�?초기?�합?�다.
+        /// OllamaProvider?????�스?�스�?초기?�합?�다.
         /// </summary>
-        /// <param name="httpClient">HTTP ?�신???�라?�언??/param>
-        /// <param name="toolRegistry">?�구 ?�보�?관리하???��??�트�?/param>
+        /// <param name="httpClient">HTTP ?�신???�라?�언??/param>
+        /// <param name="toolRegistry">?�구 ?�보�?관리하???��??�트�?/param>
         public OllamaProvider(HttpClient httpClient, IToolRegistry toolRegistry)
         {
             _httpClient = httpClient;
@@ -33,24 +33,43 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// ?�로바이?�의 고유 ?�름?�니??
+        /// ?�로바이?�의 고유 ?�름?�니??
         /// </summary>
         public string Name => "ollama";
 
         /// <summary>
-        /// ?�당 ?�공?�용 ?�큰 카운?��? 가?�옵?�다.
+        /// ?�당 ?�공?�용 ?�큰 카운?��? 가?�옵?�다.
         /// </summary>
         public ITokenCounter TokenCounter { get; } = new DefaultTokenCounter();
 
         /// <summary>
-        /// ?�당 ?�공?�의 ?�재 모델 컨텍?�트 ?�한??가?�옵?�다. (로컬 기본 8k)
+        /// Ollama의 기본 컨텍스트 윈도우 크기입니다. (256k)
         /// </summary>
-        public int ContextLimit => 8192;
+        public const int DefaultContextLimit = 262144;
 
         /// <summary>
-        /// ?�???�스?�리??메시지�?추�??�니?? ?�구 ?�행 결과�?Ollama 규격??맞춰 변?�합?�다.
+        /// 환경 변수 및 설정을 고려하여 유효한 컨텍스트 제한을 계산합니다.
         /// </summary>
-        /// <param name="message">추�???메시지 객체</param>
+        public static int GetEffectiveContextLimit()
+        {
+            var envVal = Environment.GetEnvironmentVariable("OLLAMA_CONTEXT_LIMIT");
+            if (int.TryParse(envVal, out int limit) && limit > 0)
+            {
+                return Math.Clamp(limit, 8192, 1048576); // 최소 8k, 최대 1M 가드
+            }
+            return DefaultContextLimit;
+        }
+
+        /// <summary>
+        /// ?당 ?공?의 ?재 모델 컨텍?트 ?한??가?옵?다. (기본 256k, 환경변수 오버라이드 가능)
+        /// </summary>
+        public int ContextLimit => GetEffectiveContextLimit();
+
+
+        /// <summary>
+        /// ?�???�스?�리??메시지�?추�??�니?? ?�구 ?�행 결과�?Ollama 규격??맞춰 변?�합?�다.
+        /// </summary>
+        /// <param name="message">추�???메시지 객체</param>
         public void AddMessage(object message)
         {
             if (message is { } obj)
@@ -67,15 +86,23 @@ namespace Claude4Net.Api
                     {
                         if (item.TryGetProperty("type", out var typeProp) && typeProp.GetString() == "tool_result")
                         {
-                            // Ollama???�구 결과�?role="tool"�?tool_call_id�??�해 매칭?�야 ??
+                            var toolUseId = item.GetProperty("tool_use_id").GetString();
+                            var contentElement = item.GetProperty("content");
+
+                            // 구조화된 데이터(객체/배열)인 경우 GetRawText()를 사용하여 JSON 문자열로 보존
+                            string finalContent = contentElement.ValueKind == JsonValueKind.String
+                                ? contentElement.GetString() ?? ""
+                                : contentElement.GetRawText();
+
                             _messageHistory.Add(new
                             {
                                 role = "tool",
-                                tool_call_id = item.GetProperty("tool_use_id").GetString(),
-                                content = item.GetProperty("content").GetString() ?? ""
+                                tool_call_id = toolUseId,
+                                content = finalContent
                             });
                             handled = true;
                         }
+
                     }
                     if (handled) return;
                 }
@@ -84,15 +111,15 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// ?�재 ?�???�스?�리�?반환?�니??
+        /// ?�재 ?�???�스?�리�?반환?�니??
         /// </summary>
-        /// <returns>메시지 ?�스?�리 리스??/returns>
+        /// <returns>메시지 ?�스?�리 리스??/returns>
         public IReadOnlyList<object> GetHistory() => _messageHistory.AsReadOnly();
 
         /// <summary>
-        /// ?�???�스?�리�??�로??목록?�로 ?�체합?�다.
+        /// ?�???�스?�리�??�로??목록?�로 ?�체합?�다.
         /// </summary>
-        /// <param name="history">?�체할 메시지 목록</param>
+        /// <param name="history">?�체할 메시지 목록</param>
         public void SetHistory(IEnumerable<object> history)
         {
             _messageHistory.Clear();
@@ -100,9 +127,9 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// Ollama ?�버?�서 ?�용 가?�한 모델 목록??조회?�니??
+        /// Ollama ?�버?�서 ?�용 가?�한 모델 목록??조회?�니??
         /// </summary>
-        /// <returns>모델 ?�름 리스??/returns>
+        /// <returns>모델 ?�름 리스??/returns>
         public async Task<List<string>> ListModelsAsync()
         {
             string? uri = AuthManager.GetApiKey("ollama") ?? "http://localhost:11434";
@@ -119,20 +146,24 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// Ollama API�??�해 쿼리�??�행?�고 결과�??�트리밍?�니??
+        /// Ollama API�??�해 쿼리�??�행?�고 결과�??�트리밍?�니??
         /// </summary>
-        /// <param name="prompt">?�용???�력 쿼리</param>
-        /// <param name="model">모델�?(?? llama3.1)</param>
-        /// <param name="ct">?�업 취소 ?�큰</param>
-        /// <returns>?�트리밍 ?�벤???�거??/returns>
+        /// <param name="prompt">?�용???�력 쿼리</param>
+        /// <param name="model">모델�?(?? llama3.1)</param>
+        /// <param name="ct">?�업 취소 ?�큰</param>
+        /// <returns>?�트리밍 ?�벤???�거??/returns>
         public async IAsyncEnumerable<LLMStreamEvent> StreamQueryAsync(string prompt, string? model = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
         {
             string actualModel = model ?? AppState.ActiveModel;
             string? uri = AuthManager.GetApiKey("ollama") ?? "http://localhost:11434";
 
-            _messageHistory.Add(new { role = "user", content = prompt });
+            if (!string.IsNullOrEmpty(prompt))
+            {
+                _messageHistory.Add(new { role = "user", content = prompt });
+            }
 
-            // ?�구 목록 구성
+            // ?구 목록 구성
+
             var tools = _toolRegistry.GetTools();
             var ollamaTools = new List<object>();
             if (tools != null)
@@ -153,7 +184,14 @@ namespace Claude4Net.Api
             var finalMessages = new List<object> { systemMsg };
             finalMessages.AddRange(_messageHistory);
 
-            var payload = new { model = actualModel, messages = finalMessages, tools = ollamaTools.Any() ? ollamaTools : null, stream = true };
+            var payload = new
+            {
+                model = actualModel,
+                messages = finalMessages,
+                tools = ollamaTools.Any() ? ollamaTools : null,
+                stream = true,
+                options = new { num_ctx = ContextLimit }
+            };
             var request = new HttpRequestMessage(HttpMethod.Post, $"{uri}/api/chat");
             request.Content = JsonContent.Create(payload);
 
@@ -167,7 +205,7 @@ namespace Claude4Net.Api
             var assistantToolCalls = new List<object>();
             bool toolCalled = false;
 
-            // ?�답 ?�싱 �??�트리밍
+            // ?�답 ?�싱 �??�트리밍
             while (await reader.ReadLineAsync(ct) is { } line)
             {
                 if (string.IsNullOrWhiteSpace(line)) continue;

@@ -128,7 +128,7 @@ namespace Claude4Net.Runtime
                     RoutingCategory.LocalPrivate,
                     RoutingCategory.CheapUtility
                 },
-                ContextWindowSize = 8_000
+                ContextWindowSize = Claude4Net.Api.OllamaProvider.GetEffectiveContextLimit()
             });
 
             registry.Register(new ProviderDescriptor
