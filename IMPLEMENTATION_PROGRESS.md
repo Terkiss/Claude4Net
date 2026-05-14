@@ -373,6 +373,13 @@
 - [x] Preserve structured tool result payloads in `AgentLoop` (removed `.ToString()` collapse)
 - [x] Implement `GetRawText()` handling for non-string tool results in `OllamaProvider.AddMessage`
 - [x] Explicitly set `num_ctx` in Ollama API requests (StreamQueryAsync)
-- [x] Raise Ollama context limit to 256k (262144) in Provider and Registry
+- [x] raise Ollama context limit to 256k (262144) in Provider and Registry
 - [x] Add `K036OllamaTests` and `K036ToolResultTests` (Context, Payload preservation, num_ctx verification)
-- [x] Official Release Gate passed (285/285 tests)
+- [x] Official Release Gate passed (287/287 tests)
+
+### K037: Gemini Structured Tool Result Compatibility Hotfix
+- [x] Fix `GeminiProvider.AddMessage` to handle non-string tool result content using `GetRawText()`
+- [x] Preserve structured data (objects/arrays) in Gemini `functionResponse` payloads
+- [x] Implement safe fallback in `AddMessage` to avoid storing illegal raw Anthropic messages (prevents API rejection)
+- [x] Add `K037GeminiTests` (Structured payload preservation, Safe fallback verification)
+- [x] Official Release Gate passed (290/290 tests)

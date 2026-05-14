@@ -86,12 +86,42 @@ namespace Claude4Net.Api
                                     string toolUseId = item.GetProperty("tool_use_id").GetString() ?? "unknown";
                                     string functionName = _toolCallIdToNameMap.TryGetValue(toolUseId, out var name) ? name : toolUseId;
 
+                                    var contentElement = item.GetProperty("content");
+                                    object responseObj;
+
+                                    if (contentElement.ValueKind == JsonValueKind.String)
+                                    {
+                                        responseObj = new { content = contentElement.GetString() ?? "" };
+                                    }
+                                    else if (contentElement.ValueKind == JsonValueKind.Null)
+                                    {
+                                        responseObj = new { content = "null" };
+                                    }
+                                    else
+                                    {
+                                        try
+                                        {
+                                            if (contentElement.ValueKind == JsonValueKind.Object)
+                                            {
+                                                responseObj = JsonSerializer.Deserialize<object>(contentElement.GetRawText()) ?? new { };
+                                            }
+                                            else
+                                            {
+                                                responseObj = new { content = contentElement.GetRawText() };
+                                            }
+                                        }
+                                        catch
+                                        {
+                                            responseObj = new { content = contentElement.ToString() };
+                                        }
+                                    }
+
                                     parts.Add(new
                                     {
                                         functionResponse = new
                                         {
                                             name = functionName,
-                                            response = new { content = item.GetProperty("content").GetString() ?? "" }
+                                            response = responseObj
                                         }
                                     });
                                 }
@@ -118,10 +148,16 @@ namespace Claude4Net.Api
             }
             catch
             {
-                // 변???�패 ???�본 메시지 추�?
+                try
+                {
+                    var fallbackJson = JsonSerializer.Serialize(message);
+                    _conversationHistory.Add(new { role = "user", parts = new[] { new { text = fallbackJson } } });
+                    return;
+                }
+                catch { }
             }
 
-            _conversationHistory.Add(message);
+            _conversationHistory.Add(new { role = "user", parts = new[] { new { text = message?.ToString() ?? "null" } } });
         }
 
         /// <summary>
