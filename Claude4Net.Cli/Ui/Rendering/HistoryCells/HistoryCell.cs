@@ -1,4 +1,4 @@
-using System.Text;
+using Spectre.Console.Rendering;
 
 namespace Claude4Net.Cli.Ui.Rendering.HistoryCells;
 
@@ -11,6 +11,11 @@ public abstract class HistoryCell
     /// Returns a plain text representation of the cell for deterministic testing.
     /// </summary>
     public abstract string ToPlainText();
+
+    /// <summary>
+    /// Returns a Spectre.Console IRenderable for this cell.
+    /// </summary>
+    public abstract IRenderable GetRenderable();
 
     /// <summary>
     /// Appends delta text to the cell if it supports streaming.

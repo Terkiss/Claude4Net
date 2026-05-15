@@ -1,4 +1,6 @@
 using System.Text;
+using Spectre.Console;
+using Spectre.Console.Rendering;
 
 namespace Claude4Net.Cli.Ui.Rendering.HistoryCells;
 
@@ -14,4 +16,9 @@ public class ThinkingCell(string? initialThought = null) : HistoryCell
     }
 
     public override string ToPlainText() => $"Thinking: {Content}";
+
+    public override IRenderable GetRenderable()
+    {
+        return new Markup($"[{LumenTheme.ThinkingColor}]THOUGHT:[/] [italic]{Markup.Escape(Content)}[/]");
+    }
 }

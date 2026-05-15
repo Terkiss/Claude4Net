@@ -406,3 +406,20 @@
 - [x] Report key events: `RunStarted`, `RoutingSelected`, `ThinkingStarted`, `ThinkingDelta`, `TextDelta`, `ToolCallQueued`, `ToolResultReceived`, `AssistantMessageCompleted`, `RunError`, `RunCompleted`
 - [x] Add `K039AgentRunObserverTests` for event sequence and content verification
 - [x] Official Release Gate passed (300/300 tests)
+
+### K040: Lumen State and History Cells
+- [x] Define `LumenState` and `LumenReducer` for UI state management
+- [x] Implement base `HistoryCell` and specialized cells (User, Assistant, Thinking, ToolCall, ToolResult, Notice, Error, Approval)
+- [x] Support plain-text and Spectre-renderable outputs for all cells
+- [x] Implement UI events for state transitions (RunStarted, UserPrompt, AssistantText, Thinking, etc.)
+- [x] Add `K040LumenStateTests` for state transition and cell logic verification
+- [x] Official Release Gate passed (308/308 tests)
+
+### K041: Spectre Renderer v1
+- [x] Implement `LumenRenderer` using `Spectre.Console` for stable append-oriented rendering
+- [x] Implement `ChatSurface` for transcript rendering
+- [x] Implement `BottomPane` and `FooterRenderer` for input area and status bar
+- [x] Implement `DialogLayer` for modal-style overlays (Approvals)
+- [x] Support automatic width adaptation and markup escaping
+- [x] Add `K041LumenRendererTests` using `Spectre.Console.Testing`
+- [x] Official Release Gate passed (310/310 tests)
