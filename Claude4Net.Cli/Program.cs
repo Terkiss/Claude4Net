@@ -11,6 +11,7 @@ using Claude4Net.Tools;
 using Claude4Net.Commands;
 using Claude4Net.Discord;
 using Claude4Net.Dashboard;
+using Claude4Net.Cli.Bootstrap;
 using System.IO;
 using System.Threading;
 
@@ -18,92 +19,13 @@ using System.Threading;
 // Claude4Net CLI Entry Point
 // ============================================================================
 
-// --- 1. ?˜ì¡´??ì£¼ì… (Dependency Injection) êµ¬ì„± ---
-// ? í”Œë¦¬ì??´ì…˜???„ìš”???„ì—­ ?íƒœ ë°??œë¹„?¤ë“¤??DI ì»¨í…Œ?´ë„ˆ???±ë¡?©ë‹ˆ??
+var options = CliOptions.Parse(args);
 
-AppState.LoadDiscordApprovers(); // ?”ìŠ¤ì½”ë“œ ?¹ì¸??ëª©ë¡ ë¡œë“œ
+// --- 1. Dependency Injection Configuration ---
 var services = new ServiceCollection();
+CliServiceRegistration.ConfigureServices(services);
 
-// HTTP ?´ë¼?´ì–¸???©í† ë¦??±ë¡ (Anthropic, Gemini, Ollama ?±ì˜ API ?µì‹ ???¬ìš©)
-services.AddHttpClient();
-
-// --- K031, K033-K035 Runtime Services ---
-services.AddSingleton<ProviderRegistry>(sp => ProviderRegistry.CreateWithDefaults());
-services.AddSingleton<HookPipeline>();
-services.AddSingleton<AuditTrailService>(sp => new AuditTrailService(maxEntries: 100));
-services.AddSingleton<MemoryStrategyManager>(sp => MemoryStrategyManager.CreateWithDefaults());
-
-
-// [Messaging] ?¬ìš©???…ë ¥ ë°??ì´?„íŠ¸ ê°„ì˜ ?µì‹ ??ì¤‘ê³„?˜ëŠ” ë¸Œë¡œì»??±ë¡
-services.AddSingleton<IInputBroker, ChannelBroker>();
-
-// [Discord] ?”ìŠ¤ì½”ë“œ ë´??°ë™ ë°?ê²Œì´?¸ì›¨???´ë²¤??ì²˜ë¦¬ë¥??„í•œ ?œë¹„???±ë¡
-services.AddSingleton<DiscordListenerService>();
-
-// [Tools] ?ì´?„íŠ¸ê°€ ?¬ìš©?????ˆëŠ” ê¸°ë³¸ ?„êµ¬?¤ì„ ?±ê??¤ìœ¼ë¡??±ë¡
-services.AddSingleton<LspClient>();
-services.AddSingleton<ITool, LspTool>();       // ?¸ì–´ ?œë²„ ?„ë¡œ? ì½œ ?„êµ¬
-services.AddSingleton<ITool, BashTool>();      // ??ëª…ë ¹ ?¤í–‰ ?„êµ¬
-services.AddSingleton<ITool, FileReadTool>();  // ?Œì¼ ?½ê¸° ?„êµ¬
-services.AddSingleton<ITool, FileWriteTool>(); // ?Œì¼ ?°ê¸° ?„êµ¬
-services.AddSingleton<ITool, FileEditTool>();  // ?Œì¼ ?˜ì • ?„êµ¬
-services.AddSingleton<ITool, LsTool>();        // ?”ë ‰? ë¦¬ ëª©ë¡ ì¡°íšŒ ?„êµ¬
-
-// [Runtime] ?ì´?„íŠ¸ ?¤í–‰ ë°??„êµ¬ ê´€ë¦¬ë? ?„í•œ ?µì‹¬ ì»´í¬?ŒíŠ¸ ?±ë¡
-services.AddSingleton<ISmartRouter, SmartRouter>(); // ?„ë¡¬?„íŠ¸???°ë¥¸ LLM ?¼ìš°???”ì§„
-services.AddSingleton<IUserApprovalHandler, CliUserApprovalHandler>(); // CLI ê¸°ë°˜ ?¬ìš©???¹ì¸ ?¸ë“¤??
-
-// [Skill Registry] ?¤í‚¬ ë°œê²¬ ë°??ˆì§ˆ ì¶”ì ???„í•œ ?œë¹„???±ë¡
-services.AddSingleton<SkillRegistryService>(sp =>
-{
-    string ws = AppState.CurrentCwd ?? AppState.SystemBaseDir;
-    return new SkillRegistryService(ws);
-});
-
-services.AddSingleton<SkillProposalService>(sp =>
-{
-    var registry = sp.GetRequiredService<SkillRegistryService>();
-    return new SkillProposalService(registry);
-});
-
-services.AddSingleton<ToolOrchestrator>(sp => new ToolOrchestrator(
-    sp.GetServices<ITool>(),
-    sp.GetService<IUserApprovalHandler>(),
-    sp));
-services.AddSingleton<IToolRegistry>(sp => sp.GetRequiredService<ToolOrchestrator>());
-
-// [LLM Providers] ?¤ì–‘??LLM ?œê³µ??Provider)?¤ì„ DI???±ë¡
-services.AddSingleton<AnthropicClient>(sp =>
-{
-    var clientFactory = sp.GetRequiredService<IHttpClientFactory>();
-    var httpClient = clientFactory.CreateClient("Anthropic");
-    return new AnthropicClient(httpClient);
-});
-services.AddSingleton<ClaudeService>();
-services.AddSingleton<GeminiProvider>(sp =>
-{
-    var clientFactory = sp.GetRequiredService<IHttpClientFactory>();
-    var httpClient = clientFactory.CreateClient("Gemini");
-    httpClient.Timeout = TimeSpan.FromSeconds(180); // Gemini API ?€?„ì•„??3ë¶??¤ì •
-    return new GeminiProvider(httpClient, sp.GetRequiredService<IToolRegistry>());
-});
-services.AddSingleton<GeminiCliProvider>();
-services.AddSingleton<IEmbeddingProvider, GeminiEmbeddingProvider>(sp =>
-{
-    var clientFactory = sp.GetRequiredService<IHttpClientFactory>();
-    var httpClient = clientFactory.CreateClient("Gemini");
-    return new GeminiEmbeddingProvider(httpClient);
-});
-services.AddSingleton<OllamaProvider>(sp =>
-{
-    var clientFactory = sp.GetRequiredService<IHttpClientFactory>();
-    var httpClient = clientFactory.CreateClient("Ollama");
-    httpClient.Timeout = TimeSpan.FromSeconds(300); // Ollama(ë¡œì»¬) ?€?„ì•„??5ë¶??¤ì •
-    return new OllamaProvider(httpClient, sp.GetRequiredService<IToolRegistry>());
-});
-
-bool startDashboard = args.Contains("--dashboard", StringComparer.OrdinalIgnoreCase);
-if (startDashboard)
+if (options.StartDashboard)
 {
     AnsiConsole.MarkupLine("[grey][[INFO]] Web Dashboard starting on http://localhost:5000...[/]");
     try
@@ -120,23 +42,22 @@ if (startDashboard)
 
 var serviceProvider = services.BuildServiceProvider();
 
-for (int i = 0; i < args.Length; i++)
+// Handle Permission Mode
+if (options.PermissionModeArg != null)
 {
-    if (args[i].Equals("--permission-mode", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+    if (CliOptions.TryParsePermissionMode(options.PermissionModeArg, out var parsedMode))
     {
-        if (TryParsePermissionMode(args[i + 1], out var parsedMode))
-        {
-            AppState.CurrentPermissionMode = parsedMode;
-        }
-        else
-        {
-            Console.Error.WriteLine($"Error: invalid permission mode '{args[i + 1]}'.");
-            return 1;
-        }
+        AppState.CurrentPermissionMode = parsedMode;
+    }
+    else
+    {
+        Console.Error.WriteLine($"Error: invalid permission mode '{options.PermissionModeArg}'.");
+        return 1;
     }
 }
 
-if (args.Length > 0 && args[0].Equals("doctor", StringComparison.OrdinalIgnoreCase))
+// Doctor Command Path
+if (options.IsDoctor)
 {
     var cmd = CommandRegistry.FindCommand("/doctor");
     if (cmd?.Handler == null)
@@ -145,16 +66,14 @@ if (args.Length > 0 && args[0].Equals("doctor", StringComparison.OrdinalIgnoreCa
         return 1;
     }
 
-    var doctorArgs = string.Join(" ", args.Skip(1));
-    var res = await cmd.Handler(doctorArgs, serviceProvider);
+    var res = await cmd.Handler(options.DoctorArgs ?? "", serviceProvider);
     Console.WriteLine(res);
     Console.Out.Flush();
     return 0;
 }
 
-// --- ?°ê¸° ?ŒìŠ¤??Smoke Test) ê²½ë¡œ ---
-// ?ë™?”ëœ ?˜ê²½?ì„œ ?¤í–‰ ?¬ë?ë¥??•ì¸?˜ê¸° ?„í•œ ê°„ë‹¨??ì¢…ë£Œ ?ŒìŠ¤??
-if (args.Contains("--smoke-exit"))
+// Smoke Test Path
+if (options.SmokeExit)
 {
     var cmd = CommandRegistry.FindCommand("/exit");
     if (cmd != null && cmd.Handler != null)
@@ -171,13 +90,12 @@ if (args.Contains("--smoke-exit"))
     }
 }
 
-// ?™ì  ?ŒëŸ¬ê·¸ì¸ ë¡œë“œ: ì§€?•ëœ 'plugins' ?´ë” ?´ì˜ DLL?¤ì„ ë©”ëª¨ë¦¬ì— ë¡œë“œ?˜ì—¬ ?„êµ¬ ?•ì¥
+// Dynamic Plugin Loading
 string pluginsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "plugins");
 var orchestrator = serviceProvider.GetRequiredService<ToolOrchestrator>();
 orchestrator.ReloadDynamicPlugins(pluginsPath);
 
-// --- 2. ì´ˆê¸°??ë°??œì‘ (UI ?Œë”ë§? ---
-// Spectre.Console???¬ìš©?˜ì—¬ ?”ë ¤??ë¶€??ë¡œê·¸ë¥?ì¶œë ¥?©ë‹ˆ??
+// --- 2. Initialize and Start (UI Rendering) ---
 AnsiConsole.Write(new FigletText("Claude4Net").Color(Color.Orange1));
 AnsiConsole.MarkupLine("[bold red]YOLO Mode Support Enabled.[/] Use [bold]!yolo[/] for root access.");
 AnsiConsole.MarkupLine("[grey]Tip: Press [bold white]ESC[/] during execution to cancel current task.[/]\n");
@@ -185,11 +103,10 @@ AnsiConsole.MarkupLine("[grey]Tip: Press [bold white]ESC[/] during execution to 
 var broker = serviceProvider.GetRequiredService<IInputBroker>();
 var mainCts = new CancellationTokenSource();
 
-// ?…ë ¥ ë°©ì‹???°ë¥¸ ì²˜ë¦¬ ë¡œì§ (?Œì´???…ë ¥ vs ?€?”í˜• ?°ë???
+// Process input based on mode (Piped vs Interactive)
 if (Console.IsInputRedirected)
 {
-    // --- ?Œì´???…ë ¥ ê²½ë¡œ (Piped Input) ---
-    // ?¤ë¥¸ ?„ë¡œ?¸ìŠ¤ë¡œë????°ì´?°ë? ?„ë‹¬ë°›ì„ ???¬ìš©?˜ëŠ” ?¤íŠ¸ë¦¬ë° ë°©ì‹
+    // --- Piped Input Path ---
     var cliOutput = new CliOutputHandler();
     var cliApproval = serviceProvider.GetRequiredService<IUserApprovalHandler>();
     string? rawLine;
@@ -198,7 +115,6 @@ if (Console.IsInputRedirected)
         string input = rawLine.Trim();
         if (string.IsNullOrWhiteSpace(input)) continue;
 
-        // ëª…ë ¹ ì²˜ë¦¬ (! ?ëŠ” / ë¡??œì‘?˜ëŠ” ê²½ìš°)
         if (input.StartsWith("!") || input.StartsWith("/"))
         {
             string cmdName = input.Split(' ')[0];
@@ -220,7 +136,6 @@ if (Console.IsInputRedirected)
             }
         }
 
-        // ?¼ë°˜ ?„ë¡¬?„íŠ¸ë¥?AgentLoopë¥??µí•´ ì²˜ë¦¬
         var router = serviceProvider.GetRequiredService<ISmartRouter>();
         var decision = router.Route(input);
         ILLMProvider provider = decision.SelectedProvider switch
@@ -253,9 +168,9 @@ if (Console.IsInputRedirected)
 }
 else
 {
-    // --- ?€?”í˜• ?°ë???ê²½ë¡œ (Producer-Consumer ëª¨ë¸) ---
+    // --- Interactive Mode Path (Producer-Consumer Model) ---
 
-    // [ë³´ì¡° ?‘ì—…] ESC ??ê°ì‹œ: ?¤í–‰ ì¤‘ì¸ ?‘ì—…??ì¦‰ì‹œ ì·¨ì†Œ?????ˆë„ë¡?ë³„ë„ ?œìŠ¤?¬ë¡œ ?¤í–‰
+    // ESC Watcher Task
     _ = Task.Run(() =>
     {
         while (!mainCts.Token.IsCancellationRequested)
@@ -266,18 +181,18 @@ else
                 if (key.Key == ConsoleKey.Escape)
                 {
                     mainCts.Cancel();
-                    AnsiConsole.MarkupLine("\n[bold red]??Cancellation requested via ESC.[/]");
+                    AnsiConsole.MarkupLine("\n[bold red] Cancellation requested via ESC.[/]");
                 }
             }
             Thread.Sleep(100);
         }
     });
 
-    // ?”ìŠ¤ì½”ë“œ ë¦¬ìŠ¤???œì‘ (ë°±ê·¸?¼ìš´?œì—??ê²Œì´?¸ì›¨???´ë²¤???˜ì‹ )
+    // Start Discord Listener
     var discordService = serviceProvider.GetRequiredService<DiscordListenerService>();
     _ = discordService.StartAsync();
 
-    // [Producer] ?¬ìš©???…ë ¥???½ì–´?€ ë¸Œë¡œì»¤ì— ê¸°ë¡?˜ëŠ” ?œìŠ¤??
+    // [Producer] Task to capture user input
     var producerTask = Task.Run(async () =>
     {
         var cliOutput = new CliOutputHandler();
@@ -298,7 +213,6 @@ else
 
                 string input = rawInput.Trim();
 
-                // ?¬ìš©???¹ì¸ ?€ê¸?ì¤‘ì¸ ê²½ìš° (Tool ?¬ìš© ?¹ì¸ ??
                 if (CliUserApprovalHandler.PendingApproval != null)
                 {
                     var tcs = CliUserApprovalHandler.PendingApproval;
@@ -307,8 +221,6 @@ else
                     continue;
                 }
 
-                // ë¶™ì—¬?£ê¸°(Paste)ë¡??¸í•œ ë©€?°ë¼????ƒ„ ë°©ì–´ ë¡œì§:
-                // ë¹ ë¥¸ ?œê°„ ?´ì— ?¤ëŸ‰???…ë ¥???¤ì–´??ê²½ìš° ?´ë? ?˜ë‚˜???©ì–´ë¦¬ë¡œ ë¬¶ì–´ ì²˜ë¦¬?©ë‹ˆ??
                 var sb = new System.Text.StringBuilder(input);
                 Thread.Sleep(15);
                 while (Console.KeyAvailable)
@@ -325,7 +237,6 @@ else
 
                 if (string.IsNullOrWhiteSpace(input)) continue;
 
-                // ëª…ë ¹ ?¸ë“¤???¤í–‰
                 if (input.StartsWith("!") || input.StartsWith("/"))
                 {
                     string[] parts = input.Split(' ', 2);
@@ -348,7 +259,6 @@ else
                     }
                 }
 
-                // ?…ë ¥??ë¸Œë¡œì»¤ì— ?¨ì„œ Consumer(AgentLoop)ê°€ ê°€?¸ê?ê²???
                 broker.TryWrite(new InputContext(input, cliOutput, cliApproval));
             }
             catch (Exception ex)
@@ -358,7 +268,7 @@ else
         }
     });
 
-    // [Consumer] ë¸Œë¡œì»¤ë¡œë¶€???…ë ¥???˜ì‹ ?˜ì—¬ ?ì´?„íŠ¸ ë£¨í”„ë¥??¤í–‰?˜ëŠ” ë©”ì¸ ë£¨í”„
+    // [Consumer] Main loop to execute AgentLoop from broker messages
     while (!mainCts.Token.IsCancellationRequested)
     {
         var broadcaster = DashboardServer.Services?.GetService<IAgentEventBroadcaster>();
@@ -372,7 +282,6 @@ else
 
         try
         {
-            // ë¸Œë¡œì»¤ì—??ë©”ì‹œì§€ê°€ ???Œê¹Œì§€ ?€ê¸°í•˜ë©??ì´?„íŠ¸ ?‘ì—… ?˜í–‰
             await agent.ListenAsync(mainCts.Token);
         }
         catch (OperationCanceledException) { }
@@ -386,43 +295,12 @@ Console.Out.Flush();
 Thread.Sleep(200);
 return 0;
 
-
-
-// --- 3. ?¬í¼ ?´ë˜??---
-
-/// <summary>
-/// CLI ?˜ê²½?ì„œ??ì¶œë ¥??ì²˜ë¦¬?˜ëŠ” ?¸ë“¤?¬ì…?ˆë‹¤.
-/// </summary>
-static bool TryParsePermissionMode(string raw, out PermissionMode mode)
-{
-    string normalized = raw.Replace("-", "", StringComparison.OrdinalIgnoreCase)
-        .Replace("_", "", StringComparison.OrdinalIgnoreCase)
-        .ToLowerInvariant();
-
-    mode = normalized switch
-    {
-        "readonly" => PermissionMode.ReadOnly,
-        "workspacewrite" => PermissionMode.WorkspaceWrite,
-        "prompt" => PermissionMode.Prompt,
-        "dangerfullaccess" => PermissionMode.DangerFullAccess,
-        "default" => PermissionMode.Default,
-        "yolo" => PermissionMode.Yolo,
-        "bypasspermissions" => PermissionMode.BypassPermissions,
-        _ => default
-    };
-
-    return normalized is "readonly" or "workspacewrite" or "prompt" or "dangerfullaccess" or "default" or "yolo" or "bypasspermissions";
-}
-
 public class CliOutputHandler : IOutputHandler
 {
     public Task WriteAsync(string text) => Task.CompletedTask;
 
     public Task CompleteAsync(string finalMessage) => Task.CompletedTask;
 
-    /// <summary>
-    /// ?Œì¼???¬ìš©?ì—ê²??„ì†¡(?ˆë‚´)?©ë‹ˆ??
-    /// </summary>
     public Task SendFileAsync(string filePath, string? text = null)
     {
         if (!string.IsNullOrEmpty(text))

@@ -383,3 +383,12 @@
 - [x] Implement safe fallback in `AddMessage` to avoid storing illegal raw Anthropic messages (prevents API rejection)
 - [x] Add `K037GeminiTests` (Structured payload preservation, Safe fallback verification)
 - [x] Official Release Gate passed (290/290 tests)
+
+### K038: Project Lumen Bootstrap Foundation
+- [x] Extract bootstrap and option parsing into `Claude4Net.Cli/Bootstrap/CliOptions.cs`
+- [x] Extract service registration into `Claude4Net.Cli/Bootstrap/CliServiceRegistration.cs`
+- [x] Refactor `Program.cs` to use `CliOptions` and `CliServiceRegistration`
+- [x] Reserve `--legacy-cli` flag (fallback for future UI migration)
+- [x] Preserve existing interactive/piped CLI behavior, dashboard, doctor, and smoke-exit
+- [x] Add `K038LumenBootstrapTests` (Option parsing, Service registration)
+- [x] Official Release Gate passed (294/294 tests)

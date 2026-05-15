@@ -25,9 +25,10 @@
     <ProjectReference Include="..\Claude4Net.Commands\Claude4Net.Commands.csproj" />
     <ProjectReference Include="..\Claude4Net.Discord\Claude4Net.Discord.csproj" />
     <ProjectReference Include="..\Claude4Net.Dashboard\Claude4Net.Dashboard.csproj" />
+    <ProjectReference Include="..\Claude4Net.Cli\Claude4Net.Cli.csproj" />
   </ItemGroup>
 
-  <!-- 리소???�더�??�스??출력 ?�렉?�리�?복사 (?�합 ?�스?�용) -->
+  <!-- 리소???�더�??�스??출력 ?�렉?�리�?복사 (?�합 ?�스?�용) -->
   <ItemGroup>
     <Content Include="..\.resources\**\*.*">
       <Link>.resources\%(RecursiveDir)%(FileName)%(Extension)</Link>

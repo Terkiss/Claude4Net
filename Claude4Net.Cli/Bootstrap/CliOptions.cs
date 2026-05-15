@@ -1,0 +1,115 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Claude4Net.SDK;
+
+namespace Claude4Net.Cli.Bootstrap;
+
+/// <summary>
+/// CLI options for Claude4Net.
+/// </summary>
+public sealed class CliOptions
+{
+    /// <summary>
+    /// Whether to start the web dashboard.
+    /// </summary>
+    public bool StartDashboard { get; set; }
+
+    /// <summary>
+    /// Permission mode argument.
+    /// </summary>
+    public string? PermissionModeArg { get; set; }
+
+    /// <summary>
+    /// Whether to exit immediately after a smoke test.
+    /// </summary>
+    public bool SmokeExit { get; set; }
+
+    /// <summary>
+    /// Whether to run the doctor command.
+    /// </summary>
+    public bool IsDoctor { get; set; }
+
+    /// <summary>
+    /// Arguments for the doctor command.
+    /// </summary>
+    public string? DoctorArgs { get; set; }
+
+    /// <summary>
+    /// Whether to use the legacy CLI interface. (Reserved for Lumen migration)
+    /// </summary>
+    public bool LegacyCli { get; set; }
+
+    /// <summary>
+    /// Remaining non-option arguments.
+    /// </summary>
+    public string[] RemainingArgs { get; set; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Parses the command-line arguments into a <see cref="CliOptions"/> instance.
+    /// </summary>
+    public static CliOptions Parse(string[] args)
+    {
+        var options = new CliOptions();
+        var remaining = new List<string>();
+
+        for (int i = 0; i < args.Length; i++)
+        {
+            var arg = args[i];
+
+            if (arg.Equals("--dashboard", StringComparison.OrdinalIgnoreCase))
+            {
+                options.StartDashboard = true;
+            }
+            else if (arg.Equals("--smoke-exit", StringComparison.OrdinalIgnoreCase))
+            {
+                options.SmokeExit = true;
+            }
+            else if (arg.Equals("--legacy-cli", StringComparison.OrdinalIgnoreCase))
+            {
+                options.LegacyCli = true;
+            }
+            else if (arg.Equals("--permission-mode", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                options.PermissionModeArg = args[++i];
+            }
+            else if (i == 0 && arg.Equals("doctor", StringComparison.OrdinalIgnoreCase))
+            {
+                options.IsDoctor = true;
+                options.DoctorArgs = string.Join(" ", args.Skip(1));
+                break;
+            }
+            else
+            {
+                remaining.Add(arg);
+            }
+        }
+
+        options.RemainingArgs = remaining.ToArray();
+        return options;
+    }
+
+    /// <summary>
+    /// Helper to parse permission mode.
+    /// </summary>
+    public static bool TryParsePermissionMode(string raw, out PermissionMode mode)
+    {
+        string normalized = raw.Replace("-", "", StringComparison.OrdinalIgnoreCase)
+            .Replace("_", "", StringComparison.OrdinalIgnoreCase)
+            .ToLowerInvariant();
+
+        mode = normalized switch
+        {
+            "readonly" => PermissionMode.ReadOnly,
+            "workspacewrite" => PermissionMode.WorkspaceWrite,
+            "prompt" => PermissionMode.Prompt,
+            "dangerfullaccess" => PermissionMode.DangerFullAccess,
+            "default" => PermissionMode.Default,
+            "yolo" => PermissionMode.Yolo,
+            "bypasspermissions" => PermissionMode.BypassPermissions,
+            _ => default
+        };
+
+        return normalized is "readonly" or "workspacewrite" or "prompt" or "dangerfullaccess" or "default" or "yolo" or "bypasspermissions";
+    }
+}
