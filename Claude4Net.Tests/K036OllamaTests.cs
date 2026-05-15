@@ -161,6 +161,7 @@ namespace Claude4Net.Tests
         }
     }
 
+    [Collection("AppState")]
     public class K036AgentLoopTests
     {
         [Fact]

@@ -30,6 +30,7 @@ namespace Claude4Net.Runtime
         private readonly IEmbeddingProvider? _embedding;
         private IAgentEventStore CurrentEventStore => new FileAgentEventStore(AppState.CurrentCwd ?? Directory.GetCurrentDirectory());
         private readonly IAgentEventBroadcaster? _broadcaster;
+        private readonly IAgentRunObserver _observer;
         private AgentSessionStore? _sessionStore;
         private long _currentVersion = 0;
         private readonly OscillationDetector _oscillationDetector = new();
@@ -37,7 +38,7 @@ namespace Claude4Net.Runtime
         /// <summary>
         /// AgentLoop의 인스턴스를 초기화합니다.
         /// </summary>
-        public AgentLoop(ToolOrchestrator orchestrator, IServiceProvider serviceProvider, IInputBroker broker, ISmartRouter router, IEmbeddingProvider? embedding = null, IAgentEventBroadcaster? broadcaster = null)
+        public AgentLoop(ToolOrchestrator orchestrator, IServiceProvider serviceProvider, IInputBroker broker, ISmartRouter router, IEmbeddingProvider? embedding = null, IAgentEventBroadcaster? broadcaster = null, IAgentRunObserver? observer = null)
         {
             _orchestrator = orchestrator;
             _serviceProvider = serviceProvider;
@@ -45,6 +46,19 @@ namespace Claude4Net.Runtime
             _router = router;
             _embedding = embedding;
             _broadcaster = broadcaster;
+            _observer = observer ?? NullAgentRunObserver.Instance;
+        }
+
+        private async Task ReportAsync(IAgentRunEvent e)
+        {
+            try
+            {
+                await _observer.OnEventAsync(e);
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.MarkupLine($"[red]Warning: Observer failed:[/] {Markup.Escape(ex.Message)}");
+            }
         }
 
         private async Task EnsureSessionInitializedAsync(string providerName, string modelName)
@@ -176,6 +190,7 @@ namespace Claude4Net.Runtime
                     };
 
                     AnsiConsole.MarkupLine($"[grey]Routing:[/] [bold cyan]{decision.SelectedProvider}[/] ([italic]{decision.SelectedModel}[/]) - [grey]{decision.Reason ?? "Auto"}[/]");
+                    await ReportAsync(new RoutingSelectedEvent(decision.SelectedProvider, decision.SelectedModel, decision.Reason ?? "Auto"));
 
                     // 6. RAG(Retrieval-Augmented Generation): 과거의 유사한 작업 기억 추출
                     string relevantContext = await RetrieveRelevantMemoriesAsync(finalPrompt);
@@ -692,6 +707,8 @@ namespace Claude4Net.Runtime
 
         public async Task RunAsync(string userPrompt, IOutputHandler output, ILLMProvider provider, string model, IUserApprovalHandler? approval = null, CancellationToken ct = default)
         {
+            var runStartTime = DateTime.UtcNow;
+            await ReportAsync(new RunStartedEvent(AppState.SessionId, provider.Name, model, userPrompt));
             SelfHealingService.Instance.ResetReflectionDepth();
             await EnsureSessionInitializedAsync(provider.Name, model);
             await LogProgressAsync("UserPrompt", message: userPrompt);
@@ -754,6 +771,7 @@ namespace Claude4Net.Runtime
                 }
 
                 turnCount++;
+                await ReportAsync(new ThinkingStartedEvent(turnCount));
                 var toolCalls = new List<ToolUseRequest>();
 
                 var turnTextBuilder = new System.Text.StringBuilder();
@@ -778,10 +796,12 @@ namespace Claude4Net.Runtime
                             if (turnTextBuilder.Length == 0) Console.WriteLine();
                             Console.Write(evt.Delta);
                             turnTextBuilder.Append(evt.Delta);
+                            await ReportAsync(new TextDeltaEvent(evt.Delta));
                         }
                         else if (evt.Type == LLMStreamEventType.ThinkingDelta)
                         {
                             Console.Write(".");
+                            await ReportAsync(new ThinkingDeltaEvent(evt.Delta));
                         }
                         else if (evt.Type == LLMStreamEventType.ToolCallStart && evt.ToolCall != null)
                         {
@@ -804,6 +824,7 @@ namespace Claude4Net.Runtime
                         await output.WriteAsync(lastTurnResponse);
                         await LogProgressAsync("TextDelta", message: lastTurnResponse);
                         await AppendEventAsync(new AgentThoughtEvent { Thought = lastTurnResponse });
+                        await ReportAsync(new AssistantMessageCompletedEvent(lastTurnResponse));
                     }
                 }
                 catch (Exception ex)
@@ -813,6 +834,7 @@ namespace Claude4Net.Runtime
                     AnsiConsole.Console.Write(new Markup($"\n[bold red]{Markup.Escape(errorMsg)}[/]\n"));
                     await output.WriteAsync(errorMsg);
                     await LogProgressAsync("Error", message: errorMsg);
+                    await ReportAsync(new RunErrorEvent(errorMsg));
                     break;
                 }
 
@@ -831,6 +853,7 @@ namespace Claude4Net.Runtime
                     foreach (var tc in toolCalls)
                     {
                         AnsiConsole.MarkupLine($"[grey]?? [bold yellow]Tool Call:[/] {Markup.Escape(tc.Name)}[/]");
+                        await ReportAsync(new ToolCallQueuedEvent(tc.Id, tc.Name, tc.Input?.ToString() ?? ""));
                         await LogProgressAsync("ToolCall", message: tc.Name, data: tc.Input);
                         await AppendEventAsync(new ToolCalledEvent
                         {
@@ -846,6 +869,7 @@ namespace Claude4Net.Runtime
                     foreach (var result in batchResults)
                     {
                         string summary = result.Content?.ToString() ?? "Success";
+                        await ReportAsync(new ToolResultReceivedEvent(result.ToolUseId, result.Content, result.IsError));
                         await LogProgressAsync("ToolResult", message: result.ToolUseId, data: new { result.IsError, result.Content });
                         await AppendEventAsync(new ToolResultEvent
                         {
@@ -1011,6 +1035,8 @@ namespace Claude4Net.Runtime
             {
                 AnsiConsole.MarkupLine("\n[bold red]?? Circuit Breaker Hit![/]");
             }
+
+            await ReportAsync(new RunCompletedEvent(AppState.SessionId, sw.Elapsed));
         }
 
         private static readonly Regex KeywordRegex = new(@"\b\w{4,}\b", RegexOptions.Compiled);

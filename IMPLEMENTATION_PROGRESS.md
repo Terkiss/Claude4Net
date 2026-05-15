@@ -57,6 +57,10 @@
 | K034 | Event Store v2 and CQRS Projections | Completed | 246/246 pass |
 | K033 | Skill and Hook Operations | Completed | 258/258 pass |
 | K035 | Agentic Search, Memory Strategy, and Audit Traceability | Completed | 279/279 pass after P1 integration stabilization |
+| K036 | Ollama ToolResult Grounding and Context Window Hotfix | Completed | 287/287 pass |
+| K037 | Gemini Structured Tool Result Compatibility Hotfix | Completed | 290/290 pass |
+| K038 | Project Lumen Bootstrap Foundation | Completed | 294/294 pass |
+| K039 | AgentRunEvent Observer Foundation | Completed | 300/300 pass |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -392,3 +396,12 @@
 - [x] Preserve existing interactive/piped CLI behavior, dashboard, doctor, and smoke-exit
 - [x] Add `K038LumenBootstrapTests` (Option parsing, Service registration)
 - [x] Official Release Gate passed (294/294 tests)
+
+### K039: AgentRunEvent Observer Foundation
+- [x] Define `IAgentRunEvent` marker interface and structured event records in SDK
+- [x] Define `IAgentRunObserver` and `NullAgentRunObserver` in SDK
+- [x] Integrate optional `IAgentRunObserver` injection into `AgentLoop`
+- [x] Implement `ReportAsync` helper in `AgentLoop` for safe event reporting
+- [x] Report key events: `RunStarted`, `RoutingSelected`, `ThinkingStarted`, `ThinkingDelta`, `TextDelta`, `ToolCallQueued`, `ToolResultReceived`, `AssistantMessageCompleted`, `RunError`, `RunCompleted`
+- [x] Add `K039AgentRunObserverTests` for event sequence and content verification
+- [x] Official Release Gate passed (300/300 tests)
