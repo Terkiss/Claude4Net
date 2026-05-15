@@ -9,7 +9,8 @@ using Claude4Net.SDK;
 namespace Claude4Net.Api
 {
     /// <summary>
-    /// 표준 입출력을 통해 MCP 서버와 JSON RPC 메시지를 교환하는 전송 계층입니다.
+    /// Transport layer that communicates with an MCP (Model Context Protocol) server via standard I/O streams.
+    /// Exchanges JSON-RPC messages using newline-delimited JSON over stdin/stdout.
     /// </summary>
     public class McpStdioTransport : IDisposable
     {
@@ -19,10 +20,10 @@ namespace Claude4Net.Api
         private int _requestId = 0;
 
         /// <summary>
-        /// McpStdioTransport의 새 인스턴스를 초기화하고 MCP 서버 프로세스를 실행합니다.
+        /// Initializes a new instance of the <see cref="McpStdioTransport"/> class and starts the MCP server process.
         /// </summary>
-        /// <param name="command">실행할 명령어</param>
-        /// <param name="args">명령어 인자</param>
+        /// <param name="command">The executable command to launch the MCP server.</param>
+        /// <param name="args">Command-line arguments for the server process.</param>
         public McpStdioTransport(string command, string[] args)
         {
             _process = new Process();
@@ -39,11 +40,11 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// JSON RPC 요청을 서버로 전송하고 즉시 응답 한 줄을 읽어 반환합니다.
+        /// Sends a JSON-RPC request to the MCP server and reads the immediate single-line response.
         /// </summary>
-        /// <param name="method">RPC 메서드</param>
-        /// <param name="params">매개변수</param>
-        /// <returns>JSON RPC 응답</returns>
+        /// <param name="method">The RPC method name to invoke.</param>
+        /// <param name="params">The request parameters.</param>
+        /// <returns>The deserialized JSON-RPC response from the server.</returns>
         public async Task<JsonRpcResponse> SendRequestAsync(string method, object? @params)
         {
             var id = ++_requestId;

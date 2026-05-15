@@ -12,8 +12,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Claude4Net.Api
 {
     /// <summary>
-    /// 로컬?�서 ?�행?�는 Ollama ?�스?�스�??�해 LLM 기능???�공?�는 ?�로바이?�입?�다.
-    /// 로컬 ?�스??http://localhost:11434) ?�신 �??�구 ?�출??지?�합?�다.
+    /// LLM provider that communicates with a locally running Ollama instance for model inference.
+    /// Supports streaming responses, tool calling, and configurable context limits via environment variables.
     /// </summary>
     public class OllamaProvider : ILLMProvider
     {
@@ -22,10 +22,10 @@ namespace Claude4Net.Api
         private readonly IToolRegistry _toolRegistry;
 
         /// <summary>
-        /// OllamaProvider?????�스?�스�?초기?�합?�다.
+        /// Initializes a new instance of the <see cref="OllamaProvider"/> class.
         /// </summary>
-        /// <param name="httpClient">HTTP ?�신???�라?�언??/param>
-        /// <param name="toolRegistry">?�구 ?�보�?관리하???��??�트�?/param>
+        /// <param name="httpClient">The HTTP client for communicating with the Ollama API.</param>
+        /// <param name="toolRegistry">The registry managing available tool definitions.</param>
         public OllamaProvider(HttpClient httpClient, IToolRegistry toolRegistry)
         {
             _httpClient = httpClient;
@@ -33,43 +33,45 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// ?�로바이?�의 고유 ?�름?�니??
+        /// Gets the unique provider name identifier.
         /// </summary>
         public string Name => "ollama";
 
         /// <summary>
-        /// ?�당 ?�공?�용 ?�큰 카운?��? 가?�옵?�다.
+        /// Gets the token counter for this provider.
         /// </summary>
         public ITokenCounter TokenCounter { get; } = new DefaultTokenCounter();
 
         /// <summary>
-        /// Ollama의 기본 컨텍스트 윈도우 크기입니다. (256k)
+        /// The default context window size for Ollama models (256k tokens).
         /// </summary>
         public const int DefaultContextLimit = 262144;
 
         /// <summary>
-        /// 환경 변수 및 설정을 고려하여 유효한 컨텍스트 제한을 계산합니다.
+        /// Calculates the effective context limit, considering the OLLAMA_CONTEXT_LIMIT environment variable.
+        /// Clamps the value between 8k and 1M tokens for safety.
         /// </summary>
         public static int GetEffectiveContextLimit()
         {
             var envVal = Environment.GetEnvironmentVariable("OLLAMA_CONTEXT_LIMIT");
             if (int.TryParse(envVal, out int limit) && limit > 0)
             {
-                return Math.Clamp(limit, 8192, 1048576); // 최소 8k, 최대 1M 가드
+                return Math.Clamp(limit, 8192, 1048576);
             }
             return DefaultContextLimit;
         }
 
         /// <summary>
-        /// ?당 ?공?의 ?재 모델 컨텍?트 ?한??가?옵?다. (기본 256k, 환경변수 오버라이드 가능)
+        /// Gets the maximum context window size, defaulting to 256k with environment variable override support.
         /// </summary>
         public int ContextLimit => GetEffectiveContextLimit();
 
 
         /// <summary>
-        /// ?�???�스?�리??메시지�?추�??�니?? ?�구 ?�행 결과�?Ollama 규격??맞춰 변?�합?�다.
+        /// Appends a message to the conversation history.
+        /// Converts Anthropic-format tool_result messages to Ollama's expected tool response format.
         /// </summary>
-        /// <param name="message">추�???메시지 객체</param>
+        /// <param name="message">The message object to add.</param>
         public void AddMessage(object message)
         {
             if (message is { } obj)
@@ -89,7 +91,7 @@ namespace Claude4Net.Api
                             var toolUseId = item.GetProperty("tool_use_id").GetString();
                             var contentElement = item.GetProperty("content");
 
-                            // 구조화된 데이터(객체/배열)인 경우 GetRawText()를 사용하여 JSON 문자열로 보존
+                            // Preserve structured data (objects/arrays) by using GetRawText() for JSON serialization
                             string finalContent = contentElement.ValueKind == JsonValueKind.String
                                 ? contentElement.GetString() ?? ""
                                 : contentElement.GetRawText();
@@ -111,15 +113,15 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// ?�재 ?�???�스?�리�?반환?�니??
+        /// Returns the current conversation history as a read-only list.
         /// </summary>
-        /// <returns>메시지 ?�스?�리 리스??/returns>
+        /// <returns>A read-only list of message objects.</returns>
         public IReadOnlyList<object> GetHistory() => _messageHistory.AsReadOnly();
 
         /// <summary>
-        /// ?�???�스?�리�??�로??목록?�로 ?�체합?�다.
+        /// Replaces the entire conversation history with a new set of messages.
         /// </summary>
-        /// <param name="history">?�체할 메시지 목록</param>
+        /// <param name="history">The new message collection to use as history.</param>
         public void SetHistory(IEnumerable<object> history)
         {
             _messageHistory.Clear();
@@ -127,9 +129,10 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// Ollama ?�버?�서 ?�용 가?�한 모델 목록??조회?�니??
+        /// Retrieves the list of available models from the Ollama server.
+        /// Falls back to a default "llama3" entry if the server is unreachable.
         /// </summary>
-        /// <returns>모델 ?�름 리스??/returns>
+        /// <returns>A list of model name strings.</returns>
         public async Task<List<string>> ListModelsAsync()
         {
             string? uri = AuthManager.GetApiKey("ollama") ?? "http://localhost:11434";
@@ -146,12 +149,13 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// Ollama API�??�해 쿼리�??�행?�고 결과�??�트리밍?�니??
+        /// Sends a query to the Ollama API and streams the response asynchronously.
+        /// Includes system prompt injection and tool calling support via function-style definitions.
         /// </summary>
-        /// <param name="prompt">?�용???�력 쿼리</param>
-        /// <param name="model">모델�?(?? llama3.1)</param>
-        /// <param name="ct">?�업 취소 ?�큰</param>
-        /// <returns>?�트리밍 ?�벤???�거??/returns>
+        /// <param name="prompt">The user input query to send.</param>
+        /// <param name="model">Optional model name (e.g., llama3.1).</param>
+        /// <param name="ct">Cancellation token to abort the streaming operation.</param>
+        /// <returns>An asynchronous stream of LLM stream events.</returns>
         public async IAsyncEnumerable<LLMStreamEvent> StreamQueryAsync(string prompt, string? model = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
         {
             string actualModel = model ?? AppState.ActiveModel;
@@ -162,7 +166,7 @@ namespace Claude4Net.Api
                 _messageHistory.Add(new { role = "user", content = prompt });
             }
 
-            // ?구 목록 구성
+            // Build tool definitions in OpenAI-compatible function calling format
 
             var tools = _toolRegistry.GetTools();
             var ollamaTools = new List<object>();
@@ -205,7 +209,7 @@ namespace Claude4Net.Api
             var assistantToolCalls = new List<object>();
             bool toolCalled = false;
 
-            // ?�답 ?�싱 �??�트리밍
+            // Parse response chunks and emit streaming events
             while (await reader.ReadLineAsync(ct) is { } line)
             {
                 if (string.IsNullOrWhiteSpace(line)) continue;

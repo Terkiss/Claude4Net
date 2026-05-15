@@ -10,8 +10,8 @@ using Claude4Net.SDK;
 namespace Claude4Net.Api
 {
     /// <summary>
-    /// 표준 입출력(Stdio) 스트림을 사용하여 LSP 서버와 통신하는 저수준 전송 계층입니다.
-    /// JSON RPC 기반의 메시지 프레이밍(Content-Length 헤더 처리)을 담당합니다.
+    /// Transport layer that communicates with an LSP server via standard I/O (stdin/stdout) streams.
+    /// Implements the JSON-RPC message framing protocol with Content-Length headers as defined by LSP.
     /// </summary>
     public class LspStdioTransport : IDisposable
     {
@@ -21,10 +21,10 @@ namespace Claude4Net.Api
         private int _requestId = 0;
 
         /// <summary>
-        /// LspStdioTransport의 새 인스턴스를 초기화하고 서버 프로세스를 시작합니다.
+        /// Initializes a new instance of the <see cref="LspStdioTransport"/> class and starts the LSP server process.
         /// </summary>
-        /// <param name="command">LSP 서버 실행 파일 경로</param>
-        /// <param name="args">실행 인자 목록</param>
+        /// <param name="command">The LSP server executable file path.</param>
+        /// <param name="args">Command-line arguments for the server process.</param>
         public LspStdioTransport(string command, string[] args)
         {
             _process = new Process();
@@ -36,7 +36,7 @@ namespace Claude4Net.Api
             _process.StartInfo.UseShellExecute = false;
             _process.StartInfo.CreateNoWindow = true;
             
-            // csharp-ls의 경우 환경에 따라 쉘 실행이 필요할 수 있음
+            // csharp-ls may require specific shell execution settings depending on the environment
             if (command == "csharp-ls") {
                 _process.StartInfo.UseShellExecute = false; 
             }
@@ -53,11 +53,12 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// LSP 서버에 요청을 전송하고 응답을 기다립니다.
+        /// Sends a JSON-RPC request to the LSP server and waits for the response.
+        /// Uses Content-Length header framing for the outgoing message.
         /// </summary>
-        /// <param name="method">RPC 메서드명</param>
-        /// <param name="params">매개변수</param>
-        /// <returns>JSON RPC 응답</returns>
+        /// <param name="method">The RPC method name to invoke.</param>
+        /// <param name="params">The request parameters.</param>
+        /// <returns>The JSON-RPC response from the server.</returns>
         public async Task<JsonRpcResponse> SendRequestAsync(string method, object? @params)
         {
             var id = ++_requestId;
@@ -76,7 +77,8 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// 스트림으로부터 LSP 규격의 응답 패킷을 읽어 파싱합니다.
+        /// Reads and parses a complete LSP response packet from the server's stdout stream.
+        /// Handles Content-Length header parsing and body extraction per the LSP specification.
         /// </summary>
         private async Task<JsonRpcResponse> ReadResponseAsync()
         {
@@ -84,7 +86,7 @@ namespace Claude4Net.Api
             {
                 int contentLength = -1;
                 string? line;
-                // 헤더 영역 읽기 (Content-Length 파싱)
+                // Parse header section to extract Content-Length value
                 while (!string.IsNullOrEmpty(line = await ReadLineAsync(_readerStream)))
                 {
                     if (line.StartsWith("Content-Length:"))
@@ -95,7 +97,7 @@ namespace Claude4Net.Api
 
                 if (contentLength == -1) throw new Exception("No Content-Length header found.");
 
-                // 데이터 본문 읽기
+                // Read the message body based on the declared content length
                 byte[] buffer = new byte[contentLength];
                 int totalRead = 0;
                 while (totalRead < contentLength)
@@ -108,15 +110,15 @@ namespace Claude4Net.Api
                 string json = Encoding.UTF8.GetString(buffer);
                 var response = JsonSerializer.Deserialize<JsonRpcResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 
-                // ID가 있는 경우 해당 요청에 대한 응답으로 간주 (단순 구현)
+                // If the response has an ID, it is a reply to our request (simplified matching)
                 if (response != null && response.Id != null) return response;
                 
-                // 알림(Notification)인 경우 무시하고 다음 메시지 대기
+                // Skip notifications (messages without an ID) and continue reading
             }
         }
 
         /// <summary>
-        /// 스트림에서 한 줄을 읽습니다 (\r\n 또는 \n 처리).
+        /// Reads a single line from the stream, handling both \r\n and \n line endings.
         /// </summary>
         private async Task<string?> ReadLineAsync(Stream stream)
         {

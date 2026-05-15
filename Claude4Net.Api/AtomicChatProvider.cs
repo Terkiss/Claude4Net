@@ -9,8 +9,8 @@ using System.Linq;
 namespace Claude4Net.Providers
 {
     /// <summary>
-    /// OpenAI 호환 API를 제공하는 Atomic Chat 서비스와의 통신을 담당하는 프로바이더입니다.
-    /// 로컬 또는 원격 서버에서 실행 중인 모델을 활용할 수 있습니다.
+    /// Provider for communicating with an Atomic Chat service that exposes an OpenAI-compatible API.
+    /// Supports both local and remote model servers for chat completions.
     /// </summary>
     public class AtomicChatProvider
     {
@@ -18,14 +18,14 @@ namespace Claude4Net.Providers
         private static readonly string _atomicChatBaseUrl = Environment.GetEnvironmentVariable("ATOMIC_CHAT_BASE_URL") ?? "http://127.0.0.1:1337";
 
         /// <summary>
-        /// API 엔드포인트 전체 URL을 생성합니다.
+        /// Constructs the full API endpoint URL for the given path.
         /// </summary>
         private string ApiUrl(string path) => $"{_atomicChatBaseUrl}/v1{path}";
 
         /// <summary>
-        /// Atomic Chat 서비스가 현재 실행 중인지 확인합니다.
+        /// Checks whether the Atomic Chat service is currently running and accessible.
         /// </summary>
-        /// <returns>활성 상태면 true, 아니면 false</returns>
+        /// <returns>True if the service is reachable and responding; otherwise, false.</returns>
         public async Task<bool> CheckAtomicChatRunningAsync()
         {
             try
@@ -41,9 +41,9 @@ namespace Claude4Net.Providers
         }
 
         /// <summary>
-        /// 서비스에서 제공하는 사용 가능한 모델 목록을 조회합니다.
+        /// Retrieves the list of available models from the Atomic Chat service.
         /// </summary>
-        /// <returns>모델 ID 리스트</returns>
+        /// <returns>A list of model ID strings provided by the service.</returns>
         public async Task<List<string>> ListAtomicChatModelsAsync()
         {
             try
@@ -72,14 +72,15 @@ namespace Claude4Net.Providers
         }
 
         /// <summary>
-        /// Atomic Chat API를 호출하여 대화를 수행하고 결과를 Anthropic 호환 딕셔너리 형식으로 반환합니다.
+        /// Sends a chat completion request to the Atomic Chat API and returns the result
+        /// in an Anthropic-compatible dictionary format for downstream consumption.
         /// </summary>
-        /// <param name="model">모델명</param>
-        /// <param name="messages">메시지 이력</param>
-        /// <param name="system">시스템 프롬프트 (선택 사항)</param>
-        /// <param name="maxTokens">최대 생성 토큰 수</param>
-        /// <param name="temperature">샘플링 온도</param>
-        /// <returns>응답 데이터를 담은 딕셔너리</returns>
+        /// <param name="model">The model name to use for generation.</param>
+        /// <param name="messages">The conversation message history.</param>
+        /// <param name="system">Optional system prompt prepended to the conversation.</param>
+        /// <param name="maxTokens">Maximum number of tokens to generate in the response.</param>
+        /// <param name="temperature">Sampling temperature controlling randomness of the output.</param>
+        /// <returns>A dictionary containing the response data in Anthropic message format.</returns>
         public async Task<Dictionary<string, object>> AtomicChatAsync(
             string model,
             List<Dictionary<string, object>> messages,

@@ -9,8 +9,8 @@ using Claude4Net.SDK;
 namespace Claude4Net.Api
 {
     /// <summary>
-    /// LSP(Language Server Protocol) 서버와의 통신을 관리하는 클라이언트 클래스입니다.
-    /// 코드 정의 이동, 심볼 조회, 호버 정보 제공 등의 기능을 수행합니다.
+    /// Client wrapper for interacting with a Language Server Protocol (LSP) server.
+    /// Provides high-level methods for code navigation, symbol lookup, hover info, and definition jumping.
     /// </summary>
     public class LspClient : IDisposable
     {
@@ -18,7 +18,7 @@ namespace Claude4Net.Api
         private readonly object _lock = new();
 
         /// <summary>
-        /// 클라이언트가 성공적으로 초기화되었는지 여부입니다.
+        /// Gets whether the LSP client has been successfully initialized.
         /// </summary>
         public bool IsInitialized { get; private set; }
 
@@ -27,10 +27,11 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// LSP 서버 프로세스를 시작하고 초기화 핸드셰이크를 수행합니다.
+        /// Starts the LSP server process and performs the initialization handshake.
+        /// Configures client capabilities for text document and workspace operations.
         /// </summary>
-        /// <param name="command">LSP 서버 실행 명령어 (기본값: csharp-ls)</param>
-        /// <param name="args">실행 인자</param>
+        /// <param name="command">The LSP server executable name (defaults to csharp-ls).</param>
+        /// <param name="args">Optional command-line arguments for the server.</param>
         public async Task StartAsync(string? command = null, string[]? args = null)
         {
             if (IsInitialized) return;
@@ -38,7 +39,7 @@ namespace Claude4Net.Api
             command ??= "csharp-ls";
             args ??= Array.Empty<string>();
 
-            // csharp-ls 사용 시 설치 여부 확인 및 자동 설치 시도
+            // Ensure csharp-ls is installed before attempting to start
             if (command == "csharp-ls")
             {
                 await EnsureCSharpLsInstalledAsync();
@@ -50,7 +51,7 @@ namespace Claude4Net.Api
                 _transport = new LspStdioTransport(command, args);
             }
 
-            // LSP 초기화 매개변수 구성
+            // Configure LSP initialization parameters with client capabilities
             var rootPath = Directory.GetCurrentDirectory();
             var initializeParams = new
             {
@@ -74,21 +75,21 @@ namespace Claude4Net.Api
                 initializationOptions = new { }
             };
 
-            // initialize 요청 전송
+            // Send the initialize request to the LSP server
             var response = await _transport.SendRequestAsync("initialize", initializeParams);
             if (response.Error != null)
             {
                 throw new Exception($"LSP Initialization failed: {response.Error.Value.GetRawText()}");
             }
 
-            // initialized 알림 전송 (LSP 규격)
+            // Send the initialized notification as required by the LSP specification
             try { await _transport.SendRequestAsync("initialized", new { }); } catch { }
             
             IsInitialized = true;
         }
 
         /// <summary>
-        /// .NET 도구 중 csharp-ls가 설치되어 있는지 확인하고 없으면 설치합니다.
+        /// Checks whether the csharp-ls .NET tool is installed, and installs it if not found.
         /// </summary>
         private async Task EnsureCSharpLsInstalledAsync()
         {
@@ -132,11 +133,12 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// LSP 서버에 JSON RPC 요청을 전송하고 결과를 반환받습니다.
+        /// Sends a JSON-RPC request to the LSP server and returns the result.
+        /// Automatically starts the server if it has not been initialized.
         /// </summary>
-        /// <param name="method">LSP 메서드명</param>
-        /// <param name="params">매개변수 객체</param>
-        /// <returns>응답 결과 JSON</returns>
+        /// <param name="method">The LSP method name to invoke.</param>
+        /// <param name="params">The request parameters object.</param>
+        /// <returns>The JSON result from the server response, or null if no result.</returns>
         public async Task<JsonElement?> SendRequestAsync(string method, object? @params)
         {
             if (!IsInitialized)
@@ -155,8 +157,12 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// 특정 위치의 코드 정의(Definition)로 이동하기 위한 정보를 가져옵니다.
+        /// Navigates to the definition of the symbol at the specified document position.
         /// </summary>
+        /// <param name="uri">The document URI.</param>
+        /// <param name="line">The zero-based line number.</param>
+        /// <param name="character">The zero-based character offset within the line.</param>
+        /// <returns>A list of location results pointing to the definition sites.</returns>
         public async Task<List<LspLocation>> GoToDefinitionAsync(string uri, int line, int character)
         {
             var @params = new
@@ -180,8 +186,12 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// 특정 심볼의 참조(References) 위치 목록을 검색합니다.
+        /// Finds all references to the symbol at the specified document position.
         /// </summary>
+        /// <param name="uri">The document URI.</param>
+        /// <param name="line">The zero-based line number.</param>
+        /// <param name="character">The zero-based character offset within the line.</param>
+        /// <returns>A list of locations where the symbol is referenced.</returns>
         public async Task<List<LspLocation>> FindReferencesAsync(string uri, int line, int character)
         {
             var @params = new
@@ -197,8 +207,12 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// 특정 위치의 호버(Hover) 정보(툴팁 내용 등)를 가져옵니다.
+        /// Retrieves hover information (e.g., type signatures, documentation) for the symbol at the specified position.
         /// </summary>
+        /// <param name="uri">The document URI.</param>
+        /// <param name="line">The zero-based line number.</param>
+        /// <param name="character">The zero-based character offset within the line.</param>
+        /// <returns>The hover information, or null if no hover data is available.</returns>
         public async Task<LspHover?> HoverAsync(string uri, int line, int character)
         {
             var @params = new
@@ -213,8 +227,10 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// 문서 내의 심볼(클래스, 메서드 등) 구조 정보를 가져옵니다.
+        /// Retrieves the document symbol hierarchy (classes, methods, properties, etc.) for a given document.
         /// </summary>
+        /// <param name="uri">The document URI to query symbols for.</param>
+        /// <returns>A hierarchical list of document symbols.</returns>
         public async Task<List<LspDocumentSymbol>> DocumentSymbolAsync(string uri)
         {
             var @params = new { textDocument = new { uri } };
@@ -225,8 +241,10 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// 워크스페이스 전체에서 심볼을 검색합니다.
+        /// Searches for symbols matching the given query across the entire workspace.
         /// </summary>
+        /// <param name="query">The search query string to match against symbol names.</param>
+        /// <returns>A list of matching symbol information from the workspace.</returns>
         public async Task<List<LspSymbolInformation>> WorkspaceSymbolAsync(string query)
         {
             var @params = new { query };

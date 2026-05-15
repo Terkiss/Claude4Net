@@ -14,8 +14,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Claude4Net.Api
 {
     /// <summary>
-    /// Google Gemini APIë¥??œìš©?˜ì—¬ ?€?”í˜• AI ë°??„êµ¬ ?¸ì¶œ ê¸°ëŠ¥???œê³µ?˜ëŠ” ?„ë¡œë°”ì´?”ì…?ˆë‹¤.
-    /// Anthropic ?•ì‹??ë©”ì‹œì§€ë¥?Gemini ê·œê²©?¼ë¡œ ë³€?˜í•˜???í˜¸ ?¸í™˜?±ì„ ? ì??©ë‹ˆ??
+    /// LLM provider that communicates with the Google Gemini API for generative AI and tool use capabilities.
+    /// Converts Anthropic-format messages to Gemini specification for cross-provider compatibility.
     /// </summary>
     public class GeminiProvider : ILLMProvider
     {
@@ -26,10 +26,10 @@ namespace Claude4Net.Api
         private readonly Dictionary<string, string> _toolCallIdToNameMap = new();
 
         /// <summary>
-        /// GeminiProvider?????¸ìŠ¤?´ìŠ¤ë¥?ì´ˆê¸°?”í•©?ˆë‹¤.
+        /// Initializes a new instance of the <see cref="GeminiProvider"/> class.
         /// </summary>
-        /// <param name="httpClient">HTTP ?”ì²­???„í•œ ?´ë¼?´ì–¸??/param>
-        /// <param name="toolRegistry">?„êµ¬ ?±ë¡ ?•ë³´ë¥?ê´€ë¦¬í•˜???ˆì??¤íŠ¸ë¦?/param>
+        /// <param name="httpClient">The HTTP client for API requests.</param>
+        /// <param name="toolRegistry">The registry managing available tool definitions.</param>
         public GeminiProvider(HttpClient httpClient, IToolRegistry toolRegistry)
         {
             _httpClient = httpClient;
@@ -37,24 +37,25 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// ?„ë¡œë°”ì´?”ì˜ ê³ ìœ  ?´ë¦„?…ë‹ˆ??
+        /// Gets the unique provider name identifier.
         /// </summary>
         public string Name => "gemini";
 
         /// <summary>
-        /// ?´ë‹¹ ?œê³µ?ìš© ? í° ì¹´ìš´?°ë? ê°€?¸ì˜µ?ˆë‹¤.
+        /// Gets the token counter for this provider.
         /// </summary>
         public ITokenCounter TokenCounter { get; } = new DefaultTokenCounter();
 
         /// <summary>
-        /// ?´ë‹¹ ?œê³µ?ì˜ ?„ì¬ ëª¨ë¸ ì»¨í…?¤íŠ¸ ?œí•œ??ê°€?¸ì˜µ?ˆë‹¤. (Gemini 1.5 ê¸°ì? 1M)
+        /// Gets the maximum context window size for this provider (1M tokens for Gemini 1.5).
         /// </summary>
         public int ContextLimit => 1000000;
 
         /// <summary>
-        /// ?€???ˆìŠ¤? ë¦¬??ë©”ì‹œì§€ë¥?ì¶”ê??˜ë©°, Anthropic ?•ì‹??Gemini ?•ì‹?¼ë¡œ ë³€?˜í•©?ˆë‹¤.
+        /// Appends a message to the conversation history, converting from Anthropic format to Gemini format.
+        /// Handles tool_result messages by wrapping them as functionResponse parts for Gemini compatibility.
         /// </summary>
-        /// <param name="message">ì¶”ê???ë©”ì‹œì§€ ê°ì²´ (Anthropic ê·œê²© ? í˜¸)</param>
+        /// <param name="message">The message object to add (supports Anthropic-format messages).</param>
         public void AddMessage(object message)
         {
             if (message == null) return;
@@ -65,7 +66,7 @@ namespace Claude4Net.Api
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
 
-                // Anthropic ë©”ì‹œì§€ë¥?Gemini ?•ì‹?¼ë¡œ ë³€???œë„
+                // Attempt to convert Anthropic message format to Gemini format
                 if (root.TryGetProperty("role", out var roleProp))
                 {
                     string role = roleProp.GetString() ?? "user";
@@ -82,7 +83,7 @@ namespace Claude4Net.Api
                                 if (item.TryGetProperty("type", out var typeProp) && typeProp.GetString() == "tool_result")
                                 {
                                     hasFunctionResponse = true;
-                                    // ?„êµ¬ ?¤í–‰ ê²°ê³¼ ë³€??
+                                    // Convert tool execution result to Gemini functionResponse format
                                     string toolUseId = item.GetProperty("tool_use_id").GetString() ?? "unknown";
                                     string functionName = _toolCallIdToNameMap.TryGetValue(toolUseId, out var name) ? name : toolUseId;
 
@@ -161,15 +162,15 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// ?„ì¬ ?€???ˆìŠ¤? ë¦¬ë¥?ë°˜í™˜?©ë‹ˆ??
+        /// Returns the current conversation history as a read-only list.
         /// </summary>
-        /// <returns>ë©”ì‹œì§€ ê°ì²´ ë¦¬ìŠ¤??/returns>
+        /// <returns>A read-only list of message objects.</returns>
         public IReadOnlyList<object> GetHistory() => _conversationHistory.AsReadOnly();
 
         /// <summary>
-        /// ?€???ˆìŠ¤? ë¦¬ë¥??ˆë¡œ??ëª©ë¡?¼ë¡œ ?€ì²´í•©?ˆë‹¤.
+        /// Replaces the entire conversation history with a new set of messages.
         /// </summary>
-        /// <param name="history">?€ì²´í•  ë©”ì‹œì§€ ëª©ë¡</param>
+        /// <param name="history">The new message collection to use as history.</param>
         public void SetHistory(IEnumerable<object> history)
         {
             _conversationHistory.Clear();
@@ -177,12 +178,14 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// Gemini APIë¥??¸ì¶œ?˜ì—¬ ê²°ê³¼ë¥??¤íŠ¸ë¦¬ë°?©ë‹ˆ?? ?œìŠ¤???„ë¡¬?„íŠ¸ ë°??„êµ¬ ?•ì˜ê°€ ?¬í•¨?©ë‹ˆ??
+        /// Sends a query to the Gemini API and streams the response asynchronously.
+        /// Includes system prompt construction and tool (function) declaration support.
+        /// Handles thinking model configuration and safety filter responses.
         /// </summary>
-        /// <param name="prompt">?¬ìš©???…ë ¥ ì¿¼ë¦¬</param>
-        /// <param name="model">ëª¨ë¸ëª?(?? gemini-1.5-pro)</param>
-        /// <param name="ct">?‘ì—… ì·¨ì†Œ ? í°</param>
-        /// <returns>?¤íŠ¸ë¦¬ë° ?´ë²¤???´ê±°??/returns>
+        /// <param name="prompt">The user input query to send.</param>
+        /// <param name="model">Optional model name (e.g., gemini-1.5-pro).</param>
+        /// <param name="ct">Cancellation token to abort the streaming operation.</param>
+        /// <returns>An asynchronous stream of LLM stream events.</returns>
         public async IAsyncEnumerable<LLMStreamEvent> StreamQueryAsync(string prompt, string? model = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
         {
             string actualModel = model ?? AppState.ActiveModel;
@@ -194,7 +197,7 @@ namespace Claude4Net.Api
                 _conversationHistory.Add(new { role = "user", parts = new[] { new { text = prompt } } });
             }
 
-            // ?„êµ¬ ? ì–¸ (Function Declarations) êµ¬ì„±
+            // Build function declarations from the tool registry for Gemini's tool format
             var tools = _toolRegistry.GetTools();
             var geminiTools = new List<object>();
             if (tools != null && tools.Any())
@@ -211,7 +214,7 @@ namespace Claude4Net.Api
             string modelId = actualModel.Contains("/") ? actualModel.Split('/').Last() : actualModel;
             var url = $"{BASE_URL}/{modelId}:streamGenerateContent?alt=sse&key={apiKey}";
 
-            // ?ì„± ?¤ì • (Thinking Config ì§€???¬í•¨)
+            // Configure generation settings including thinking model support
             object? generationCfg;
             if (actualModel.Contains("think", StringComparison.OrdinalIgnoreCase) || actualModel.StartsWith("gemini-3", StringComparison.OrdinalIgnoreCase))
             {
@@ -251,7 +254,7 @@ namespace Claude4Net.Api
             var assistantParts = new List<object>();
             int toolCallIndex = 0;
 
-            // SSE ?¤íŠ¸ë¦??Œì‹±
+            // Parse SSE stream events from the Gemini API response
             while (await reader.ReadLineAsync() is { } line)
             {
                 if (ct.IsCancellationRequested) break;
@@ -266,7 +269,7 @@ namespace Claude4Net.Api
                 {
                     var candidate = candidates[0];
 
-                    // ?ˆì „ ?„í„°ë§?ì²˜ë¦¬
+                    // Handle safety filter blocks
                     if (candidate.TryGetProperty("finishReason", out var reasonProp))
                     {
                         if (reasonProp.GetString() == "SAFETY")
@@ -292,7 +295,7 @@ namespace Claude4Net.Api
                             }
                             else if (part.TryGetProperty("functionCall", out var funcCall))
                             {
-                                // ?„êµ¬ ?¸ì¶œ ì²˜ë¦¬
+                                // Process function call responses from the model
                                 string callName = funcCall.GetProperty("name").GetString()!;
                                 // Gemini requires that the response name matches the call name EXACTLY.
                                 // We use a synthetic ID for internal tracking in ToolUseRequest,

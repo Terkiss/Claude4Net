@@ -10,8 +10,8 @@ using Claude4Net.SDK;
 namespace Claude4Net.Api;
 
 /// <summary>
-/// Google Gemini API를 사용하여 텍스트 데이터의 임베딩 벡터를 생성하는 프로바이더입니다.
-/// L1 캐시를 활용하여 동일한 텍스트에 대한 중복 계산을 방지합니다.
+/// Embedding provider that uses the Google Gemini API to generate vector embeddings for text inputs.
+/// Implements an L1 in-memory cache to avoid redundant API calls for identical text inputs.
 /// </summary>
 public class GeminiEmbeddingProvider : IEmbeddingProvider
 {
@@ -20,28 +20,29 @@ public class GeminiEmbeddingProvider : IEmbeddingProvider
     private readonly ConcurrentDictionary<string, float[]> _l1Cache = new();
 
     /// <summary>
-    /// GeminiEmbeddingProvider의 새 인스턴스를 초기화합니다.
+    /// Initializes a new instance of the <see cref="GeminiEmbeddingProvider"/> class.
     /// </summary>
-    /// <param name="httpClient">API 호출을 위한 클라이언트</param>
+    /// <param name="httpClient">The HTTP client used for API calls.</param>
     public GeminiEmbeddingProvider(HttpClient httpClient)
     {
         _httpClient = httpClient;
     }
 
     /// <summary>
-    /// 지정된 텍스트에 대한 임베딩 벡터를 비동기적으로 가져옵니다.
+    /// Asynchronously generates an embedding vector for the given text input.
+    /// Returns a cached result if the same text was previously embedded.
     /// </summary>
-    /// <param name="text">임베딩을 생성할 텍스트</param>
-    /// <param name="ct">작업 취소 토큰</param>
-    /// <returns>생성된 임베딩(float 배열)</returns>
+    /// <param name="text">The text to generate an embedding for.</param>
+    /// <param name="ct">Cancellation token to abort the operation.</param>
+    /// <returns>A float array representing the embedding vector.</returns>
     public async Task<float[]> GetEmbeddingAsync(string text, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(text)) return Array.Empty<float>();
 
-        // L1 메모리 캐시 확인
+        // Check the L1 in-memory cache for a previously computed embedding
         if (_l1Cache.TryGetValue(text, out var cached)) return cached;
 
-        // API 키 조회
+        // Retrieve the API key from the authentication manager
         string? apiKey = AuthManager.GetApiKey("gemini");
         if (string.IsNullOrEmpty(apiKey)) throw new InvalidOperationException("Gemini API key not found.");
 
@@ -66,7 +67,7 @@ public class GeminiEmbeddingProvider : IEmbeddingProvider
             values[j++] = val.GetSingle();
         }
 
-        // 캐시 업데이트
+        // Store the computed embedding in the L1 cache
         _l1Cache[text] = values;
 
         return values;

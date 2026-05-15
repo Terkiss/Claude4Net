@@ -10,7 +10,8 @@ using Claude4Net.SDK;
 namespace Claude4Net.Api
 {
     /// <summary>
-    /// Anthropic Claude ëª¨ë¸??ê¸°ë°˜?¼ë¡œ ?€??ë°??„êµ¬ ?¬ìš© ?œë¹„?¤ë? ?œê³µ?˜ëŠ” ?„ë¡œë°”ì´??êµ¬í˜„ì²´ì…?ˆë‹¤.
+    /// LLM provider implementation that communicates with the Anthropic Claude API.
+    /// Supports streaming responses, tool use, and maintains conversation history.
     /// </summary>
     public class ClaudeService : ILLMProvider
     {
@@ -19,10 +20,10 @@ namespace Claude4Net.Api
         private readonly IToolRegistry _toolRegistry;
 
         /// <summary>
-        /// ClaudeService?????¸ìŠ¤?´ìŠ¤ë¥?ì´ˆê¸°?”í•©?ˆë‹¤.
+        /// Initializes a new instance of the <see cref="ClaudeService"/> class.
         /// </summary>
-        /// <param name="client">Anthropic API ?´ë¼?´ì–¸??/param>
-        /// <param name="toolRegistry">?¬ìš© ê°€?¥í•œ ?„êµ¬ ?ˆì??¤íŠ¸ë¦?/param>
+        /// <param name="client">The Anthropic API client for HTTP communication.</param>
+        /// <param name="toolRegistry">The registry providing available tool definitions.</param>
         public ClaudeService(AnthropicClient client, IToolRegistry toolRegistry)
         {
             _client = client;
@@ -30,36 +31,36 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// ?„ë¡œë°”ì´?”ì˜ ê³ ìœ  ?´ë¦„?…ë‹ˆ??
+        /// Gets the unique provider name identifier.
         /// </summary>
         public string Name => "claude";
 
         /// <summary>
-        /// ?´ë‹¹ ?œê³µ?ìš© ? í° ì¹´ìš´?°ë? ê°€?¸ì˜µ?ˆë‹¤.
+        /// Gets the token counter for this provider.
         /// </summary>
         public ITokenCounter TokenCounter { get; } = new DefaultTokenCounter();
 
         /// <summary>
-        /// ?´ë‹¹ ?œê³µ?ì˜ ?„ì¬ ëª¨ë¸ ì»¨í…?¤íŠ¸ ?œí•œ??ê°€?¸ì˜µ?ˆë‹¤. (Claude 3 ê¸°ì? 200k)
+        /// Gets the maximum context window size for this provider (200k tokens for Claude 3).
         /// </summary>
         public int ContextLimit => 200000;
 
         /// <summary>
-        /// ?€???ˆìŠ¤? ë¦¬??ë©”ì‹œì§€ë¥?ì¶”ê??©ë‹ˆ??
+        /// Appends a message to the conversation history.
         /// </summary>
-        /// <param name="message">ë©”ì‹œì§€ ê°ì²´</param>
+        /// <param name="message">The message object to add.</param>
         public void AddMessage(object message) => _messageHistory.Add(message);
 
         /// <summary>
-        /// ?„ì¬ê¹Œì????€???ˆìŠ¤? ë¦¬ë¥?ë°˜í™˜?©ë‹ˆ??
+        /// Returns the current conversation history as a read-only list.
         /// </summary>
-        /// <returns>ë©”ì‹œì§€ ê°ì²´ ë¦¬ìŠ¤??/returns>
+        /// <returns>A read-only list of message objects.</returns>
         public IReadOnlyList<object> GetHistory() => _messageHistory.AsReadOnly();
 
         /// <summary>
-        /// ?€???ˆìŠ¤? ë¦¬ë¥??ˆë¡œ??ëª©ë¡?¼ë¡œ ?€ì²´í•©?ˆë‹¤.
+        /// Replaces the entire conversation history with a new set of messages.
         /// </summary>
-        /// <param name="history">?€ì²´í•  ë©”ì‹œì§€ ëª©ë¡</param>
+        /// <param name="history">The new message collection to use as history.</param>
         public void SetHistory(IEnumerable<object> history)
         {
             _messageHistory.Clear();
@@ -67,18 +68,19 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// ?¬ìš©??ì¿¼ë¦¬ë¥??¤í–‰?˜ê³  ?‘ë‹µ???¤íŠ¸ë¦¬ë° ë°©ì‹?¼ë¡œ ë°˜í™˜?©ë‹ˆ?? ?„êµ¬ ?¸ì¶œ ë°?ê²°ê³¼ ì²˜ë¦¬ë¥??¬í•¨?©ë‹ˆ??
+        /// Executes a user query and streams the response asynchronously.
+        /// Handles tool call detection, JSON input accumulation, and conversation history updates.
         /// </summary>
-        /// <param name="prompt">?¬ìš©???…ë ¥ ?„ë¡¬?„íŠ¸</param>
-        /// <param name="model">?¬ìš©??ëª¨ë¸ëª?(? íƒ ?¬í•­)</param>
-        /// <param name="ct">?‘ì—… ì·¨ì†Œ ? í°</param>
-        /// <returns>LLM ?¤íŠ¸ë¦??´ë²¤?¸ì˜ ë¹„ë™ê¸??´ê±°??/returns>
+        /// <param name="prompt">The user input prompt to send to Claude.</param>
+        /// <param name="model">Optional model name override. Defaults to the active model from AppState.</param>
+        /// <param name="ct">Cancellation token to abort the streaming operation.</param>
+        /// <returns>An asynchronous stream of LLM stream events including text deltas and tool calls.</returns>
         public async IAsyncEnumerable<LLMStreamEvent> StreamQueryAsync(string prompt, string? model = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
         {
             _messageHistory.Add(new { role = "user", content = prompt });
             string actualModel = model ?? AppState.ActiveModel;
 
-            // ?„êµ¬ ?ˆì??¤íŠ¸ë¦¬ì—???„êµ¬ ?•ì˜ ì¶”ì¶œ ë°?Anthropic ?•ì‹?¼ë¡œ ë³€??
+            // Extract tool definitions from the registry and convert to Anthropic format
             var tools = _toolRegistry.GetTools();
             var anthropicTools = new List<object>();
             if (tools != null)
@@ -90,7 +92,7 @@ namespace Claude4Net.Api
                 }
             }
 
-            // ?œìŠ¤???„ë¡¬?„íŠ¸ êµ¬ì„±
+            // Build the system prompt
             string systemPrompt = new SystemPromptBuilder().Build("claude");
 
             var payload = new
@@ -106,7 +108,7 @@ namespace Claude4Net.Api
             var toolCallsMap = new Dictionary<string, ToolUseRequest>();
             var toolInputsMap = new Dictionary<string, StringBuilder>();
 
-            // Anthropic ?¤íŠ¸ë¦??´ë²¤??ì²˜ë¦¬
+            // Process Anthropic streaming events
             await foreach (var evt in _client.CreateMessageStreamAsync(payload, ct))
             {
                 if (evt.Type == "content_block_start")
@@ -139,7 +141,7 @@ namespace Claude4Net.Api
                 }
                 else if (evt.Type == "message_stop")
                 {
-                    // ë©”ì‹œì§€ ì¢…ë£Œ ??ìµœì¢… ê²°ê³¼ ë¹Œë“œ ë°??ˆìŠ¤? ë¦¬ ?…ë°?´íŠ¸
+                    // Build the final result and update the conversation history on message completion
                     var assistantContent = new List<object>();
                     if (!string.IsNullOrEmpty(finalResult.Text))
                     {

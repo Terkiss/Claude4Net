@@ -11,23 +11,25 @@ using Claude4Net.SDK;
 namespace Claude4Net.Api
 {
     /// <summary>
-    /// Anthropic API로부터 수신된 개별 이벤트 데이터를 나타내는 클래스입니다.
+    /// Represents a single event received from the Anthropic streaming API.
+    /// Each event contains a type identifier and its associated data payload.
     /// </summary>
     public class AnthropicEvent
     {
         /// <summary>
-        /// 이벤트 유형 (예: message_start, content_block_delta, message_stop 등)
+        /// Gets or sets the event type identifier (e.g., message_start, content_block_delta, message_stop).
         /// </summary>
         public string Type { get; set; } = string.Empty;
 
         /// <summary>
-        /// 이벤트와 관련된 데이터 본문 (JSON 형식)
+        /// Gets or sets the event data payload in JSON format.
         /// </summary>
         public JsonElement Data { get; set; }
     }
 
     /// <summary>
-    /// Anthropic Claude API와의 HTTP 통신 및 SSE 스트리밍 처리를 담당하는 저수준 클라이언트입니다.
+    /// Low-level HTTP client responsible for communicating with the Anthropic Claude API.
+    /// Handles Server-Sent Events (SSE) streaming for real-time message generation.
     /// </summary>
     public class AnthropicClient
     {
@@ -35,11 +37,11 @@ namespace Claude4Net.Api
         private readonly string _baseUrl;
 
         /// <summary>
-        /// AnthropicClient의 새 인스턴스를 초기화합니다.
+        /// Initializes a new instance of the <see cref="AnthropicClient"/> class.
         /// </summary>
-        /// <param name="httpClient">HTTP 요청을 처리할 HttpClient</param>
-        /// <param name="apiKey">API 키 (null일 경우 환경 변수에서 조회)</param>
-        /// <param name="baseUrl">API 엔드포인트 URL</param>
+        /// <param name="httpClient">The HTTP client used for sending requests.</param>
+        /// <param name="apiKey">Optional API key. If null, the key is retrieved from the ANTHROPIC_API_KEY environment variable.</param>
+        /// <param name="baseUrl">Optional API base URL. Defaults to the ANTHROPIC_BASE_URL environment variable or https://api.anthropic.com.</param>
         public AnthropicClient(HttpClient httpClient, string? apiKey = null, string? baseUrl = null)
         {
             _baseUrl = baseUrl ?? Environment.GetEnvironmentVariable("ANTHROPIC_BASE_URL") ?? "https://api.anthropic.com";
@@ -56,11 +58,12 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// Anthropic API에 메시지 스트림 생성을 요청하고 결과를 비동기적으로 열거합니다.
+        /// Sends a message creation request to the Anthropic API and asynchronously enumerates the streamed events.
+        /// Uses SSE (Server-Sent Events) protocol to receive incremental response chunks.
         /// </summary>
-        /// <param name="payload">요청 페이로드 (model, messages, tools 등 포함)</param>
-        /// <param name="ct">작업 취소 토큰</param>
-        /// <returns>AnthropicEvent 객체의 비동기 스트림</returns>
+        /// <param name="payload">The request payload containing model, messages, tools, and other parameters.</param>
+        /// <param name="ct">Cancellation token to abort the streaming operation.</param>
+        /// <returns>An asynchronous stream of <see cref="AnthropicEvent"/> objects.</returns>
         public async IAsyncEnumerable<AnthropicEvent> CreateMessageStreamAsync(object payload, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
         {
             string json = JsonSerializer.Serialize(payload);
@@ -68,7 +71,7 @@ namespace Claude4Net.Api
             request.Content = new StringContent(json, Encoding.UTF8, "application/json");
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
 
-            // 환경 변수에서 API 키를 가져와 헤더에 추가
+            // Retrieve the API key from environment variables and attach it to the request header
             string? apiKey = Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY");
             if (!string.IsNullOrEmpty(apiKey)) request.Headers.Add("x-api-key", apiKey);
 
@@ -83,7 +86,7 @@ namespace Claude4Net.Api
             {
                 if (string.IsNullOrWhiteSpace(line)) continue;
 
-                // SSE 라인 파싱: event: 유형, data: 내용
+                // Parse SSE lines: "event:" for event type, "data:" for payload content
                 if (line.StartsWith("event:")) currentEventType = line.Substring(6).Trim();
                 else if (line.StartsWith("data:") && currentEventType != null)
                 {
