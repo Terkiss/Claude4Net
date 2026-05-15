@@ -62,6 +62,8 @@
 | K038 | Project Lumen Bootstrap Foundation | Completed | 294/294 pass |
 | K039 | AgentRunEvent Observer Foundation | Completed | 300/300 pass |
 | K040 | Lumen State and History Cells | Completed | 308/308 pass |
+| K041 | Spectre Renderer v1 | Completed | 310/310 pass |
+| K042 | Lumen Output Bridge | Completed | 316/316 pass (including fail-safe and tool-id tests) |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -70,6 +72,15 @@
 - CLI Smoke: `dotnet .\Claude4Net.Cli\bin\Debug\net10.0\Claude4Net.Cli.dll --smoke-exit`
 
 ## Detailed Progress
+
+### D11: Project Lumen CLI Redesign
+- [x] K038 Project Lumen Bootstrap Foundation (Option parsing & DI cleanup)
+- [x] K039 AgentRunEvent Observer Foundation (Neutral run events)
+- [x] K040 Lumen State and History Cells (UI model & History cells)
+- [x] K041 Spectre Renderer v1 (Stable append rendering)
+- [x] K042 Lumen Output Bridge (Bridge events to state with fail-safe)
+- [x] Total 316/316 tests pass
+
 
 ### D01: Project Setup & Standard Build
 - [x] Solution structure refinement
