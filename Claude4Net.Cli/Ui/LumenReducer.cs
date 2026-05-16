@@ -1,5 +1,6 @@
 using Claude4Net.Cli.Ui.Events;
 using Claude4Net.Cli.Ui.Rendering.HistoryCells;
+using Claude4Net.Cli.Ui.Approval;
 
 namespace Claude4Net.Cli.Ui;
 
@@ -16,28 +17,57 @@ public static class LumenReducer
                 SessionId = e.SessionId,
                 IsRunning = true
             },
-            
+
             UserPromptSubmittedEvent e => AddCell(state, new UserPromptCell(e.Text)),
-            
+
             ThinkingStartedEvent e => AddCell(state, new ThinkingCell(e.InitialThought)),
-            
+
             ThinkingUpdatedEvent e => UpdateLastCell<ThinkingCell>(state, c => c.AppendDelta(e.ThoughtDelta)),
-            
-            AssistantTextUpdatedEvent e => EnsureAssistantCell(state).Apply(s => 
+
+            AssistantTextUpdatedEvent e => EnsureAssistantCell(state).Apply(s =>
                 UpdateLastCell<AssistantResponseCell>(s, c => c.AppendDelta(e.TextDelta))),
-            
+
             ToolCallStartedEvent e => AddCell(state, new ToolCallCell(e.CallId, e.ToolName, e.Arguments)),
-            
+
             ToolResultReceivedEvent e => AddCell(state, new ToolResultCell(e.CallId, e.Result, e.IsError)),
-            
+
             NoticeReceivedEvent e => AddCell(state, new NoticeCell(e.Message, e.Level)),
-            
+
             ErrorReceivedEvent e => AddCell(state, new ErrorCell(e.Message, e.Details)),
-            
+
             ApprovalRequestedEvent e => AddCell(state, new ApprovalCell(e.RequestId, e.Title, e.Description)),
-            
+
             RunCompletedEvent => state with { IsRunning = false },
-            
+
+            ApprovalDialogOpenedEvent e => state with
+            {
+                ApprovalDialog = new ApprovalDialogState
+                {
+                    RequestId = e.RequestId,
+                    Title = e.Title,
+                    Description = e.Description,
+                    RiskLevel = e.RiskLevel,
+                    PreviewSummary = e.PreviewSummary,
+                    IsVisible = true,
+                    LastAction = ApprovalDialogAction.None // Reset on new open
+                }
+            },
+
+            ApprovalDialogClosedEvent => state with
+            {
+                ApprovalDialog = state.ApprovalDialog with { IsVisible = false }
+            },
+
+            ApprovalDialogActionSelectedEvent e => state with
+            {
+                ApprovalDialog = state.ApprovalDialog with { LastAction = e.Action }
+            },
+
+            ApprovalDialogDetailToggledEvent => state with
+            {
+                ApprovalDialog = state.ApprovalDialog with { IsDetailMode = !state.ApprovalDialog.IsDetailMode }
+            },
+
             _ => state
         };
     }

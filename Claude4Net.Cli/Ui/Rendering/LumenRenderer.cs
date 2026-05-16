@@ -1,5 +1,6 @@
 using Spectre.Console;
 using Spectre.Console.Rendering;
+using Claude4Net.Cli.Ui.Input;
 
 namespace Claude4Net.Cli.Ui.Rendering;
 
@@ -13,20 +14,29 @@ public class LumenRenderer(IAnsiConsole console)
     private int _lastRenderedHistoryCount = 0;
 
     /// <summary>
-    /// Renders the entire state. Use this for initial draw.
+    /// Renders the entire state including history and input area.
     /// </summary>
-    public void RenderFull(LumenState state)
+    public void RenderFull(LumenState state, PromptComposerState composerState)
     {
         console.Write(_chatSurface.Render(state.History));
-        console.Write(_bottomPane.Render(state));
-        console.Write(Environment.NewLine);
-        console.Write(_footerRenderer.Render(state));
         _lastRenderedHistoryCount = state.History.Count;
+        RefreshInput(state, composerState);
     }
 
     /// <summary>
-    /// Renders only the new parts of the state since the last render.
-    /// This is "scrollback-friendly" as it only appends to the console.
+    /// Refreshes the input area (bottom pane and footer).
+    /// </summary>
+    public void RefreshInput(LumenState state, PromptComposerState composerState)
+    {
+        // For now, we simply re-render bottom parts.
+        // In a more advanced renderer, we would use Live display or cursor management.
+        console.Write(_bottomPane.Render(state));
+        console.Write(Environment.NewLine);
+        console.Write(_footerRenderer.Render(state));
+    }
+
+    /// <summary>
+    /// Renders only the new cells and refreshes input.
     /// </summary>
     public void RenderAppend(LumenState state)
     {
@@ -36,7 +46,8 @@ public class LumenRenderer(IAnsiConsole console)
             console.Write(_chatSurface.Render(newCells));
             _lastRenderedHistoryCount = state.History.Count;
             
-            // Re-render footer/bottom pane so they stay at the bottom of the scrollback
+            // We don't have composerState here easily, so we might need to store it
+            // or provide a simpler refresh. For now, we just update what we can.
             console.Write(_bottomPane.Render(state));
             console.Write(Environment.NewLine);
             console.Write(_footerRenderer.Render(state));

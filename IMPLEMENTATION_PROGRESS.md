@@ -81,7 +81,9 @@
 - [x] K041 Spectre Renderer v1 (Stable append rendering)
 - [x] K042 Lumen Output Bridge (Bridge events to state with fail-safe)
 - [x] K043 Prompt Composer Foundation (CLI input buffer & Key handling)
-- [x] Total 328/328 tests pass
+- [x] K044 LumenCliApp v1 (Interactive loop orchestration)
+- [x] K045 Approval Dialog v1 (Integration with Tool approval flow)
+- [x] Total 359/359 tests pass
 
 
 ### D01: Project Setup & Standard Build
@@ -454,3 +456,21 @@
 - [x] Implement `PromptComposerState` and `PromptComposerResult` models
 - [x] Add `K043PromptComposerTests` covering 13 scenarios (Insert, Backspace, Delete, Nav, History, Suggestion, etc.)
 - [x] Official Release Gate passed (328/328 pass)
+
+### K044: LumenCliApp v1
+- [x] Implement `LumenCliApp` with interactive loop orchestration
+- [x] Support background agent run task with cancellation
+- [x] Integrate neutral `IAgentRunObserver` via constructor injection
+- [x] Expose internal seams for testability without reflection
+- [x] Verify DiscordListenerService is started from the shared interactive code path before Lumen/Legacy branching
+- [x] Official Release Gate passed (338/338 pass)
+
+### K045: Approval Dialog v1
+- [x] Implement `ApprovalDialogState`, `ApprovalDialogAction`, and `ApprovalQueue` (Task synchronization)
+- [x] Implement `LumenApprovalHandler` (IRichApprovalHandler) for tool approval integration
+- [x] Implement `DialogLayer` with Spectre-based rendering and markup escaping
+- [x] Fix LumenCliApp state ownership using `_observer.State` as single source of truth
+- [x] Ensure approval dialog has key handling priority and unknown keys are NoOps
+- [x] Preserve `LastAction` state after dialog closure for decision traceability
+- [x] Implement full roundtrip approval flow from background AgentLoop to UI loop
+- [x] Official Release Gate passed (359/359 pass)

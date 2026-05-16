@@ -6,6 +6,8 @@ using Spectre.Console;
 using Spectre.Console.Testing;
 using Xunit;
 
+using Claude4Net.Cli.Ui.Input;
+
 namespace Claude4Net.Tests;
 
 public class K041LumenRendererTests
@@ -30,12 +32,13 @@ public class K041LumenRendererTests
             }
         };
         state.History[1].AppendDelta("Hi there!");
+        var composerState = new PromptComposerState("", 0, null);
 
         // Act & Assert
-        renderer.RenderFull(state); // Should not throw
+        renderer.RenderFull(state, composerState); // Should not throw
         
         console.Profile.Width = 120;
-        renderer.RenderFull(state); // Should not throw
+        renderer.RenderFull(state, composerState); // Should not throw
     }
 
     [Fact]
@@ -53,9 +56,10 @@ public class K041LumenRendererTests
                 new UserPromptCell("Text with [blue]tags[/]")
             }
         };
+        var composerState = new PromptComposerState("", 0, null);
 
         // Act
-        renderer.RenderFull(state);
+        renderer.RenderFull(state, composerState);
 
         // Assert
         // We just ensure it doesn't crash and writes something

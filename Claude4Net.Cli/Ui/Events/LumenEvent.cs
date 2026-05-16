@@ -23,3 +23,12 @@ public record ErrorReceivedEvent(string Message, string? Details = null) : Lumen
 public record ApprovalRequestedEvent(string RequestId, string Title, string Description) : LumenEvent;
 
 public record RunCompletedEvent : LumenEvent;
+
+// Approval Dialog Events
+public record ApprovalDialogOpenedEvent(string RequestId, string Title, string Description, string RiskLevel, string PreviewSummary) : LumenEvent;
+
+public record ApprovalDialogClosedEvent : LumenEvent;
+
+public record ApprovalDialogActionSelectedEvent(string RequestId, Claude4Net.Cli.Ui.Approval.ApprovalDialogAction Action) : LumenEvent;
+
+public record ApprovalDialogDetailToggledEvent : LumenEvent;

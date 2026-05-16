@@ -44,4 +44,10 @@
     <Message Text="[Auto-Build] Plugin entry point successfully deployed to $(OutDir)plugins" Importance="high" />
   </Target>
 
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Claude4Net.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
 </Project>

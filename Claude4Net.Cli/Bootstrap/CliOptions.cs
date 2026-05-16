@@ -41,6 +41,11 @@ public sealed class CliOptions
     public bool LegacyCli { get; set; }
 
     /// <summary>
+    /// Whether to use the new Lumen interactive CLI. (Opt-in for K044)
+    /// </summary>
+    public bool UseLumen { get; set; }
+
+    /// <summary>
     /// Remaining non-option arguments.
     /// </summary>
     public string[] RemainingArgs { get; set; } = Array.Empty<string>();
@@ -68,6 +73,10 @@ public sealed class CliOptions
             else if (arg.Equals("--legacy-cli", StringComparison.OrdinalIgnoreCase))
             {
                 options.LegacyCli = true;
+            }
+            else if (arg.Equals("--lumen", StringComparison.OrdinalIgnoreCase))
+            {
+                options.UseLumen = true;
             }
             else if (arg.Equals("--permission-mode", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
             {

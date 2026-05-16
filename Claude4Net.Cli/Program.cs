@@ -170,124 +170,135 @@ else
 {
     // --- Interactive Mode Path (Producer-Consumer Model) ---
 
-    // ESC Watcher Task
-    _ = Task.Run(() =>
-    {
-        while (!mainCts.Token.IsCancellationRequested)
-        {
-            if (Console.KeyAvailable)
-            {
-                var key = Console.ReadKey(true);
-                if (key.Key == ConsoleKey.Escape)
-                {
-                    mainCts.Cancel();
-                    AnsiConsole.MarkupLine("\n[bold red] Cancellation requested via ESC.[/]");
-                }
-            }
-            Thread.Sleep(100);
-        }
-    });
-
-    // Start Discord Listener
+    // Start Discord Listener for all interactive branches
     var discordService = serviceProvider.GetRequiredService<DiscordListenerService>();
     _ = discordService.StartAsync();
 
-    // [Producer] Task to capture user input
-    var producerTask = Task.Run(async () =>
+    // Use LumenCliApp if requested via --lumen
+    if (options.UseLumen && !options.LegacyCli)
     {
-        var cliOutput = new CliOutputHandler();
-        var cliApproval = serviceProvider.GetRequiredService<IUserApprovalHandler>();
-        while (!mainCts.Token.IsCancellationRequested)
+        var app = new Claude4Net.Cli.Ui.LumenCliApp(serviceProvider);
+        await app.RunAsync(mainCts.Token);
+    }
+    else
+    {
+        // --- Legacy Interactive Mode Path ---
+
+        // ESC Watcher Task
+        _ = Task.Run(() =>
         {
-            try
+            while (!mainCts.Token.IsCancellationRequested)
             {
-                if (CliUserApprovalHandler.PendingApproval == null)
-                    Console.Write("> ");
-
-                string? rawInput = Console.ReadLine();
-                if (rawInput == null)
+                if (Console.KeyAvailable)
                 {
-                    mainCts.Cancel();
-                    break;
-                }
-
-                string input = rawInput.Trim();
-
-                if (CliUserApprovalHandler.PendingApproval != null)
-                {
-                    var tcs = CliUserApprovalHandler.PendingApproval;
-                    CliUserApprovalHandler.PendingApproval = null;
-                    tcs.TrySetResult(input);
-                    continue;
-                }
-
-                var sb = new System.Text.StringBuilder(input);
-                Thread.Sleep(15);
-                while (Console.KeyAvailable)
-                {
-                    string? nextLine = Console.ReadLine();
-                    if (nextLine != null)
+                    var key = Console.ReadKey(true);
+                    if (key.Key == ConsoleKey.Escape)
                     {
-                        sb.AppendLine();
-                        sb.Append(nextLine);
+                        mainCts.Cancel();
+                        AnsiConsole.MarkupLine("\n[bold red] Cancellation requested via ESC.[/]");
                     }
-                    Thread.Sleep(15);
                 }
-                input = sb.ToString();
+                Thread.Sleep(100);
+            }
+        });
 
-                if (string.IsNullOrWhiteSpace(input)) continue;
-
-                if (input.StartsWith("!") || input.StartsWith("/"))
+        // [Producer] Task to capture user input
+        var producerTask = Task.Run(async () =>
+        {
+            var cliOutput = new CliOutputHandler();
+            var cliApproval = serviceProvider.GetRequiredService<IUserApprovalHandler>();
+            while (!mainCts.Token.IsCancellationRequested)
+            {
+                try
                 {
-                    string[] parts = input.Split(' ', 2);
-                    string cmdName = parts[0];
-                    string cmdArgs = parts.Length > 1 ? parts[1] : "";
+                    if (CliUserApprovalHandler.PendingApproval == null)
+                        Console.Write("> ");
 
-                    var cmd = CommandRegistry.FindCommand(cmdName);
-                    if (cmd != null && cmd.Handler != null)
+                    string? rawInput = Console.ReadLine();
+                    if (rawInput == null)
                     {
-                        var res = await cmd.Handler(cmdArgs, serviceProvider);
-                        AnsiConsole.MarkupLine(res);
-                        Console.Out.Flush();
+                        mainCts.Cancel();
+                        break;
+                    }
 
-                        if (cmd.Name == "exit")
-                        {
-                            mainCts.Cancel();
-                            break;
-                        }
+                    string input = rawInput.Trim();
+
+                    if (CliUserApprovalHandler.PendingApproval != null)
+                    {
+                        var tcs = CliUserApprovalHandler.PendingApproval;
+                        CliUserApprovalHandler.PendingApproval = null;
+                        tcs.TrySetResult(input);
                         continue;
                     }
+
+                    var sb = new System.Text.StringBuilder(input);
+                    Thread.Sleep(15);
+                    while (Console.KeyAvailable)
+                    {
+                        string? nextLine = Console.ReadLine();
+                        if (nextLine != null)
+                        {
+                            sb.AppendLine();
+                            sb.Append(nextLine);
+                        }
+                        Thread.Sleep(15);
+                    }
+                    input = sb.ToString();
+
+                    if (string.IsNullOrWhiteSpace(input)) continue;
+
+                    if (input.StartsWith("!") || input.StartsWith("/"))
+                    {
+                        string[] parts = input.Split(' ', 2);
+                        string cmdName = parts[0];
+                        string cmdArgs = parts.Length > 1 ? parts[1] : "";
+
+                        var cmd = CommandRegistry.FindCommand(cmdName);
+                        if (cmd != null && cmd.Handler != null)
+                        {
+                            var res = await cmd.Handler(cmdArgs, serviceProvider);
+                            AnsiConsole.MarkupLine(res);
+                            Console.Out.Flush();
+
+                            if (cmd.Name == "exit")
+                            {
+                                mainCts.Cancel();
+                                break;
+                            }
+                            continue;
+                        }
+                    }
+
+                    broker.TryWrite(new InputContext(input, cliOutput, cliApproval));
                 }
-
-                broker.TryWrite(new InputContext(input, cliOutput, cliApproval));
+                catch (Exception ex)
+                {
+                    AnsiConsole.Console.Write(new Markup($"[bold red][[CLI]] Error:[/] {Markup.Escape(ex.Message)}\n"));
+                }
             }
-            catch (Exception ex)
-            {
-                AnsiConsole.Console.Write(new Markup($"[bold red][[CLI]] Error:[/] {Markup.Escape(ex.Message)}\n"));
-            }
-        }
-    });
+        });
 
-    // [Consumer] Main loop to execute AgentLoop from broker messages
-    while (!mainCts.Token.IsCancellationRequested)
-    {
-        var broadcaster = DashboardServer.Services?.GetService<IAgentEventBroadcaster>();
-        var agent = new AgentLoop(
-            serviceProvider.GetRequiredService<ToolOrchestrator>(),
-            serviceProvider,
-            broker,
-            serviceProvider.GetRequiredService<ISmartRouter>(),
-            serviceProvider.GetRequiredService<IEmbeddingProvider>(),
-            broadcaster);
-
-        try
+        // [Consumer] Main loop to execute AgentLoop from broker messages
+        while (!mainCts.Token.IsCancellationRequested)
         {
-            await agent.ListenAsync(mainCts.Token);
-        }
-        catch (OperationCanceledException) { }
-    }
+            var broadcaster = DashboardServer.Services?.GetService<IAgentEventBroadcaster>();
+            var agent = new AgentLoop(
+                serviceProvider.GetRequiredService<ToolOrchestrator>(),
+                serviceProvider,
+                broker,
+                serviceProvider.GetRequiredService<ISmartRouter>(),
+                serviceProvider.GetRequiredService<IEmbeddingProvider>(),
+                broadcaster);
 
-    await producerTask;
+            try
+            {
+                await agent.ListenAsync(mainCts.Token);
+            }
+            catch (OperationCanceledException) { }
+        }
+
+        await producerTask;
+    }
 }
 
 AnsiConsole.MarkupLine("[grey]Exiting main loop...[/]");
