@@ -64,6 +64,7 @@
 | K040 | Lumen State and History Cells | Completed | 308/308 pass |
 | K041 | Spectre Renderer v1 | Completed | 310/310 pass |
 | K042 | Lumen Output Bridge | Completed | 316/316 pass (including fail-safe and tool-id tests) |
+| K043 | Prompt Composer Foundation | Completed | 328/328 pass (CLI input buffer & Key handling) |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -79,7 +80,8 @@
 - [x] K040 Lumen State and History Cells (UI model & History cells)
 - [x] K041 Spectre Renderer v1 (Stable append rendering)
 - [x] K042 Lumen Output Bridge (Bridge events to state with fail-safe)
-- [x] Total 316/316 tests pass
+- [x] K043 Prompt Composer Foundation (CLI input buffer & Key handling)
+- [x] Total 328/328 tests pass
 
 
 ### D01: Project Setup & Standard Build
@@ -434,3 +436,21 @@
 - [x] Support automatic width adaptation and markup escaping
 - [x] Add `K041LumenRendererTests` using `Spectre.Console.Testing`
 - [x] Official Release Gate passed (310/310 tests)
+
+### K042: Lumen Output Bridge
+- [x] Implement `LumenRunObserver` to bridge `IAgentRunEvent` to `LumenState`
+- [x] Support real-time streaming of text and thinking deltas
+- [x] Implement tool-call and result preservation in history cells
+- [x] Add fail-safe error reporting via notice cells
+- [x] Add `K042OutputBridgeTests` for state-observer synchronization
+- [x] Official Release Gate passed (316/316 pass)
+
+### K043: Prompt Composer Foundation
+- [x] Implement `PromptBuffer` for text manipulation and cursor navigation
+- [x] Implement `PromptHistory` for up/down command history navigation
+- [x] Implement `CommandSuggester` for tab-based command auto-completion from `CommandRegistry`
+- [x] Implement `KeyBindingRegistry` for mapping keys (Ctrl+L, Ctrl+C, Esc, etc.) to actions
+- [x] Implement `PromptComposer` as the main CLI input orchestrator
+- [x] Implement `PromptComposerState` and `PromptComposerResult` models
+- [x] Add `K043PromptComposerTests` covering 13 scenarios (Insert, Backspace, Delete, Nav, History, Suggestion, etc.)
+- [x] Official Release Gate passed (328/328 pass)
