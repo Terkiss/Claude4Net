@@ -83,7 +83,8 @@
 - [x] K043 Prompt Composer Foundation (CLI input buffer & Key handling)
 - [x] K044 LumenCliApp v1 (Interactive loop orchestration)
 - [x] K045 Approval Dialog v1 (Integration with Tool approval flow)
-- [x] Total 359/359 tests pass
+- [x] K046 Command Output Normalization (Convert command results to rich history cells)
+- [x] Total 367/367 tests pass
 
 
 ### D01: Project Setup & Standard Build

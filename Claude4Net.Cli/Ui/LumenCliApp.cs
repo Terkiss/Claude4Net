@@ -12,6 +12,7 @@ using Claude4Net.Dashboard;
 using Claude4Net.Api;
 using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
+using Spectre.Console.Rendering;
 
 using Claude4Net.Commands;
 
@@ -165,8 +166,16 @@ namespace Claude4Net.Cli.Ui
                 {
                     try
                     {
+                        if (cmd.Name == "clear")
+                        {
+                            Console.Clear();
+                            _renderer.RenderFull(_observer.State, _composer.GetState());
+                            return;
+                        }
+
                         var res = await cmd.Handler(cmdArgs, _serviceProvider);
-                        _observer.UpdateState(new NoticeReceivedEvent(res));
+                        _observer.UpdateState(new MarkupReceivedEvent(res));
+
                         if (cmd.Name == "exit")
                         {
                             cts.Cancel();

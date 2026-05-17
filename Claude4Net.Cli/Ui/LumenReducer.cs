@@ -33,6 +33,10 @@ public static class LumenReducer
 
             NoticeReceivedEvent e => AddCell(state, new NoticeCell(e.Message, e.Level)),
 
+            MarkupReceivedEvent e => AddCell(state, new MarkupCell(e.Markup)),
+
+            RenderableReceivedEvent e => AddCell(state, new RenderableCell(e.Renderable)),
+
             ErrorReceivedEvent e => AddCell(state, new ErrorCell(e.Message, e.Details)),
 
             ApprovalRequestedEvent e => AddCell(state, new ApprovalCell(e.RequestId, e.Title, e.Description)),
