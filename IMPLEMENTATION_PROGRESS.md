@@ -84,7 +84,10 @@
 - [x] K044 LumenCliApp v1 (Interactive loop orchestration)
 - [x] K045 Approval Dialog v1 (Integration with Tool approval flow)
 - [x] K046 Command Output Normalization (Convert command results to rich history cells)
-- [x] Total 367/367 tests pass
+- [x] K047 Piped Input, Discord, and Legacy Compatibility (Verified decoupling and external channels)
+- [x] K048 Render Quality and Cancellation Stabilization (Implemented ESC cancellation and Column Defense)
+- [x] K049 Lumen Release Gate and Documentation (Completed UI redesign wave and updated guides)
+- [x] Official Release Gate passed (378/378 pass)
 
 
 ### D01: Project Setup & Standard Build
@@ -178,10 +181,10 @@
 - [x] Prepare handoff documentation (Documents/HANDOFF.md)
 - [x] Final release gate verification (85/85 tests pass)
 - [x] [Maintenance] K013-5: Preserve Gemini functionCall thoughtSignature metadata for Gemini 3 tool-use continuity (86/86 tests pass)
-- [x] [Maintenance] 명시???�로바이???�택 가중치 조정 �?`gemini-cli` 초기 ?�보 ?�록 버그 ?�정
-- [x] [Maintenance] K013-2: 명시??모델 ?�택 ?�류 ?�결 (Respect AppState.ActiveModel)
-- [x] [Maintenance] K013-3: gemini-cli ?�로바이???�환 방어 �?모델 명칭 최신??(gemini-2.0-flash ??
-- [x] [Maintenance] K013-4: Gemini function calling 400 ?�러 ?�정 (Continuation prompt ?�략)
+- [x] [Maintenance] 명시???로바이???택 가중치 조정 ?`gemini-cli` 초기 ?보 ?록 버그 ?정
+- [x] [Maintenance] K013-2: 명시??모델 ?택 ?류 ?결 (Respect AppState.ActiveModel)
+- [x] [Maintenance] K013-3: gemini-cli ?로바이???환 방어 ?모델 명칭 최신??(gemini-2.0-flash ??
+- [x] [Maintenance] K013-4: Gemini function calling 400 ?러 ?정 (Continuation prompt ?략)
 
 ### K003: Release Gate Baseline
 - [x] Create `scripts/verify-release.ps1` with strict error handling
@@ -475,3 +478,8 @@
 - [x] Preserve `LastAction` state after dialog closure for decision traceability
 - [x] Implement full roundtrip approval flow from background AgentLoop to UI loop
 - [x] Official Release Gate passed (359/359 pass)
+- [x] K046 Command Output Normalization (Convert command results to rich history cells)
+- [x] K047 Piped Input, Discord, and Legacy Compatibility (Verified decoupling and external channels)
+- [x] K048 Render Quality and Cancellation Stabilization (Implemented ESC cancellation and Column Defense)
+- [x] K049 Lumen Release Gate and Documentation (Completed UI redesign wave and updated guides)
+- [x] Official Release Gate passed (378/378 pass)

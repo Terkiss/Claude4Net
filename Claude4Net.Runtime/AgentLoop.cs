@@ -80,7 +80,8 @@ namespace Claude4Net.Runtime
                 WorkspacePath = AppState.CurrentCwd
             };
             await _sessionStore.InitializeAsync(record);
-            AnsiConsole.MarkupLine($"[grey]Session initialized:[/] [link]{_sessionStore.SessionDir}[/]");
+            if (_observer is NullAgentRunObserver)
+                AnsiConsole.MarkupLine($"[grey]Session initialized:[/] [link]{_sessionStore.SessionDir}[/]");
 
             await AppendEventAsync(new SessionStartedEvent
             {
@@ -189,19 +190,21 @@ namespace Claude4Net.Runtime
                         _ => _serviceProvider.GetRequiredService<ClaudeService>()
                     };
 
-                    AnsiConsole.MarkupLine($"[grey]Routing:[/] [bold cyan]{decision.SelectedProvider}[/] ([italic]{decision.SelectedModel}[/]) - [grey]{decision.Reason ?? "Auto"}[/]");
+                    if (_observer is NullAgentRunObserver)
+                        AnsiConsole.MarkupLine($"[grey]Routing:[/] [bold cyan]{decision.SelectedProvider}[/] ([italic]{decision.SelectedModel}[/]) - [grey]{decision.Reason ?? "Auto"}[/]");
                     await ReportAsync(new RoutingSelectedEvent(decision.SelectedProvider, decision.SelectedModel, decision.Reason ?? "Auto"));
 
                     // 6. RAG(Retrieval-Augmented Generation): 과거의 유사한 작업 기억 추출
                     string relevantContext = await RetrieveRelevantMemoriesAsync(finalPrompt);
-                    if (!string.IsNullOrEmpty(relevantContext))
+                    if (!string.IsNullOrEmpty(relevantContext) && _observer is NullAgentRunObserver)
                     {
                         AnsiConsole.MarkupLine("[bold blue]RAG Context Retrieved:[/] Found relevant past interactions in agent_memory.");
                     }
                     string promptWithContext = relevantContext + finalPrompt;
 
                     // 7. 사고-행동-관찰 루프 실행
-                    await RunAsync(promptWithContext, context.Output, provider, decision.SelectedModel, context.Approval, ct);
+                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, context.CancellationToken);
+                    await RunAsync(promptWithContext, context.Output, provider, decision.SelectedModel, context.Approval, linkedCts.Token);
 
                     Console.Write("\n> ");
                 }
@@ -779,7 +782,8 @@ namespace Claude4Net.Runtime
                 try
                 {
                     string providerName = Markup.Escape(provider.Name);
-                    AnsiConsole.Markup($"[grey]Thinking... ({providerName} T{turnCount}) [/]");
+                    if (_observer is NullAgentRunObserver)
+                        AnsiConsole.Markup($"[grey]Thinking... ({providerName} T{turnCount}) [/]");
                     await LogProgressAsync("ThinkingStart", message: $"Turn {turnCount}");
 
                     string turnPrompt = isFirstTurn ? currentPrompt : "Proceed based on previous tool results.";
@@ -793,19 +797,19 @@ namespace Claude4Net.Runtime
                     {
                         if (evt.Type == LLMStreamEventType.TextDelta && !string.IsNullOrEmpty(evt.Delta))
                         {
-                            if (turnTextBuilder.Length == 0) Console.WriteLine();
-                            Console.Write(evt.Delta);
+                            if (turnTextBuilder.Length == 0 && _observer is NullAgentRunObserver) Console.WriteLine();
+                            if (_observer is NullAgentRunObserver) Console.Write(evt.Delta);
                             turnTextBuilder.Append(evt.Delta);
                             await ReportAsync(new TextDeltaEvent(evt.Delta));
                         }
                         else if (evt.Type == LLMStreamEventType.ThinkingDelta)
                         {
-                            Console.Write(".");
+                            if (_observer is NullAgentRunObserver) Console.Write(".");
                             await ReportAsync(new ThinkingDeltaEvent(evt.Delta));
                         }
                         else if (evt.Type == LLMStreamEventType.ToolCallStart && evt.ToolCall != null)
                         {
-                            Console.Write("!");
+                            if (_observer is NullAgentRunObserver) Console.Write("!");
                             toolCalls.Add(evt.ToolCall);
                         }
                         else if (evt.Type == LLMStreamEventType.Completed && evt.FinalResponse != null)
@@ -816,12 +820,20 @@ namespace Claude4Net.Runtime
                             }
                         }
                     }
-                    Console.WriteLine();
+                    if (_observer is NullAgentRunObserver) Console.WriteLine();
 
                     if (turnTextBuilder.Length > 0)
                     {
                         lastTurnResponse = turnTextBuilder.ToString();
-                        await output.WriteAsync(lastTurnResponse);
+
+                        // If observer is NullAgentRunObserver, we are in legacy mode and need the full output write.
+                        // If a real observer is present, deltas were already reported during streaming,
+                        // so we skip direct write to avoid duplication in Lumen UI.
+                        if (_observer is NullAgentRunObserver)
+                        {
+                            await output.WriteAsync(lastTurnResponse);
+                        }
+
                         await LogProgressAsync("TextDelta", message: lastTurnResponse);
                         await AppendEventAsync(new AgentThoughtEvent { Thought = lastTurnResponse });
                         await ReportAsync(new AssistantMessageCompletedEvent(lastTurnResponse));
@@ -852,7 +864,8 @@ namespace Claude4Net.Runtime
 
                     foreach (var tc in toolCalls)
                     {
-                        AnsiConsole.MarkupLine($"[grey]?? [bold yellow]Tool Call:[/] {Markup.Escape(tc.Name)}[/]");
+                        if (_observer is NullAgentRunObserver)
+                            AnsiConsole.MarkupLine($"[grey]?? [bold yellow]Tool Call:[/] {Markup.Escape(tc.Name)}[/]");
                         await ReportAsync(new ToolCallQueuedEvent(tc.Id, tc.Name, tc.Input?.ToString() ?? ""));
                         await LogProgressAsync("ToolCall", message: tc.Name, data: tc.Input);
                         await AppendEventAsync(new ToolCalledEvent
@@ -901,10 +914,13 @@ namespace Claude4Net.Runtime
                         string escapedId = Markup.Escape(result.ToolUseId);
                         string escapedSummary = Markup.Escape(summary);
 
-                        if (result.IsError)
-                            AnsiConsole.MarkupLine($"  [red]?? {escapedId}:[/] [grey]{escapedSummary}[/]");
-                        else
-                            AnsiConsole.MarkupLine($"  [green]?? {escapedId}:[/] [grey]{escapedSummary}[/]");
+                        if (_observer is NullAgentRunObserver)
+                        {
+                            if (result.IsError)
+                                AnsiConsole.MarkupLine($"  [red]?? {escapedId}:[/] [grey]{escapedSummary}[/]");
+                            else
+                                AnsiConsole.MarkupLine($"  [green]?? {escapedId}:[/] [grey]{escapedSummary}[/]");
+                        }
 
                         toolResults.Add(new { type = "tool_result", tool_use_id = result.ToolUseId, content = result.Content ?? "Success", is_error = result.IsError });
                     }

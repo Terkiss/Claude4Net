@@ -32,6 +32,7 @@ namespace Claude4Net.Cli.Ui
         private readonly ISmartRouter _router;
         private readonly ApprovalQueue _approvalQueue = new();
         internal readonly LumenApprovalHandler _lumenApprovalHandler;
+        internal CancellationTokenSource? _activeRunCts;
 
         public LumenCliApp(IServiceProvider serviceProvider)
         {
@@ -123,28 +124,35 @@ namespace Claude4Net.Cli.Ui
             // Normal composer processing
             var result = _composer.ProcessKey(keyInfo);
 
-            // After processing key, refresh the input area
-            _renderer.RefreshInput(_observer.State, _composer.GetState());
-
             switch (result.Status)
             {
                 case PromptComposerStatus.Submitted:
                     if (!string.IsNullOrWhiteSpace(result.Text))
                     {
                         await HandleInputAsync(result.Text, cts);
+                        // After submission, we want a fresh input area rendered ONCE
+                        _renderer.RefreshInput(_observer.State, _composer.GetState());
                     }
                     break;
 
                 case PromptComposerStatus.Cancelled:
                     if (_observer.State.IsRunning)
                     {
+                        _activeRunCts?.Cancel();
                         _observer.UpdateState(new NoticeReceivedEvent("Cancellation requested via ESC.", "Warning"));
                     }
+                    _renderer.RefreshInput(_observer.State, _composer.GetState());
                     break;
 
                 case PromptComposerStatus.ClearSignal:
                     Console.Clear();
                     _renderer.RenderFull(_observer.State, _composer.GetState());
+                    break;
+
+                default:
+                    // Regular typing:
+                    // To prevent prompt/footer accumulation in transcript without a cursor-overwrite renderer,
+                    // we do NOT call RefreshInput here in v5.3 hotfix.
                     break;
             }
         }
@@ -189,8 +197,12 @@ namespace Claude4Net.Cli.Ui
                 }
             }
 
-            // Route and Queue input for AgentLoop with Lumen-specific approval handler
-            _broker.TryWrite(new InputContext(input, _outputHandler, _lumenApprovalHandler));
+            // Create run-specific cancellation token linked to app token
+            _activeRunCts?.Dispose();
+            _activeRunCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token);
+
+            // Route and Queue input for AgentLoop with Lumen-specific approval handler and run-specific token
+            _broker.TryWrite(new InputContext(input, _outputHandler, _lumenApprovalHandler, _activeRunCts.Token));
         }
 
         private async Task StartConsumerAsync(CancellationToken token)

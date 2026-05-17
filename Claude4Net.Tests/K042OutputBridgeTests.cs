@@ -110,9 +110,9 @@ public class K042OutputBridgeTests
         await handler.SendFileAsync("path/to/file", "Log file");
 
         // Assert
-        // CompleteAsync adds 1 NoticeCell
+        // K050: CompleteAsync NO LONGER adds a NoticeCell to prevent transcript duplication.
         // SendFileAsync adds 2 NoticeCells (one for text, one for path)
-        Assert.Equal(3, observer.State.History.Count);
+        Assert.Equal(2, observer.State.History.Count);
         Assert.All(observer.State.History, cell => Assert.IsType<NoticeCell>(cell));
     }
 

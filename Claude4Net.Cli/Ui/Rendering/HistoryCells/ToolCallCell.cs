@@ -5,6 +5,7 @@ namespace Claude4Net.Cli.Ui.Rendering.HistoryCells;
 
 public class ToolCallCell(string callId, string toolName, string arguments) : HistoryCell
 {
+    private const int MaxArgsDisplayLength = 500;
     public string CallId { get; } = callId;
     public string ToolName { get; } = toolName;
     public string Arguments { get; } = arguments;
@@ -13,6 +14,12 @@ public class ToolCallCell(string callId, string toolName, string arguments) : Hi
 
     public override IRenderable GetRenderable()
     {
-        return new Markup($"[{LumenTheme.ToolColor}]TOOL CALL:[/] [bold]{Markup.Escape(ToolName)}[/]({Markup.Escape(Arguments)})");
+        string displayArgs = Arguments;
+        if (displayArgs.Length > MaxArgsDisplayLength)
+        {
+            displayArgs = displayArgs.Substring(0, MaxArgsDisplayLength) + "...";
+        }
+
+        return new Markup($"[{LumenTheme.ToolColor}]TOOL CALL:[/] [bold]{Markup.Escape(ToolName)}[/]({Markup.Escape(displayArgs)})");
     }
 }

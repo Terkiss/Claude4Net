@@ -26,13 +26,11 @@ public class LumenOutputHandler(LumenRunObserver observer) : IOutputHandler
 
     /// <summary>
     /// Completes the current output sequence with an optional final message.
+    /// In Lumen, finalMessage is typically already reported via deltas or handled by AgentLoop.
+    /// We avoid adding a notice here to prevent duplication.
     /// </summary>
     public Task CompleteAsync(string finalMessage)
     {
-        if (!string.IsNullOrEmpty(finalMessage))
-        {
-            observer.UpdateState(new NoticeReceivedEvent(finalMessage));
-        }
         return Task.CompletedTask;
     }
 

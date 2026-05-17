@@ -12,6 +12,7 @@ public class LumenRenderer(IAnsiConsole console)
     private readonly DialogLayer _dialogLayer = new();
 
     private int _lastRenderedHistoryCount = 0;
+    private PromptComposerState? _lastComposerState;
 
     /// <summary>
     /// Renders the entire state including history and input area.
@@ -28,29 +29,34 @@ public class LumenRenderer(IAnsiConsole console)
     /// </summary>
     public void RefreshInput(LumenState state, PromptComposerState composerState)
     {
-        // For now, we simply re-render bottom parts.
-        // In a more advanced renderer, we would use Live display or cursor management.
-        console.Write(_bottomPane.Render(state));
+        _lastComposerState = composerState;
+
+        // P1 Fix: In a more advanced renderer, we would use Live display or cursor management.
+        // For now, we append but try to keep it stable.
+        if (state.ApprovalDialog.IsVisible)
+        {
+            var dialog = _dialogLayer.Render(state);
+            if (dialog != null) console.Write(dialog);
+        }
+        else
+        {
+            console.Write(_bottomPane.Render(state, composerState));
+        }
+
         console.Write(Environment.NewLine);
         console.Write(_footerRenderer.Render(state));
     }
 
     /// <summary>
-    /// Renders only the new cells and refreshes input.
+    /// Renders only the new cells without refreshing the input area (to prevent transcript accumulation).
     /// </summary>
     public void RenderAppend(LumenState state)
     {
         if (state.History.Count > _lastRenderedHistoryCount)
         {
-            var newCells = state.History.Skip(_lastRenderedHistoryCount);
+            var newCells = state.History.Skip(_lastRenderedHistoryCount).ToList();
             console.Write(_chatSurface.Render(newCells));
             _lastRenderedHistoryCount = state.History.Count;
-            
-            // We don't have composerState here easily, so we might need to store it
-            // or provide a simpler refresh. For now, we just update what we can.
-            console.Write(_bottomPane.Render(state));
-            console.Write(Environment.NewLine);
-            console.Write(_footerRenderer.Render(state));
         }
     }
 }

@@ -24,7 +24,7 @@ namespace Claude4Net.SDK
     /// <param name="Text">입력된 텍스트 내용</param>
     /// <param name="Output">출력 핸들러</param>
     /// <param name="Approval">사용자 승인 핸들러 (선택 사항)</param>
-    public record InputContext(string Text, IOutputHandler Output, IUserApprovalHandler? Approval = null);
+    public record InputContext(string Text, IOutputHandler Output, IUserApprovalHandler? Approval = null, CancellationToken CancellationToken = default);
 
     /// <summary>
     /// 입력을 수신하고 전달하는 브로커 인터페이스입니다.
