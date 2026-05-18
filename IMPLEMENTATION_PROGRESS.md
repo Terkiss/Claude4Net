@@ -65,6 +65,10 @@
 | K041 | Spectre Renderer v1 | Completed | 310/310 pass |
 | K042 | Lumen Output Bridge | Completed | 316/316 pass (including fail-safe and tool-id tests) |
 | K043 | Prompt Composer Foundation | Completed | 328/328 pass (CLI input buffer & Key handling) |
+| K044 | LumenCliApp v1 | Completed | 338/338 pass |
+| K045 | Approval Dialog v1 | Completed | 359/359 pass |
+| K049 | Lumen Release Gate | Completed | 378/378 pass (Lumen v1 Closure) |
+| K051a | TerminalText and LumenFrame Foundation | Completed | 401/401 pass |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -75,6 +79,7 @@
 ## Detailed Progress
 
 ### D11: Project Lumen CLI Redesign
+
 ### K051a: TerminalText and LumenFrame Foundation
 - [x] Implement display-width-aware `TerminalText`
 - [x] Add immutable `LumenFrame`, `FooterState`, and `TerminalMetrics` models
@@ -92,15 +97,18 @@
 - [x] K040 Lumen State and History Cells (UI model & History cells)
 - [x] K041 Spectre Renderer v1 (Stable append rendering)
 - [x] K042 Lumen Output Bridge (Bridge events to state with fail-safe)
+- [x] Official Release Gate passed (316/316 pass)
 - [x] K043 Prompt Composer Foundation (CLI input buffer & Key handling)
+- [x] Official Release Gate passed (328/328 pass)
 - [x] K044 LumenCliApp v1 (Interactive loop orchestration)
+- [x] Official Release Gate passed (338/338 pass)
 - [x] K045 Approval Dialog v1 (Integration with Tool approval flow)
+- [x] Official Release Gate passed (359/359 pass)
 - [x] K046 Command Output Normalization (Convert command results to rich history cells)
 - [x] K047 Piped Input, Discord, and Legacy Compatibility (Verified decoupling and external channels)
 - [x] K048 Render Quality and Cancellation Stabilization (Implemented ESC cancellation and Column Defense)
 - [x] K049 Lumen Release Gate and Documentation (Completed UI redesign wave and updated guides)
-- [x] Official Release Gate passed (359/359 pass)
-
+- [x] Official Release Gate passed (378/378 pass)
 
 ### D01: Project Setup & Standard Build
 - [x] Solution structure refinement
@@ -461,7 +469,7 @@
 - [x] Implement tool-call and result preservation in history cells
 - [x] Add fail-safe error reporting via notice cells
 - [x] Add `K042OutputBridgeTests` for state-observer synchronization
-- [x] Official Release Gate passed (401/401 pass)
+- [x] Official Release Gate passed (316/316 pass)
 
 ### K043: Prompt Composer Foundation
 - [x] Implement `PromptBuffer` for text manipulation and cursor navigation
@@ -471,7 +479,7 @@
 - [x] Implement `PromptComposer` as the main CLI input orchestrator
 - [x] Implement `PromptComposerState` and `PromptComposerResult` models
 - [x] Add `K043PromptComposerTests` covering 13 scenarios (Insert, Backspace, Delete, Nav, History, Suggestion, etc.)
-- [x] Official Release Gate passed (401/401 pass)
+- [x] Official Release Gate passed (328/328 pass)
 
 ### K044: LumenCliApp v1
 - [x] Implement `LumenCliApp` with interactive loop orchestration
@@ -479,7 +487,7 @@
 - [x] Integrate neutral `IAgentRunObserver` via constructor injection
 - [x] Expose internal seams for testability without reflection
 - [x] Verify DiscordListenerService is started from the shared interactive code path before Lumen/Legacy branching
-- [x] Official Release Gate passed (401/401 pass)
+- [x] Official Release Gate passed (338/338 pass)
 
 ### K045: Approval Dialog v1
 - [x] Implement `ApprovalDialogState`, `ApprovalDialogAction`, and `ApprovalQueue` (Task synchronization)
@@ -489,9 +497,17 @@
 - [x] Ensure approval dialog has key handling priority and unknown keys are NoOps
 - [x] Preserve `LastAction` state after dialog closure for decision traceability
 - [x] Implement full roundtrip approval flow from background AgentLoop to UI loop
-- [x] Official Release Gate passed (401/401 pass)
-- [x] K046 Command Output Normalization (Convert command results to rich history cells)
-- [x] K047 Piped Input, Discord, and Legacy Compatibility (Verified decoupling and external channels)
-- [x] K048 Render Quality and Cancellation Stabilization (Implemented ESC cancellation and Column Defense)
-- [x] K049 Lumen Release Gate and Documentation (Completed UI redesign wave and updated guides)
-- [x] Official Release Gate passed (401/401 pass)
+- [x] Official Release Gate passed (359/359 pass)
+
+### K046: Command Output Normalization
+- [x] Convert command results to rich history cells
+
+### K047: Piped Input, Discord, and Legacy Compatibility
+- [x] Verified decoupling and external channels
+
+### K048: Render Quality and Cancellation Stabilization
+- [x] Implemented ESC cancellation and Column Defense
+
+### K049: Lumen Release Gate and Documentation
+- [x] Completed UI redesign wave and updated guides
+- [x] Official Release Gate passed (378/378 pass)

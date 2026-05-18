@@ -24,6 +24,9 @@ config.local.json
 [Dd]ocuments/
 [Oo]pen[Ss]pace/
 
+# Agent runtime prompt projections
+agent_*_prompt.md
+
 # Images
 *.png
 *.jpg
