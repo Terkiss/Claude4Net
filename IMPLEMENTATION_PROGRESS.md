@@ -87,7 +87,11 @@
 - [x] Official Release Gate passed (401/401 pass)
 
 ### K051b: LumenFrameBuilder and State Model Evolution
-- [ ] Pending
+- [x] Implement `LumenFrameBuilder` for viewport and fixed region layout
+- [x] Implement viewport scrolling and truncation logic
+- [x] Implement history cell rendering into display lines
+- [x] Add `K051bLumenFrameBuilderTests`
+- [x] Official Release Gate passed (417/417 pass)
 
 ### K051c: LumenTerminalRenderer and Live Integration
 - [ ] Pending

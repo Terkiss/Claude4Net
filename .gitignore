@@ -27,6 +27,12 @@ config.local.json
 # Agent runtime prompt projections
 agent_*_prompt.md
 
+# Ralph loop runtime artifacts
+worker-result.md
+judge-result.md
+final-control-result.md
+ralph-queue-state.md
+
 # Images
 *.png
 *.jpg
