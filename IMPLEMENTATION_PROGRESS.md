@@ -93,8 +93,13 @@
 - [x] Add `K051bLumenFrameBuilderTests`
 - [x] Official Release Gate passed (417/417 pass)
 
-### K051c: LumenTerminalRenderer and Live Integration
-- [ ] Pending
+### K051c: Lumen Terminal Renderer and Live Integration
+- [x] Implement `LumenTerminalRenderer` with ANSI cursor control and buffered repaint
+- [x] Implement fallback rendering for redirected output (IsRedirected)
+- [x] Integrate `LumenTerminalRenderer` into `LumenRenderer` facade
+- [x] Update `LumenCliApp` to support real-time input refresh in Lumen mode
+- [x] Add `K051cLumenTerminalRendererTests` (16 tests covering repaint, cursor, fallback, and delegation)
+- [x] Official Release Gate passed (433/433 pass)
 
 - [x] K038 Project Lumen Bootstrap Foundation (Option parsing & DI cleanup)
 - [x] K039 AgentRunEvent Observer Foundation (Neutral run events)

@@ -35,9 +35,17 @@ namespace Claude4Net.Cli.Ui
         internal CancellationTokenSource? _activeRunCts;
 
         public LumenCliApp(IServiceProvider serviceProvider)
+
         {
             _serviceProvider = serviceProvider;
-            _renderer = new LumenRenderer(AnsiConsole.Console);
+            _renderer = new LumenRenderer(
+                AnsiConsole.Console,
+                _serviceProvider.GetService<ILumenFrameBuilder>(),
+                _serviceProvider.GetService<ILumenTerminalRenderer>());
+
+            // Enable advanced frame-based rendering for Lumen mode
+            _renderer.EnableLumenMode();
+
             var initialState = new LumenState();
             _observer = new LumenRunObserver(_renderer, initialState);
             _outputHandler = new LumenOutputHandler(_observer);
@@ -78,6 +86,7 @@ namespace Claude4Net.Cli.Ui
             {
                 _approvalQueue.CancelAll();
                 cts.Cancel();
+                _renderer.Shutdown();
                 await consumerTask;
             }
         }
@@ -151,8 +160,11 @@ namespace Claude4Net.Cli.Ui
 
                 default:
                     // Regular typing:
-                    // To prevent prompt/footer accumulation in transcript without a cursor-overwrite renderer,
-                    // we do NOT call RefreshInput here in v5.3 hotfix.
+                    // In Lumen mode, we want to refresh to show the characters being typed
+                    if (_renderer.IsLumenMode)
+                    {
+                        _renderer.RefreshInput(_observer.State, _composer.GetState());
+                    }
                     break;
             }
         }
