@@ -78,10 +78,15 @@ namespace Claude4Net.Cli.Ui.Input
                     _history.ResetIndex();
                     return new PromptComposerResult(PromptComposerStatus.Cancelled, null);
                 case InputAction.ClearScreen:
-                    return new PromptComposerResult(PromptComposerStatus.ClearSignal, null);
+                    return new PromptComposerResult(PromptComposerStatus.ClearSignal, null, action);
+                case InputAction.ScrollUp:
+                case InputAction.ScrollDown:
+                case InputAction.ScrollToHome:
+                case InputAction.ScrollToEnd:
+                    return new PromptComposerResult(PromptComposerStatus.Scrolled, null, action);
             }
 
-            return new PromptComposerResult(PromptComposerStatus.Editing, null);
+            return new PromptComposerResult(PromptComposerStatus.Editing, null, action);
         }
 
         /// <summary>

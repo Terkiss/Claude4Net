@@ -101,6 +101,14 @@
 - [x] Add `K051cLumenTerminalRendererTests` (16 tests covering repaint, cursor, fallback, and delegation)
 - [x] Official Release Gate passed (433/433 pass)
 
+### K052: Lumen v2 Search and Scroll Navigation
+- [x] Extend `ViewportScrollState` with `AutoScroll` and `ScrollOffset`
+- [x] Implement scroll navigation (PageUp/Down, Ctrl+Home/End)
+- [x] Update `LumenFrameBuilder` to respect scroll offset for transcript
+- [x] Ensure input and footer regions remain fixed during scrolling
+- [x] Add `K052LumenScrollNavigationTests` (8 tests)
+- [x] Official Release Gate passed (441/441 pass)
+
 - [x] K038 Project Lumen Bootstrap Foundation (Option parsing & DI cleanup)
 - [x] K039 AgentRunEvent Observer Foundation (Neutral run events)
 - [x] K040 Lumen State and History Cells (UI model & History cells)

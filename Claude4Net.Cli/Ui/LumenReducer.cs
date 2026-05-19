@@ -1,4 +1,5 @@
 using Claude4Net.Cli.Ui.Events;
+using Claude4Net.Cli.Ui.Rendering;
 using Claude4Net.Cli.Ui.Rendering.HistoryCells;
 using Claude4Net.Cli.Ui.Approval;
 
@@ -72,14 +73,55 @@ public static class LumenReducer
                 ApprovalDialog = state.ApprovalDialog with { IsDetailMode = !state.ApprovalDialog.IsDetailMode }
             },
 
+            ScrollUpRequestedEvent e => state with
+            {
+                Scroll = state.Scroll with
+                {
+                    AutoScroll = false,
+                    ScrollOffset = state.Scroll.ScrollOffset + e.Lines
+                }
+            },
+
+            ScrollDownRequestedEvent e => MoveScroll(state, -e.Lines),
+
+            ScrollToHomeRequestedEvent => state with
+            {
+                Scroll = state.Scroll with
+                {
+                    AutoScroll = false,
+                    ScrollOffset = int.MaxValue / 2 // Will be clamped by builder
+                }
+            },
+
+            ScrollToEndRequestedEvent => state with
+            {
+                Scroll = state.Scroll with { AutoScroll = true, ScrollOffset = 0 }
+            },
+
             _ => state
+        };
+    }
+
+    private static LumenState MoveScroll(LumenState state, int delta)
+    {
+        int newOffset = Math.Max(0, state.Scroll.ScrollOffset + delta);
+        bool pinned = newOffset == 0;
+        return state with
+        {
+            Scroll = state.Scroll with { AutoScroll = pinned, ScrollOffset = newOffset }
         };
     }
 
     private static LumenState AddCell(LumenState state, HistoryCell cell)
     {
         var newHistory = new List<HistoryCell>(state.History) { cell };
-        return state with { History = newHistory };
+
+        // If pinned to bottom, keep offset at 0.
+        var newScroll = state.Scroll.AutoScroll
+            ? state.Scroll with { ScrollOffset = 0 }
+            : state.Scroll;
+
+        return state with { History = newHistory, Scroll = newScroll };
     }
 
     private static LumenState UpdateLastCell<T>(LumenState state, Action<T> action) where T : HistoryCell

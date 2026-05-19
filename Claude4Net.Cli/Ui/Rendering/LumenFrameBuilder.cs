@@ -71,17 +71,33 @@ public sealed class LumenFrameBuilder : ILumenFrameBuilder
         {
             allTranscriptLines.AddRange(HistoryCellRenderer.Render(cell, width));
         }
-        var transcriptTail = allTranscriptLines.TakeLast(transcriptHeight).ToList();
+
+        // Apply scrolling
+        int maxPossibleStart = Math.Max(0, allTranscriptLines.Count - transcriptHeight);
+        int startLine;
+
+        if (state.Scroll.AutoScroll)
+        {
+            startLine = maxPossibleStart;
+        }
+        else
+        {
+            // ScrollOffset is distance from bottom
+            startLine = maxPossibleStart - state.Scroll.ScrollOffset;
+            startLine = Math.Clamp(startLine, 0, maxPossibleStart);
+        }
+
+        var visibleTranscript = allTranscriptLines.Skip(startLine).Take(transcriptHeight).ToList();
 
         // 6. Assemble lines
         var lines = new List<DisplayLine>();
-        int padding = transcriptHeight - transcriptTail.Count;
+        int padding = transcriptHeight - visibleTranscript.Count;
         for (int i = 0; i < padding; i++)
         {
             lines.Add(new DisplayLine(string.Empty, DisplayLineKind.Transcript));
         }
 
-        lines.AddRange(transcriptTail);
+        lines.AddRange(visibleTranscript);
         lines.AddRange(visibleInputLines);
 
         string footerText = BuildFooterText(state, width);

@@ -20,7 +20,11 @@ namespace Claude4Net.Cli.Ui.Input
         ApplySuggestion,
         Submit,
         Cancel,
-        ClearScreen
+        ClearScreen,
+        ScrollUp,
+        ScrollDown,
+        ScrollToHome,
+        ScrollToEnd
     }
 
     /// <summary>
@@ -37,6 +41,8 @@ namespace Claude4Net.Cli.Ui.Input
                 {
                     ConsoleKey.C => InputAction.Cancel,
                     ConsoleKey.L => InputAction.ClearScreen,
+                    ConsoleKey.Home => InputAction.ScrollToHome,
+                    ConsoleKey.End => InputAction.ScrollToEnd,
                     _ => InputAction.None
                 };
             }
@@ -52,6 +58,8 @@ namespace Claude4Net.Cli.Ui.Input
                 ConsoleKey.End => InputAction.MoveEnd,
                 ConsoleKey.UpArrow => InputAction.HistoryUp,
                 ConsoleKey.DownArrow => InputAction.HistoryDown,
+                ConsoleKey.PageUp => InputAction.ScrollUp,
+                ConsoleKey.PageDown => InputAction.ScrollDown,
                 ConsoleKey.Tab => InputAction.ApplySuggestion,
                 ConsoleKey.Enter => InputAction.Submit,
                 ConsoleKey.Escape => InputAction.Cancel,

@@ -32,3 +32,9 @@ public record ApprovalDialogClosedEvent : LumenEvent;
 public record ApprovalDialogActionSelectedEvent(string RequestId, Claude4Net.Cli.Ui.Approval.ApprovalDialogAction Action) : LumenEvent;
 
 public record ApprovalDialogDetailToggledEvent : LumenEvent;
+
+// Scroll Events
+public record ScrollUpRequestedEvent(int Lines) : LumenEvent;
+public record ScrollDownRequestedEvent(int Lines) : LumenEvent;
+public record ScrollToHomeRequestedEvent : LumenEvent;
+public record ScrollToEndRequestedEvent : LumenEvent;

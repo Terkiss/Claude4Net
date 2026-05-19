@@ -158,6 +158,25 @@ namespace Claude4Net.Cli.Ui
                     _renderer.RenderFull(_observer.State, _composer.GetState());
                     break;
 
+                case PromptComposerStatus.Scrolled:
+                    switch (result.Action)
+                    {
+                        case InputAction.ScrollUp:
+                            _observer.UpdateState(new ScrollUpRequestedEvent(10));
+                            break;
+                        case InputAction.ScrollDown:
+                            _observer.UpdateState(new ScrollDownRequestedEvent(10));
+                            break;
+                        case InputAction.ScrollToHome:
+                            _observer.UpdateState(new ScrollToHomeRequestedEvent());
+                            break;
+                        case InputAction.ScrollToEnd:
+                            _observer.UpdateState(new ScrollToEndRequestedEvent());
+                            break;
+                    }
+                    _renderer.RefreshInput(_observer.State, _composer.GetState());
+                    break;
+
                 default:
                     // Regular typing:
                     // In Lumen mode, we want to refresh to show the characters being typed

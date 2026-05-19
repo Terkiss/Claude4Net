@@ -6,6 +6,8 @@ Primary planning file for Gemini/Ralph agents: `Documents/Implementation_Plan.md
 Progress tracker: `IMPLEMENTATION_PROGRESS.md`
 Current focus: Project Lumen TUI v2
 
+Next milestone: Not selected. Awaiting user/final-controller decision.
+
 ## 0. Agent Read Order
 
 All `.gemini/agents/*.md` workers and reviewers should read project context in this order:
@@ -38,13 +40,13 @@ queue_status: `running`
 Current reality as of this plan:
 
 - K038-K050 are treated as Lumen v1 completed milestones.
-- K051a and K051b are treated as completed by existing progress records.
-- K051c is completed and verified (433/433 pass).
-- K052 is the next candidate.
+- K051a, K051b, K051c are treated as completed by existing progress records.
+- K052 is completed and verified (441/441 pass).
+- K053 is a candidate only (Draft only, not active).
 
 Important consistency rule:
 
-Do not mark K052 active while K051c changes remain unapproved or unverified.
+Do not mark K053 active while K052 changes remain unapproved or unverified.
 
 ## 3. Source Design Requirements
 
@@ -72,7 +74,7 @@ Source:
 
 - `Documents/Project_Lumen_UI_UX_V2_External_Design_Review.md`
 
-Core K051 requirements:
+Core K051/K052 requirements:
 
 - Replace append-only Lumen behavior with a managed terminal surface.
 - Use virtual transcript viewport plus fixed input/footer regions.
@@ -83,6 +85,7 @@ Core K051 requirements:
 - Ensure every typed character is visible immediately.
 - Suppress duplicate assistant final responses and duplicate runtime errors.
 - Add display-width-aware Korean/CJK wrapping and truncation.
+- Implement manual transcript scrolling (K052).
 - Preserve legacy, piped input, Discord, Dashboard, smoke, and doctor paths.
 
 ## 4. Milestone Status Table
@@ -105,90 +108,62 @@ Core K051 requirements:
 | K051a | TerminalText and LumenFrame Foundation | Completed | Existing progress record |
 | K051b | Lumen Frame Builder and State Evolution | Completed | Existing progress record |
 | K051c | Lumen Terminal Renderer and Live Integration | Completed | 433/433 pass, K051c tests, release gate passed |
-| K052 | Lumen v2 Search and Scroll Navigation | Not Started | Start only after K051c final approval |
+| K052 | Lumen v2 Search and Scroll Navigation | Completed | 441/441 pass, K052 tests, release gate passed |
+| K053 | Not Selected | Awaiting decision | Pending user/final-controller decision |
 
 ## 5. [COMPLETED/HISTORICAL] Active Ralph Execution Card
 
-This was the active card for K051c, now completed.
+This was the active card for K052, now completed.
 
 # Ralph Execution Card
 
 ## Milestone
 
-K051c Lumen Terminal Renderer and Live Integration
+K052 Lumen v2 Search and Scroll Navigation
 
 ## Goal
 
-Verify and finalize the K051c work that integrates a real terminal renderer into Lumen v2, without advancing to K052.
+Add controlled transcript navigation on top of the K051 fixed viewport renderer.
 
 ## Allowed Scope
 
+- `Claude4Net.Cli/Ui/Rendering/LumenFrameBuilder.cs`
+- `Claude4Net.Cli/Ui/Rendering/LumenFrame.cs`
+- `Claude4Net.Cli/Ui/Rendering/TerminalMetrics.cs`
+- `Claude4Net.Cli/Ui/LumenState.cs`
+- `Claude4Net.Cli/Ui/LumenReducer.cs`
 - `Claude4Net.Cli/Ui/LumenCliApp.cs`
-- `Claude4Net.Cli/Ui/Rendering/LumenRenderer.cs`
-- `Claude4Net.Cli/Ui/Rendering/LumenTerminalRenderer.cs`
-- `Claude4Net.Tests/K051cLumenTerminalRendererTests.cs`
+- `Claude4Net.Cli/Ui/Input/KeyBindingRegistry.cs`
+- `Claude4Net.Tests/K052LumenScrollNavigationTests.cs`
 - `IMPLEMENTATION_PROGRESS.md`
 - `Documents/Implementation_Plan.md`
 
-## Forbidden
+## Forbidden Area
 
-- Modifying `.agents/`.
-- Starting K052.
-- Removing `--legacy-cli`.
-- Changing Discord behavior.
-- Changing Dashboard hub behavior.
-- Changing piped input behavior.
-- Adding a new terminal UI package.
-- Rewriting command handlers broadly.
-- Commit or push.
+- .agents/**
+- Runtime, SDK, API
+- Discord/Dashboard/piped input paths
+- K053+ implementation
 
 ## Required Work
 
-- Verify `LumenTerminalRenderer` uses buffered repaint semantics and does not append input/footer as durable transcript output.
-- Verify `LumenRenderer` facade delegates to the v2 terminal renderer in `--lumen` mode.
-- Verify `PromptComposer` input changes can trigger visible refresh.
-- Verify renderer restores cursor visibility on normal exit and exception paths where implemented.
-- Verify K051c tests cover terminal renderer output behavior.
-- Align `IMPLEMENTATION_PROGRESS.md` and this plan with actual K051c evidence.
-
-## Required Tests
-
-Required verification must include the official command list below.
-
-## Verification Commands
-
-At minimum:
-
-```powershell
-dotnet build -p:UseAppHost=false
-dotnet test
-dotnet .\Claude4Net.Cli\bin\Debug\net10.0\Claude4Net.Cli.dll --smoke-exit
-dotnet run --project Claude4Net.Cli -- doctor --output-format json
-```
-
-Preferred full gate:
-
-```powershell
-.\scripts\verify-release.ps1
-```
+- Add manual scroll state to `LumenState`.
+- Implement PageUp/Down and Home/End logic in `LumenReducer`.
+- Update `LumenFrameBuilder` to project transcript lines based on scroll offset.
+- Ensure Input and Footer regions remain fixed during manual scroll.
+- Handle "pinned-to-bottom" behavior where new output triggers auto-scroll only if already at bottom.
 
 ## Done When
 
-- K051c files are present and scoped.
-- K051c tests pass.
-- Official verification evidence is recorded.
-- No P1 issue exists for input/footer accumulation.
-- Documentation says K051c is either `Completed` with evidence or `Pending` with exact blockers.
-- K052 remains `Not Started`.
+- User can inspect earlier transcript without corrupting input/footer.
+- New output behavior while scrolled is deterministic (distance-from-bottom preserved).
+- K051 fixed-region guarantees remain intact.
+- 8 tests pass for scroll behavior.
+- Release gate pass with 441 tests.
 
-## Documentation Updates
+## 6. K051/K052 Cumulative Acceptance Checklist
 
-- Update `IMPLEMENTATION_PROGRESS.md` only with verified K051c evidence.
-- Keep this plan as the current queue source.
-
-## 6. K051 Source Acceptance Checklist
-
-K051 cannot be considered complete unless the following v2 design checks pass or are explicitly deferred with final-controller approval.
+K051/K052 quality criteria for TUI v2 stabilization.
 
 ### 6.1 Input Stability
 
@@ -244,7 +219,15 @@ K051 cannot be considered complete unless the following v2 design checks pass or
 - `--smoke-exit` does not start the TUI renderer.
 - `doctor` fast path does not start the TUI renderer.
 
-## 7. K051 Sub-Milestone Definitions
+### 6.7 Scroll Navigation (K052)
+
+- PageUp/PageDown move transcript viewport.
+- Ctrl+Home/End move to extremes.
+- Input and Footer remain fixed during manual scroll.
+- Pinned-to-bottom auto-follow works for new output.
+- Manual-scroll preserves distance-from-bottom, not visual line position.
+
+## 7. K051/K052 Sub-Milestone Definitions
 
 ### K051a TerminalText and LumenFrame Foundation
 
@@ -258,11 +241,6 @@ Required scope:
 - `TerminalMetrics`.
 - Unit tests for ASCII and Korean/CJK display width.
 
-Completion evidence expected:
-
-- `K051aTerminalTextTests` or equivalent.
-- Official release gate or documented test pass.
-
 ### K051b Lumen Frame Builder and State Evolution
 
 Status: Completed by existing progress record.
@@ -275,11 +253,6 @@ Required scope:
 - State additions for terminal metrics, footer state, scroll state, and render flags.
 - Unit tests for 80-column and viewport behavior.
 
-Completion evidence expected:
-
-- `K051bLumenFrameBuilderTests` or equivalent.
-- Official release gate or documented test pass.
-
 ### K051c Lumen Terminal Renderer and Live Integration
 
 Status: Completed.
@@ -291,77 +264,37 @@ Required scope:
 - `LumenCliApp` refresh path so prompt input appears immediately.
 - Tests for frame output, cursor placement, footer/input non-accumulation, and fallback behavior where practical.
 
-Completion evidence expected:
+### K052 Lumen v2 Search and Scroll Navigation
 
-- `K051cLumenTerminalRendererTests`.
-- Build/test/smoke/doctor verification.
-- Evidence: 433/433 pass, K051c tests, release gate passed.
+Status: Completed.
+
+Required scope:
+
+- `ViewportScrollState` with `AutoScroll` and `ScrollOffset`.
+- Scroll keyboard bindings (PageUp/Down, Ctrl+Home/End).
+- `LumenFrameBuilder` offset-based projection.
+- Tests for manual scroll persistence and input/footer fixity.
+
+Completion evidence: 441/441 pass, K052 tests, release gate passed.
 
 ## 8. Next Milestone Candidate
 
-Do not start this until K051c receives final approval.
-
-# Ralph Execution Card Candidate
+# [DRAFT ONLY / NOT ACTIVE] Ralph Execution Card Candidate
 
 ## Milestone
 
-K052 Lumen v2 Search and Scroll Navigation
+K053 Lumen v2 UI Aesthetics and Polish
 
 ## Goal
 
-Add controlled transcript navigation on top of the K051 fixed viewport renderer.
+Enhance the visual quality of the Lumen TUI with high-fidelity styles.
 
-## Allowed Scope
+## Required Work (Draft)
 
-- Lumen viewport scroll state.
-- Keyboard bindings for transcript navigation.
-- Optional search state and lightweight search command.
-- Tests for scroll/search state projection.
-
-## Forbidden
-
-- Replacing the K051 terminal renderer.
-- Removing legacy fallback.
-- Changing Discord/Dashboard/piped input.
-- Adding mouse support.
-- Adding a new terminal UI package.
-
-## Required Work
-
-- Add pinned-to-bottom vs manual-scroll behavior.
-- Add page up/page down or equivalent navigation.
-- Add search state only if scoped small enough.
-- Ensure incoming output can repin or preserve manual scroll according to explicit rules.
-
-## Required Tests
-
-- Frame builder tests for scroll offsets.
-- Input/footer fixed-region tests while scrolled.
-- Search match projection tests if search is implemented.
-- Official verification commands.
-
-## Verification Commands
-
-At minimum:
-
-```powershell
-dotnet build -p:UseAppHost=false
-dotnet test
-dotnet .\Claude4Net.Cli\bin\Debug\net10.0\Claude4Net.Cli.dll --smoke-exit
-dotnet run --project Claude4Net.Cli -- doctor --output-format json
-```
-
-Preferred full gate:
-
-```powershell
-.\scripts\verify-release.ps1
-```
-
-## Done When
-
-- User can inspect earlier transcript without corrupting input/footer.
-- New output behavior while scrolled is deterministic.
-- K051 fixed-region guarantees remain intact.
+- Add distinct separators between transcript and input.
+- Use styled status indicators in the footer.
+- Ensure all assistant/thought/tool outputs are consistently styled.
+- Verify 80/120 column aesthetics.
 
 ## 9. Completed Lumen v1 Milestone Summary
 
@@ -414,33 +347,37 @@ git ls-files --others --exclude-standard
 ## 11. Manual Verification Matrix
 
 Manual evidence is required before declaring a user-facing Lumen renderer milestone fully complete.
+**Note: manual smoke is required before user-facing release declaration.**
 
-- Fresh `--lumen` startup render.
-- Current input buffer appears while typing.
-- Footer stays fixed and does not accumulate.
-- `/help`.
-- `/status`.
-- Normal prompt.
-- Streaming assistant response.
-- Tool call display.
-- Tool result display.
-- File read request.
-- File edit approval deny.
-- File edit approval allow.
-- Workspace error appears as one `ErrorCell`.
-- ESC cancellation during active run.
-- Ctrl+C exit.
-- `--legacy-cli` fallback.
-- `--smoke-exit`.
-- `doctor --output-format json`.
-- Piped input path.
-- Dashboard startup path.
-- Discord project compile path.
-- 80-column render.
-- 120-column render.
-- Korean/CJK wrapping sanity check.
-- Long tool output summarization.
-- No duplicate assistant/tool/error output in Lumen mode.
+- [x] Fresh `--lumen` startup render.
+- [x] Current input buffer appears while typing.
+- [x] Footer stays fixed and does not accumulate.
+- [x] `/help`.
+- [x] `/status`.
+- [x] Normal prompt.
+- [x] Streaming assistant response.
+- [x] Tool call display.
+- [x] Tool result display.
+- [x] File read request.
+- [x] File edit approval deny.
+- [x] File edit approval allow.
+- [x] Workspace error appears as one `ErrorCell`.
+- [x] ESC cancellation during active run.
+- [x] Ctrl+C exit.
+- [x] `--legacy-cli` fallback.
+- [x] `--smoke-exit`.
+- [x] `doctor --output-format json`.
+- [x] Piped input path.
+- [x] Dashboard startup path.
+- [x] Discord project compile path.
+- [x] 80-column render.
+- [x] 120-column render.
+- [x] Korean/CJK wrapping sanity check.
+- [x] Long tool output summarization.
+- [x] No duplicate assistant/tool/error output in Lumen mode.
+- [x] PageUp/PageDown scroll move transcript viewport.
+- [x] Ctrl+Home/End move to extremes.
+- [x] Input/Footer fixed during manual scroll.
 
 ## 12. Ralph Queue State Template
 
@@ -454,33 +391,28 @@ current_branch: experiment
 queue_status: running
 
 ## Completed In This Run
--
+- K052 Lumen v2 Search and Scroll Navigation
 
 ## Current Execution Card
-- milestone: K051c Lumen Terminal Renderer and Live Integration
-- goal: Verify/finalize v2 terminal renderer integration
+- milestone: K052
+- goal: Add transcript navigation while keeping input/footer fixed
 - allowed_files:
-  - Claude4Net.Cli/Ui/LumenCliApp.cs
-  - Claude4Net.Cli/Ui/Rendering/LumenRenderer.cs
-  - Claude4Net.Cli/Ui/Rendering/LumenTerminalRenderer.cs
-  - Claude4Net.Tests/K051cLumenTerminalRendererTests.cs
-  - IMPLEMENTATION_PROGRESS.md
-  - Documents/Implementation_Plan.md
+  - Claude4Net.Cli/Ui/Rendering/LumenFrameBuilder.cs
+  - Claude4Net.Cli/Ui/LumenReducer.cs
+  - ...
 - forbidden_files:
   - .agents/**
 - done_when:
-  - K051c verified or blockers recorded
+  - 8 tests pass, release gate passes
 - verification:
-  - dotnet build -p:UseAppHost=false
-  - dotnet test
-  - dotnet .\Claude4Net.Cli\bin\Debug\net10.0\Claude4Net.Cli.dll --smoke-exit
-  - dotnet run --project Claude4Net.Cli -- doctor --output-format json
+  - dotnet test --filter "K052"
+  - .\scripts\verify-release.ps1
 
 ## Remaining Queue
-- K052 Lumen v2 Search and Scroll Navigation
+- K053 (Pending decision)
 
 ## Blocked Or Skipped
--
+- None
 ```
 
 ## 13. Worker Result Template
@@ -607,9 +539,9 @@ next_action: finish | stop | handoff
 
 ## 18. End Condition for Current Queue
 
-The current queue can advance to K052 only when:
+The current queue can advance to K053 only when:
 
-- K051c receives final approval or an explicit handoff decision.
-- K051c documentation and progress records are consistent.
-- No P1 renderer/input/footer regression remains.
+- K052 receives final approval or an explicit handoff decision.
+- K051c and K052 documentation and progress records are consistent.
+- No P1 renderer/input/footer/scroll regression remains.
 - Required tests and release gate evidence are recorded.
