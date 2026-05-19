@@ -69,6 +69,10 @@
 | K045 | Approval Dialog v1 | Completed | 359/359 pass |
 | K049 | Lumen Release Gate | Completed | 378/378 pass (Lumen v1 Closure) |
 | K051a | TerminalText and LumenFrame Foundation | Completed | 401/401 pass |
+| K051b | Lumen Frame Builder and State Evolution | Completed | 417/417 pass |
+| K051c | Lumen Terminal Renderer and Live Integration | Completed | 433/433 pass |
+| K052 | Lumen v2 Search and Scroll Navigation | Completed | 441/441 pass |
+| K053a | Lumen Render Fidelity Hotfix | Completed | 450/450 pass |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -108,6 +112,13 @@
 - [x] Ensure input and footer regions remain fixed during scrolling
 - [x] Add `K052LumenScrollNavigationTests` (8 tests)
 - [x] Official Release Gate passed (441/441 pass)
+
+### K053a: Lumen Render Fidelity Hotfix
+- [x] Prevent Spectre markup raw tag leakage in `MarkupCell`
+- [x] Implement ANSI-aware display width, wrap, and truncate in `TerminalText`
+- [x] Add Korean/CJK render preservation tests (mojibake prevention)
+- [x] Fix footer first-character regression (repaint logic)
+- [x] Official Release Gate passed (450/450 pass)
 
 - [x] K038 Project Lumen Bootstrap Foundation (Option parsing & DI cleanup)
 - [x] K039 AgentRunEvent Observer Foundation (Neutral run events)

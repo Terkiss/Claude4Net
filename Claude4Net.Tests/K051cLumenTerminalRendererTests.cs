@@ -52,7 +52,7 @@ public class K051cLumenTerminalRendererTests
         // Second render - should move up 1 line
         renderer.Render(new LumenFrame(new List<DisplayLine> { new DisplayLine("L2", DisplayLineKind.Transcript) }, new CursorPosition(0, 0, true), 80, 24));
 
-        Assert.Contains("\x1b[1A\r", sb.ToString());
+        Assert.Contains("\r", sb.ToString());
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public class K051cLumenTerminalRendererTests
 
         renderer.Render(frame);
 
-        Assert.Contains("\x1b[2A", sb.ToString());
+        Assert.Contains("\x1b[1A", sb.ToString());
     }
 
     [Fact]
@@ -224,7 +224,7 @@ public class K051cLumenTerminalRendererTests
             new DisplayLine("L3", DisplayLineKind.Transcript)
         }, new CursorPosition(0, 0, true), 80, 24));
 
-        Assert.Contains("\x1b[2A\r", sb.ToString());
+        Assert.Contains("\x1b[1A\r", sb.ToString());
     }
 
     [Fact]

@@ -19,6 +19,13 @@ public class ThinkingCell(string? initialThought = null) : HistoryCell
 
     public override IRenderable GetRenderable()
     {
-        return new Markup($"[{LumenTheme.ThinkingColor}]THOUGHT:[/] [italic]{Markup.Escape(Content)}[/]");
+        var content = string.IsNullOrWhiteSpace(Content) ? "..." : Content;
+        return new Panel(new Markup($"[italic]{Markup.Escape(content)}[/]"))
+        {
+            Header = new PanelHeader(" THOUGHT "),
+            Border = BoxBorder.Rounded,
+            BorderStyle = new Style(foreground: Color.Grey35),
+            Padding = new Padding(1, 0, 1, 0)
+        };
     }
 }

@@ -15,7 +15,7 @@ public class ToolResultCell(string callId, string result, bool isError = false) 
     public override IRenderable GetRenderable()
     {
         var color = IsError ? LumenTheme.ErrorColor : LumenTheme.ToolColor;
-        var prefix = IsError ? "TOOL ERROR" : "TOOL RESULT";
+        var prefix = IsError ? " TOOL ERROR " : " TOOL RESULT ";
 
         string displayResult = Result;
         bool isTruncated = false;
@@ -26,16 +26,19 @@ public class ToolResultCell(string callId, string result, bool isError = false) 
             isTruncated = true;
         }
 
-        var content = new Markup($"[{color}]{prefix}:[/] {Markup.Escape(displayResult)}");
+        var markup = new Markup(Markup.Escape(displayResult));
+        IRenderable content = isTruncated
+            ? new Rows(markup, new Markup($"[grey](Truncated. Total length: {Result.Length})[/]"))
+            : markup;
 
-        if (isTruncated)
+        var colorObj = IsError ? Color.Red : Color.Yellow;
+
+        return new Panel(content)
         {
-            return new Rows(
-                content,
-                new Markup($"[grey](Truncated for display. Length: {Result.Length})[/]")
-            );
-        }
-
-        return content;
+            Header = new PanelHeader($"[{color}]{prefix}[/]"),
+            Border = BoxBorder.Rounded,
+            BorderStyle = new Style(foreground: Color.Grey35),
+            Padding = new Padding(1, 0, 1, 0)
+        };
     }
 }

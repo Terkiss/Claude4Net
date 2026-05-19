@@ -42,6 +42,7 @@ public sealed class LumenTerminalRenderer(System.IO.TextWriter? writer = null) :
     public void Setup()
     {
         if (_isSetup || IsRedirected) return;
+
         // Initial setup for the terminal session
         _writer.Write("\x1b[?25l"); // Hide cursor as baseline
         _isSetup = true;
@@ -73,28 +74,38 @@ public sealed class LumenTerminalRenderer(System.IO.TextWriter? writer = null) :
             // 1. Move cursor back to the start of the UI region
             if (_lastLineCount > 0)
             {
-                // Move up _lastLineCount lines and return to start of line
-                _writer.Write($"\x1b[{_lastLineCount}A\r");
+                // Move up (_lastLineCount - 1) lines and return to start of line
+                // We move up N-1 because the cursor is already on the last line we printed
+                _writer.Write($"\x1b[{_lastLineCount - 1}A\r");
             }
 
             // 2. Render all lines
             var sb = new StringBuilder();
             for (int i = 0; i < frame.Lines.Count; i++)
             {
-                // \x1b[2K: Clear entire line
-                sb.Append("\x1b[2K");
+                // \x1b[2K: Clear entire line, \r: move to start of line
+                sb.Append("\r\x1b[2K");
                 sb.Append(frame.Lines[i].Text);
-                sb.Append("\r\n");
+
+                // Only add newline if it's not the last line to prevent terminal scrolling
+                if (i < frame.Lines.Count - 1)
+                {
+                    sb.Append("\r\n");
+                }
             }
 
             _writer.Write(sb.ToString());
             _lastLineCount = frame.Lines.Count;
 
             // 3. Position Cursor
-            int moveUp = _lastLineCount - frame.Cursor.Top;
+            int moveUp = _lastLineCount - 1 - frame.Cursor.Top;
             if (moveUp > 0)
             {
                 _writer.Write($"\x1b[{moveUp}A");
+            }
+            else if (moveUp < 0)
+            {
+                _writer.Write($"\x1b[{Math.Abs(moveUp)}B");
             }
 
             if (frame.Cursor.Left > 0)

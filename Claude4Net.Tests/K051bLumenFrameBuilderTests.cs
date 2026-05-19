@@ -5,6 +5,7 @@ using Claude4Net.Cli.Ui.Rendering.HistoryCells;
 using System.Collections.Generic;
 using System.Linq;
 using Spectre.Console.Rendering;
+using Spectre.Console;
 using System;
 
 namespace Claude4Net.Tests;
@@ -16,7 +17,7 @@ public class K051bLumenFrameBuilderTests
     private class TestCell(string text) : HistoryCell
     {
         public override string ToPlainText() => text;
-        public override IRenderable GetRenderable() => throw new NotImplementedException();
+        public override IRenderable GetRenderable() => new Text(text);
     }
 
     [Fact]

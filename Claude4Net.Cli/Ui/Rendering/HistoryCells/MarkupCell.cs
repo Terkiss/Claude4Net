@@ -12,7 +12,7 @@ public class MarkupCell(string markup) : HistoryCell
 {
     public string MarkupText { get; } = markup;
 
-    public override string ToPlainText() => MarkupText;
+    public override string ToPlainText() => Markup.Remove(MarkupText);
 
     public override IRenderable GetRenderable()
     {

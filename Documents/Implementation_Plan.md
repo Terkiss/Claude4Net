@@ -42,6 +42,7 @@ Current reality as of this plan:
 - K038-K050 are treated as Lumen v1 completed milestones.
 - K051a, K051b, K051c are treated as completed by existing progress records.
 - K052 is completed and verified (441/441 pass).
+- K053a is completed and verified as a hotfix (450/450 pass).
 - K053 is a candidate only (Draft only, not active).
 
 Important consistency rule:
@@ -109,6 +110,7 @@ Core K051/K052 requirements:
 | K051b | Lumen Frame Builder and State Evolution | Completed | Existing progress record |
 | K051c | Lumen Terminal Renderer and Live Integration | Completed | 433/433 pass, K051c tests, release gate passed |
 | K052 | Lumen v2 Search and Scroll Navigation | Completed | 441/441 pass, K052 tests, release gate passed |
+| K053a | Lumen Render Fidelity Hotfix | Completed | 450/450 pass, K053a tests, release gate passed |
 | K053 | Not Selected | Awaiting decision | Pending user/final-controller decision |
 
 ## 5. [COMPLETED/HISTORICAL] Active Ralph Execution Card

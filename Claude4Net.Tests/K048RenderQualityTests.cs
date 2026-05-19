@@ -51,8 +51,8 @@ namespace Claude4Net.Tests
             var plainText = cell.ToPlainText();
 
             // Assert
-            // When truncated, it returns Rows (content + truncation note)
-            Assert.IsType<Rows>(renderable);
+            // When truncated, it returns a Panel containing the content
+            Assert.IsType<Panel>(renderable);
             Assert.Contains(longResult, plainText); // Full text preserved in plain text
             Assert.True(plainText.Length >= 2000);
         }

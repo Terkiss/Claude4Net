@@ -2,16 +2,29 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Claude4Net.Cli.Ui.Rendering;
 
 /// <summary>
 /// Utilities for display-width-aware text handling in terminals.
 /// </summary>
-public static class TerminalText
+public static partial class TerminalText
 {
+    [GeneratedRegex(@"\x1B\[[0-9;]*[a-zA-Z]")]
+    private static partial Regex AnsiRegex();
+
     /// <summary>
-    /// Calculates the total display width of the given text.
+    /// Removes ANSI escape sequences from the text.
+    /// </summary>
+    public static string StripAnsi(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return string.Empty;
+        return AnsiRegex().Replace(text, "");
+    }
+
+    /// <summary>
+    /// Calculates the total display width of the given text, ignoring ANSI escape sequences.
     /// Hangul and CJK characters count as 2, ASCII as 1, and combining marks as 0.
     /// </summary>
     public static int DisplayWidth(string? text)
@@ -19,8 +32,11 @@ public static class TerminalText
         if (string.IsNullOrEmpty(text)) return 0;
 
         int totalWidth = 0;
+        bool inAnsi = false;
+
         foreach (var rune in text.EnumerateRunes())
         {
+            if (ProcessAnsiState(ref inAnsi, rune)) continue;
             totalWidth += GetRuneWidth(rune);
         }
 
@@ -28,7 +44,7 @@ public static class TerminalText
     }
 
     /// <summary>
-    /// Wraps text into multiple lines based on display width.
+    /// Wraps text into multiple lines based on display width, preserving ANSI sequences.
     /// </summary>
     public static IReadOnlyList<string> WrapByDisplayWidth(string? text, int width)
     {
@@ -39,8 +55,16 @@ public static class TerminalText
         var currentLine = new StringBuilder();
         int currentLineWidth = 0;
 
+        bool inAnsi = false;
+
         foreach (var rune in text.EnumerateRunes())
         {
+            if (ProcessAnsiState(ref inAnsi, rune))
+            {
+                currentLine.Append(rune.ToString());
+                continue;
+            }
+
             int runeWidth = GetRuneWidth(rune);
 
             if (rune.Value == '\n')
@@ -91,9 +115,16 @@ public static class TerminalText
 
         var result = new StringBuilder();
         int currentWidth = 0;
+        bool inAnsi = false;
 
         foreach (var rune in text.EnumerateRunes())
         {
+            if (ProcessAnsiState(ref inAnsi, rune))
+            {
+                result.Append(rune.ToString());
+                continue;
+            }
+
             int runeWidth = GetRuneWidth(rune);
             if (currentWidth + runeWidth > availableWidth) break;
 
@@ -109,14 +140,44 @@ public static class TerminalText
     {
         var result = new StringBuilder();
         int currentWidth = 0;
+        bool inAnsi = false;
+
         foreach (var rune in text.EnumerateRunes())
         {
+            if (ProcessAnsiState(ref inAnsi, rune))
+            {
+                result.Append(rune.ToString());
+                continue;
+            }
+
             int runeWidth = GetRuneWidth(rune);
             if (currentWidth + runeWidth > width) break;
             result.Append(rune.ToString());
             currentWidth += runeWidth;
         }
         return result.ToString();
+    }
+
+    private static bool ProcessAnsiState(ref bool inAnsi, Rune rune)
+    {
+        if (rune.Value == 0x1B) // ESC
+        {
+            inAnsi = true;
+            return true;
+        }
+
+        if (inAnsi)
+        {
+            // ANSI CSI sequences start with '[' (0x5B) and end with a character in 0x40-0x7E.
+            // We should not end the ANSI sequence on the '[' itself.
+            if (rune.Value != '[' && rune.Value >= 0x40 && rune.Value <= 0x7E)
+            {
+                inAnsi = false;
+            }
+            return true;
+        }
+
+        return false;
     }
 
     private static int GetRuneWidth(Rune rune)
