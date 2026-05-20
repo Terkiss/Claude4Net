@@ -36,6 +36,11 @@ namespace Claude4Net.Cli.Ui.Approval
             // Wait for queue resolution
             var action = await _queue.EnqueueAsync(requestId);
 
+            // Log final approval result as a durable NoticeCell
+            string statusStr = action == ApprovalDialogAction.Approve ? "APPROVED" : (action == ApprovalDialogAction.Deny ? "DENIED" : "CANCELLED");
+            string level = action == ApprovalDialogAction.Approve ? "Success" : "Warning";
+            _observer.UpdateState(new NoticeReceivedEvent($"[Approval] {tool} -> {statusStr}", level));
+
             return action == ApprovalDialogAction.Approve;
         }
 
@@ -54,6 +59,11 @@ namespace Claude4Net.Cli.Ui.Approval
 
             // Wait for queue resolution
             var action = await _queue.EnqueueAsync(requestId);
+
+            // Log final approval result as a durable NoticeCell
+            string statusStr = action == ApprovalDialogAction.Approve ? "APPROVED" : (action == ApprovalDialogAction.Deny ? "DENIED" : "CANCELLED");
+            string level = action == ApprovalDialogAction.Approve ? "Success" : "Warning";
+            _observer.UpdateState(new NoticeReceivedEvent($"[Approval] {tool} (File Edit) -> {statusStr}", level));
 
             return action == ApprovalDialogAction.Approve;
         }

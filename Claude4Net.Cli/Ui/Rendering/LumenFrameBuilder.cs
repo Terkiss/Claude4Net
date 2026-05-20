@@ -64,8 +64,21 @@ public sealed class LumenFrameBuilder : ILumenFrameBuilder
         int maxInputAllowed = Math.Min(4, Math.Max(1, height - 2));
         int inputHeight = Math.Min(allWrappedInput.Count, maxInputAllowed);
 
+        // Calculate Approval Dialog Height if visible
+        bool showDialog = state.ApprovalDialog.IsVisible;
+        List<DisplayLine>? dialogLines = null;
+        int dialogHeight = 0;
+
+        if (showDialog)
+        {
+            int upperLimit = Math.Max(0, height - inputHeight - 1);
+            int maxAvailableForDialog = upperLimit;
+            dialogLines = BuildDialogLines(state.ApprovalDialog, width, maxAvailableForDialog);
+            dialogHeight = dialogLines.Count;
+        }
+
         // 3. Transcript Viewport Height
-        int transcriptHeight = height - 1 - inputHeight;
+        int transcriptHeight = height - 1 - inputHeight - dialogHeight;
         if (transcriptHeight < 0) transcriptHeight = 0;
 
         // 4. Calculate Cursor and Input Viewport
@@ -117,15 +130,28 @@ public sealed class LumenFrameBuilder : ILumenFrameBuilder
         }
 
         lines.AddRange(visibleTranscript);
+
+        if (showDialog && dialogLines != null)
+        {
+            lines.AddRange(dialogLines);
+        }
+
         lines.AddRange(visibleInputLines);
         lines.Add(new DisplayLine(footerText, DisplayLineKind.Footer));
 
         // 7. Final Cursor
-        int cursorTop = transcriptHeight + (absCursorLineOffset - inputStartLine);
-        cursorTop = Math.Clamp(cursorTop, transcriptHeight, transcriptHeight + inputHeight - 1);
-        int cursorLeft = absCursorLeft;
+        int cursorTop = transcriptHeight + dialogHeight + (absCursorLineOffset - inputStartLine);
+        int cursorMin = transcriptHeight + dialogHeight;
+        int cursorMax = transcriptHeight + dialogHeight + inputHeight - 1;
+        cursorTop = Math.Clamp(cursorTop, cursorMin, Math.Max(cursorMin, cursorMax));
+        cursorTop = Math.Clamp(cursorTop, 0, Math.Max(0, height - 1));
 
-        return new LumenFrame(lines, new CursorPosition(cursorLeft, cursorTop, true), width, height);
+        int cursorLeft = Math.Clamp(absCursorLeft, 0, Math.Max(0, width - 1));
+
+        // Hide cursor when approval dialog is active
+        bool cursorVisible = !showDialog;
+
+        return new LumenFrame(lines, new CursorPosition(cursorLeft, cursorTop, cursorVisible), width, height);
     }
 
     private string BuildFooterText(LumenState state, int width)
@@ -157,6 +183,160 @@ public sealed class LumenFrameBuilder : ILumenFrameBuilder
         }
 
         return text + new string(' ', Math.Max(0, width - currentWidth));
+    }
+
+    private List<DisplayLine> BuildDialogLines(Claude4Net.Cli.Ui.Approval.ApprovalDialogState dialog, int width, int maxHeight)
+    {
+        if (maxHeight <= 0)
+        {
+            return new List<DisplayLine>();
+        }
+
+        if (maxHeight == 1)
+        {
+            return new List<DisplayLine>
+            {
+                new DisplayLine(FormatDialogRow("! Approval Required [Narrow]", width), DisplayLineKind.Dialog)
+            };
+        }
+
+        if (maxHeight == 2)
+        {
+            return new List<DisplayLine>
+            {
+                new DisplayLine(FormatDialogBorder("Approval Required [Too Small]", '─', '┌', '┐', width), DisplayLineKind.Dialog),
+                new DisplayLine(FormatDialogBorder(null, '─', '└', '┘', width), DisplayLineKind.Dialog)
+            };
+        }
+
+        var finalLines = new List<DisplayLine>();
+
+        // Margin space for borders
+        int contentWidth = Math.Max(10, width - 4);
+
+        // 1. Gather all content rows
+        var rows = new List<string>();
+
+        // Add risk level and description
+        rows.Add($"Risk Level: {dialog.RiskLevel}");
+
+        if (!string.IsNullOrEmpty(dialog.Description))
+        {
+            var wrappedDesc = TerminalText.WrapByDisplayWidth(dialog.Description, contentWidth);
+            rows.AddRange(wrappedDesc);
+        }
+
+        // Add key hints
+        rows.Add("[Y/Enter] Approve  [N] Deny  [D] Toggle Details  [Esc] Cancel");
+
+        // Gather details rows if in detail mode
+        var detailRows = new List<string>();
+        if (dialog.IsDetailMode && !string.IsNullOrEmpty(dialog.PreviewSummary))
+        {
+            var rawDetails = dialog.PreviewSummary.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+            foreach (var detail in rawDetails)
+            {
+                var wrapped = TerminalText.WrapByDisplayWidth(detail, contentWidth);
+                detailRows.AddRange(wrapped);
+            }
+        }
+
+        // Determine layout constraints
+        // Detail mode is only used if there is enough height to fit at least 1 detail line (requires at least 5 lines)
+        bool useDetailMode = dialog.IsDetailMode && detailRows.Count > 0 && maxHeight >= 5;
+        int reservedBorders = useDetailMode ? 3 : 2;
+        int maxContentLines = maxHeight - reservedBorders;
+
+        // 2. Format borders
+        string topBorder = FormatDialogBorder(dialog.Title, '─', '┌', '┐', width);
+        string divider = FormatDialogBorder("Details", '─', '├', '┤', width);
+        string bottomBorder = FormatDialogBorder(null, '─', '└', '┘', width);
+
+        finalLines.Add(new DisplayLine(topBorder, DisplayLineKind.Dialog));
+
+        int currentContentCount = 0;
+
+        // Render main content
+        int mainContentLimit = maxContentLines;
+        if (useDetailMode)
+        {
+            mainContentLimit = Math.Max(1, maxContentLines - 1);
+        }
+
+        foreach (var row in rows)
+        {
+            if (currentContentCount >= mainContentLimit) break;
+            finalLines.Add(new DisplayLine(FormatDialogRow(row, width), DisplayLineKind.Dialog));
+            currentContentCount++;
+        }
+
+        // Render detail content if space permits
+        if (useDetailMode && detailRows.Count > 0 && currentContentCount < maxContentLines)
+        {
+            finalLines.Add(new DisplayLine(divider, DisplayLineKind.Dialog));
+            int remainingDetailSpace = maxContentLines - currentContentCount;
+            int detailCount = 0;
+
+            foreach (var dRow in detailRows)
+            {
+                if (detailCount >= remainingDetailSpace) break;
+                finalLines.Add(new DisplayLine(FormatDialogRow(dRow, width), DisplayLineKind.Dialog));
+                detailCount++;
+            }
+        }
+
+        finalLines.Add(new DisplayLine(bottomBorder, DisplayLineKind.Dialog));
+
+        // Hard guarantee: never exceed maxHeight
+        while (finalLines.Count > maxHeight)
+        {
+            finalLines.RemoveAt(finalLines.Count - 1);
+        }
+
+        return finalLines;
+    }
+
+    private string FormatDialogRow(string content, int width)
+    {
+        int targetWidth = Math.Max(0, width - 4);
+        int currentWidth = TerminalText.DisplayWidth(content);
+
+        if (currentWidth < targetWidth)
+        {
+            content = content + new string(' ', targetWidth - currentWidth);
+        }
+        else if (currentWidth > targetWidth)
+        {
+            content = TerminalText.TruncateByDisplayWidth(content, targetWidth, "");
+        }
+
+        return "│ " + content + " │";
+    }
+
+    private string FormatDialogBorder(string? label, char borderChar, char leftCorner, char rightCorner, int width)
+    {
+        int targetBodyWidth = Math.Max(0, width - 2);
+
+        if (string.IsNullOrEmpty(label))
+        {
+            return leftCorner + new string(borderChar, targetBodyWidth) + rightCorner;
+        }
+
+        string paddedLabel = $" {label} ";
+        int labelWidth = TerminalText.DisplayWidth(paddedLabel);
+
+        if (labelWidth >= targetBodyWidth)
+        {
+            string truncated = TerminalText.TruncateByDisplayWidth(paddedLabel, targetBodyWidth, "");
+            return leftCorner + truncated + rightCorner;
+        }
+
+        int remaining = targetBodyWidth - labelWidth;
+        int leftCount = remaining / 2;
+        int rightCount = remaining - leftCount;
+
+        string body = new string(borderChar, leftCount) + paddedLabel + new string(borderChar, rightCount);
+        return leftCorner + body + rightCorner;
     }
 
     private void CalculateCursor(string text, int charOffset, int width, out int left, out int lineOffset)

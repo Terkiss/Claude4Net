@@ -75,6 +75,9 @@
 | K053a | Lumen Render Fidelity Hotfix | Completed | 450/450 pass |
 | K053b | Lumen Bottom Pane Anchoring Hotfix | Completed | 456/456 pass |
 | K054 | Release Gate Stabilization | Completed | 461/461 pass |
+| K055 | Lumen Approval Dialog Integration | Completed | 472/472 pass |
+| K056a | Worktree Hygiene Pre-clean | Completed | Workspace inspected; unrelated dirty files preserved |
+| K056b | Release Gate And Documentation Sync | Completed | 472/472 pass |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -136,6 +139,26 @@
 - [x] Add direct regression test (VectorColumnConcat_ShouldWorkAndPreserveValues) to verify float[] concat and null preservation
 - [x] Eliminate concurrency-driven data universe and temporary SQLite file pollution across test cases
 - [x] Official Release Gate passed (461/461 pass)
+
+### K055: Lumen Approval Dialog Integration
+- [x] Integrate interactive approval dialog into the Lumen v2 terminal frame builder rendering pathway
+- [x] Implement CJK and ANSI safety rules for formatting dialog text inside framed borders
+- [x] Preserve viewport and fixed bottom region layout heights strictly (Lines.Count == Height)
+- [x] Log final approval outcomes as single durable NoticeCells inside the transcript history
+- [x] Add K055LumenApprovalFrameTests covering 8 comprehensive UI and behavior scenarios
+- [x] Official Release Gate passed (472/472 pass)
+
+### K056a: Worktree Hygiene Pre-clean
+- [x] Inspect workspace and preserve unrelated dirty/untracked files (do not stage or delete):
+  - `Documents/USER_MANUAL.md` (Deleted)
+  - `안정화계획.md` (Modified)
+  - `.gemini/agents/dotge-planner.md` (Untracked)
+  - `.gemini/agents/lumen-fidelity-specialist.md` (Untracked)
+- [x] Ensure correct stage state of only approved target files
+
+### K056b: Release Gate And Documentation Sync
+- [x] Sync SSOT progress logs in IMPLEMENTATION_PROGRESS.md and Implementation_Plan.md
+- [x] Perform final release gate run verifying all 472 unit and integration tests pass successfully
 
 - [x] K038 Project Lumen Bootstrap Foundation (Option parsing & DI cleanup)
 - [x] K039 AgentRunEvent Observer Foundation (Neutral run events)

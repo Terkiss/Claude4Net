@@ -44,6 +44,10 @@ Current reality as of this plan:
 - K052 is completed and verified (441/441 pass).
 - K053a is completed and verified as a hotfix (450/450 pass).
 - K053b is completed and verified as a hotfix (456/456 pass).
+- K054 is completed and verified (461/461 pass).
+- K055 is completed and verified (472/472 pass).
+- K056a is completed (Workspace inspected; unrelated dirty files preserved).
+- K056b is completed and verified (472/472 pass, documentation synced).
 - K053 is a candidate only (Draft only, not active).
 
 Important consistency rule:
@@ -114,6 +118,9 @@ Core K051/K052 requirements:
 | K053a | Lumen Render Fidelity Hotfix | Completed | 450/450 pass, K053a tests, release gate passed |
 | K053b | Lumen Bottom Pane Anchoring Hotfix | Completed | 456/456 pass, K053b tests, release gate passed |
 | K054 | Release Gate Stabilization | Completed | 461/461 pass, async-safe isolation, VectorColumn naMask concat fix |
+| K055 | Lumen Approval Dialog Integration | Completed | 472/472 pass, dialog height integration, CJK-safe borders |
+| K056a | Worktree Hygiene Pre-clean | Completed | Workspace inspected; unrelated dirty files preserved (USER_MANUAL.md, 안정화계획.md, dotge-planner.md, lumen-fidelity-specialist.md) |
+| K056b | Release Gate And Documentation Sync | Completed | 472/472 pass, documentation synced |
 | K053 | Not Selected | Awaiting decision | Pending user/final-controller decision |
 
 ## 5. [COMPLETED/HISTORICAL] Active Ralph Execution Card
@@ -396,25 +403,26 @@ current_branch: experiment
 queue_status: running
 
 ## Completed In This Run
-- K052 Lumen v2 Search and Scroll Navigation
+- K055 Lumen Approval Dialog Integration
+- K056a Worktree Hygiene Pre-clean
+- K056b Release Gate And Documentation Sync
 
 ## Current Execution Card
-- milestone: K052
-- goal: Add transcript navigation while keeping input/footer fixed
+- milestone: K056b
+- goal: Sync progress documentation and perform final release gate checks
 - allowed_files:
-  - Claude4Net.Cli/Ui/Rendering/LumenFrameBuilder.cs
-  - Claude4Net.Cli/Ui/LumenReducer.cs
-  - ...
+  - IMPLEMENTATION_PROGRESS.md
+  - Documents/Implementation_Plan.md
 - forbidden_files:
   - .agents/**
 - done_when:
-  - 8 tests pass, release gate passes
+  - 469 tests pass, release gate passes
 - verification:
-  - dotnet test --filter "K052"
   - .\scripts\verify-release.ps1
 
 ## Remaining Queue
-- K053 (Pending decision)
+- K057 (Pending decision)
+- K058 (Pending decision)
 
 ## Blocked Or Skipped
 - None
