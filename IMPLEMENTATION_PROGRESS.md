@@ -79,6 +79,8 @@
 | K056a | Worktree Hygiene Pre-clean | Completed | Workspace inspected; unrelated dirty files preserved |
 | K056b | Release Gate And Documentation Sync | Completed | 472/472 pass |
 | K057 | Manual TUI Fidelity Pass | Completed | 472/472 pass |
+| K058 | Lumen UX Polish | Completed | 476/476 pass |
+
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -586,3 +588,12 @@
 ### K049: Lumen Release Gate and Documentation
 - [x] Completed UI redesign wave and updated guides
 - [x] Official Release Gate passed (378/378 pass)
+
+### K058: Lumen UX Polish
+- [x] Refactor ToolCall and ToolResult cells (Decouple unified state and make individual collapsible entities)
+- [x] Support toggle keybind `T` to fold/unfold Thought, ToolCall, and ToolResult blocks
+- [x] Update FooterRenderer width calculation to safely avoid negative index or arithmetic overflow
+- [x] Resolve Spectre.Console markup tag parser error (change [+] and [-] to + and -)
+- [x] Integrate interactive `/help` commands and slash documentation
+- [x] Extend existing K040 Lumen state reducer tests for K058 clear/theme/model/collapsible behavior
+- [x] Official Release Gate passed (476/476 pass)

@@ -42,7 +42,14 @@ public static class LumenReducer
 
             ApprovalRequestedEvent e => AddCell(state, new ApprovalCell(e.RequestId, e.Title, e.Description)),
 
-            RunCompletedEvent => state with { IsRunning = false },
+            RunCompletedEvent => state with
+            {
+                IsRunning = false,
+                History = System.Linq.Enumerable.ToList(System.Linq.Enumerable.Select(state.History, c => {
+                    if (c is ThinkingCell tc) tc.IsActive = false;
+                    return c;
+                }))
+            },
 
             ApprovalDialogOpenedEvent e => state with
             {
@@ -93,9 +100,20 @@ public static class LumenReducer
                 }
             },
 
-            ScrollToEndRequestedEvent => state with
+            ScrollToEndRequestedEvent => state with { Scroll = state.Scroll with { AutoScroll = true, ScrollOffset = 0 } },
+
+            ClearTranscriptEvent => state with
             {
-                Scroll = state.Scroll with { AutoScroll = true, ScrollOffset = 0 }
+                History = new System.Collections.Generic.List<HistoryCell>(),
+                Scroll = state.Scroll with { ScrollOffset = 0, AutoScroll = true }
+            },
+
+            ThemeChangedEvent e => ApplyTheme(state, e.ThemeName),
+
+            ModelChangedEvent e => state with
+            {
+                Provider = e.Provider,
+                Model = e.Model
             },
 
             _ => state
@@ -138,6 +156,14 @@ public static class LumenReducer
     {
         if (state.LastCell is AssistantResponseCell) return state;
         return AddCell(state, new AssistantResponseCell());
+    }
+
+
+
+    private static LumenState ApplyTheme(LumenState state, string themeName)
+    {
+        LumenTheme.ApplyTheme(themeName);
+        return state;
     }
 
     // Helper for fluent-like ensure/update

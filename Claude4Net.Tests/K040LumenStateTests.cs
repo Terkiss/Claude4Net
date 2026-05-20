@@ -110,4 +110,65 @@ public class K040LumenStateTests
         cell.Resolve(true);
         Assert.Contains("APPROVED", cell.ToPlainText());
     }
+
+    [Fact]
+    public void ClearTranscript_ClearsHistoryAndScroll()
+    {
+        var state = new LumenState();
+        state = LumenReducer.Reduce(state, new UserPromptSubmittedEvent("Hello"));
+        Assert.Single(state.History);
+
+        var newState = LumenReducer.Reduce(state, new ClearTranscriptEvent());
+        Assert.Empty(newState.History);
+        Assert.Equal(0, newState.Scroll.ScrollOffset);
+    }
+
+    [Fact]
+    public void ThemeChanged_AppliesTheme()
+    {
+        var state = new LumenState();
+        Assert.Equal("green", LumenTheme.UserColor);
+
+        var newState = LumenReducer.Reduce(state, new ThemeChangedEvent("light"));
+        Assert.Equal("darkgreen", LumenTheme.UserColor);
+
+        // Reset back to dark
+        LumenTheme.ApplyTheme("dark");
+    }
+
+    [Fact]
+    public void ModelChanged_UpdatesActiveConfig()
+    {
+        var state = new LumenState();
+        var newState = LumenReducer.Reduce(state, new ModelChangedEvent("anthropic", "claude-3-5-sonnet"));
+        Assert.Equal("anthropic", newState.Provider);
+        Assert.Equal("claude-3-5-sonnet", newState.Model);
+    }
+
+    [Fact]
+    public void ProcessToolCallAndResult_CollapsibleStateAndRendering()
+    {
+        var state = new LumenState();
+        state = LumenReducer.Reduce(state, new ToolCallStartedEvent("call-99", "list_dir", "{}"));
+        state = LumenReducer.Reduce(state, new ToolResultReceivedEvent("call-99", "file1.txt, file2.txt", false));
+
+        Assert.Equal(2, state.History.Count);
+        var callCell = Assert.IsType<ToolCallCell>(state.History[0]);
+        var resultCell = Assert.IsType<ToolResultCell>(state.History[1]);
+
+        Assert.True(callCell.IsExpanded);
+        Assert.True(resultCell.IsExpanded);
+
+        var callRenderable = callCell.GetRenderable();
+        var resultRenderable = resultCell.GetRenderable();
+
+        Assert.NotNull(callRenderable);
+        Assert.NotNull(resultRenderable);
+
+        callCell.IsExpanded = false;
+        resultCell.IsExpanded = false;
+
+        Assert.False(callCell.IsExpanded);
+        Assert.False(resultCell.IsExpanded);
+    }
 }

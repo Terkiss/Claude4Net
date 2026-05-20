@@ -38,3 +38,8 @@ public record ScrollUpRequestedEvent(int Lines) : LumenEvent;
 public record ScrollDownRequestedEvent(int Lines) : LumenEvent;
 public record ScrollToHomeRequestedEvent : LumenEvent;
 public record ScrollToEndRequestedEvent : LumenEvent;
+
+// TUI Custom Commands Events
+public record ClearTranscriptEvent : LumenEvent;
+public record ThemeChangedEvent(string ThemeName) : LumenEvent;
+public record ModelChangedEvent(string Provider, string Model) : LumenEvent;

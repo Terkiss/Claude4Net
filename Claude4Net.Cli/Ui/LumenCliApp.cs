@@ -15,6 +15,7 @@ using Spectre.Console;
 using Spectre.Console.Rendering;
 
 using Claude4Net.Commands;
+using Claude4Net.Cli.Ui.Rendering.HistoryCells;
 
 namespace Claude4Net.Cli.Ui
 {
@@ -94,6 +95,31 @@ namespace Claude4Net.Cli.Ui
         internal async Task ProcessKeyInternalAsync(ConsoleKeyInfo keyInfo, CancellationTokenSource cts)
         {
             var currentState = _observer.State;
+
+            if (keyInfo.Key == ConsoleKey.T && string.IsNullOrEmpty(_composer.GetState().Text))
+            {
+                for (int i = currentState.History.Count - 1; i >= 0; i--)
+                {
+                    if (currentState.History[i] is ThinkingCell thinkingCell)
+                    {
+                        thinkingCell.IsExpanded = !thinkingCell.IsExpanded;
+                        _renderer.RenderFull(_observer.State, _composer.GetState());
+                        return;
+                    }
+                    if (currentState.History[i] is ToolCallCell toolCallCell)
+                    {
+                        toolCallCell.IsExpanded = !toolCallCell.IsExpanded;
+                        _renderer.RenderFull(_observer.State, _composer.GetState());
+                        return;
+                    }
+                    if (currentState.History[i] is ToolResultCell toolResultCell)
+                    {
+                        toolResultCell.IsExpanded = !toolResultCell.IsExpanded;
+                        _renderer.RenderFull(_observer.State, _composer.GetState());
+                        return;
+                    }
+                }
+            }
 
             // P1 Fix: Priority check for Approval Dialog before Composer
             if (currentState.ApprovalDialog.IsVisible)
@@ -197,21 +223,83 @@ namespace Claude4Net.Cli.Ui
             if (input.StartsWith("!") || input.StartsWith("/"))
             {
                 string[] parts = input.Split(' ', 2);
-                string cmdName = parts[0];
+                string cmdName = parts[0].TrimStart('!', '/');
                 string cmdArgs = parts.Length > 1 ? parts[1] : "";
+
+                if (cmdName.Equals("clear", StringComparison.OrdinalIgnoreCase))
+                {
+                    _observer.UpdateState(new ClearTranscriptEvent());
+                    Console.Clear();
+                    _renderer.RenderFull(_observer.State, _composer.GetState());
+                    return;
+                }
+
+                if (cmdName.Equals("theme", StringComparison.OrdinalIgnoreCase))
+                {
+                    string targetTheme = cmdArgs.Trim();
+                    if (string.IsNullOrEmpty(targetTheme))
+                    {
+                        string current = LumenTheme.UserColor == "springgreen1" ? "neon" : (LumenTheme.UserColor == "darkgreen" ? "light" : "dark");
+                        targetTheme = current == "dark" ? "neon" : (current == "neon" ? "light" : "dark");
+                    }
+                    _observer.UpdateState(new ThemeChangedEvent(targetTheme));
+                    _observer.UpdateState(new NoticeReceivedEvent($"Theme switched to '{targetTheme}'", "Info"));
+                    _renderer.RenderFull(_observer.State, _composer.GetState());
+                    return;
+                }
+
+                if (cmdName.Equals("model", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (string.IsNullOrWhiteSpace(cmdArgs))
+                    {
+                        var cmdHelp = CommandRegistry.FindCommand("model");
+                        if (cmdHelp != null && cmdHelp.Handler != null)
+                        {
+                            var resHelp = await cmdHelp.Handler("", _serviceProvider);
+                            _observer.UpdateState(new MarkupReceivedEvent(resHelp));
+                        }
+                    }
+                    else
+                    {
+                        var cmdModel = CommandRegistry.FindCommand("model");
+                        if (cmdModel != null && cmdModel.Handler != null)
+                        {
+                            var resModel = await cmdModel.Handler(cmdArgs, _serviceProvider);
+                            _observer.UpdateState(new ModelChangedEvent(AppState.ActiveProvider, AppState.ActiveModel));
+                            _observer.UpdateState(new MarkupReceivedEvent(resModel));
+                        }
+                    }
+                    _renderer.RenderFull(_observer.State, _composer.GetState());
+                    return;
+                }
+
+                if (cmdName.Equals("help", StringComparison.OrdinalIgnoreCase))
+                {
+                    var sb = new System.Text.StringBuilder();
+                    sb.AppendLine("[bold cyan]Lumen TUI Interface Help & Key Bindings:[/]");
+                    sb.AppendLine("  [bold]Key Bindings:[/]");
+                    sb.AppendLine("    [bold]PageUp/PageDown[/]  - Scroll transcript view up / down");
+                    sb.AppendLine("    [bold]Home/End[/]          - Scroll to the top / bottom");
+                    sb.AppendLine("    [bold]T[/]                 - Toggle collapse/expand on latest Thought/Tool block");
+                    sb.AppendLine("    [bold]Esc[/]               - Cancel active assistant generation");
+                    sb.AppendLine();
+                    sb.AppendLine("  [bold]Available Commands & Slash Commands:[/]");
+                    sb.AppendLine("    [bold]/help[/]            - Show this TUI help overview");
+                    sb.AppendLine("    [bold]/clear[/]           - Reset rendering state and clear message history");
+                    sb.AppendLine("    [bold]/theme <name>[/]    - Switch TUI themes (neon, light, dark)");
+                    sb.AppendLine("    [bold]/model <name>[/]    - Show models list or switch active LLM config");
+                    sb.AppendLine();
+                    sb.AppendLine("[grey]To run standard tool commands, prefix with slash (e.g. /doctor, /skills, /pwd)[/]");
+                    _observer.UpdateState(new MarkupReceivedEvent(sb.ToString()));
+                    _renderer.RenderFull(_observer.State, _composer.GetState());
+                    return;
+                }
 
                 var cmd = CommandRegistry.FindCommand(cmdName);
                 if (cmd != null && cmd.Handler != null)
                 {
                     try
                     {
-                        if (cmd.Name == "clear")
-                        {
-                            Console.Clear();
-                            _renderer.RenderFull(_observer.State, _composer.GetState());
-                            return;
-                        }
-
                         var res = await cmd.Handler(cmdArgs, _serviceProvider);
                         _observer.UpdateState(new MarkupReceivedEvent(res));
 
