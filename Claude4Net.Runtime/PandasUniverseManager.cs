@@ -298,5 +298,27 @@ namespace Claude4Net.Runtime
                 await transaction(_universe);
             }
         }
+
+        /// <summary>
+        /// 테스트 격리를 위해 트랜잭션 큐를 순차적으로 통과하는 안전한 비동기 리셋 작업을 수행합니다.
+        /// </summary>
+        internal async Task ResetAndFlushForTestAsync()
+        {
+            await ExecuteAsync(u =>
+            {
+                u.ClearAll();
+                EnsureBaselineTablesInternal(u);
+                _isDirty = false;
+            });
+
+            try
+            {
+                if (File.Exists(_dbPath))
+                {
+                    File.Delete(_dbPath);
+                }
+            }
+            catch { }
+        }
     }
 }

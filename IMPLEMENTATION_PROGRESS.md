@@ -74,6 +74,7 @@
 | K052 | Lumen v2 Search and Scroll Navigation | Completed | 441/441 pass |
 | K053a | Lumen Render Fidelity Hotfix | Completed | 450/450 pass |
 | K053b | Lumen Bottom Pane Anchoring Hotfix | Completed | 456/456 pass |
+| K054 | Release Gate Stabilization | Completed | 461/461 pass |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -127,6 +128,14 @@
 - [x] cursor clamping inside input region
 - [x] empty input not added to transcript
 - [x] Official Release Gate passed (456/456 pass)
+
+### K054: Release Gate Stabilization
+- [x] Implement non-discarding async ResetAndFlushForTestAsync in PandasUniverseManager via transaction queue serialization
+- [x] Add float[] support (VectorColumn) with naMask preservation in DataFrame Concat logic to prevent type exceptions during merge
+- [x] Update D02MemoryTests to implement IAsyncLifetime with async reset hook and verify initial clean state
+- [x] Add direct regression test (VectorColumnConcat_ShouldWorkAndPreserveValues) to verify float[] concat and null preservation
+- [x] Eliminate concurrency-driven data universe and temporary SQLite file pollution across test cases
+- [x] Official Release Gate passed (461/461 pass)
 
 - [x] K038 Project Lumen Bootstrap Foundation (Option parsing & DI cleanup)
 - [x] K039 AgentRunEvent Observer Foundation (Neutral run events)

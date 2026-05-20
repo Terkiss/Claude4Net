@@ -113,6 +113,7 @@ Core K051/K052 requirements:
 | K052 | Lumen v2 Search and Scroll Navigation | Completed | 441/441 pass, K052 tests, release gate passed |
 | K053a | Lumen Render Fidelity Hotfix | Completed | 450/450 pass, K053a tests, release gate passed |
 | K053b | Lumen Bottom Pane Anchoring Hotfix | Completed | 456/456 pass, K053b tests, release gate passed |
+| K054 | Release Gate Stabilization | Completed | 461/461 pass, async-safe isolation, VectorColumn naMask concat fix |
 | K053 | Not Selected | Awaiting decision | Pending user/final-controller decision |
 
 ## 5. [COMPLETED/HISTORICAL] Active Ralph Execution Card
