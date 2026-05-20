@@ -139,6 +139,16 @@ public sealed class LumenFrameBuilder : ILumenFrameBuilder
         lines.AddRange(visibleInputLines);
         lines.Add(new DisplayLine(footerText, DisplayLineKind.Footer));
 
+        // Hard guarantee: total lines must match height exactly under any conditions
+        while (lines.Count > height)
+        {
+            lines.RemoveAt(0);
+        }
+        while (lines.Count < height)
+        {
+            lines.Insert(0, new DisplayLine(string.Empty, DisplayLineKind.Transcript));
+        }
+
         // 7. Final Cursor
         int cursorTop = transcriptHeight + dialogHeight + (absCursorLineOffset - inputStartLine);
         int cursorMin = transcriptHeight + dialogHeight;

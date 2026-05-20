@@ -78,6 +78,7 @@
 | K055 | Lumen Approval Dialog Integration | Completed | 472/472 pass |
 | K056a | Worktree Hygiene Pre-clean | Completed | Workspace inspected; unrelated dirty files preserved |
 | K056b | Release Gate And Documentation Sync | Completed | 472/472 pass |
+| K057 | Manual TUI Fidelity Pass | Completed | 472/472 pass |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -159,6 +160,12 @@
 ### K056b: Release Gate And Documentation Sync
 - [x] Sync SSOT progress logs in IMPLEMENTATION_PROGRESS.md and Implementation_Plan.md
 - [x] Perform final release gate run verifying all 472 unit and integration tests pass successfully
+
+### K057: Manual TUI Fidelity Pass
+- [x] Verify compatibility paths (--smoke-exit, doctor, piped, legacy)
+- [x] Validate terminal height invariant safety under extremely low heights (1~2 lines)
+- [x] Apply absolute height safety padding to LumenFrameBuilder
+- [x] Perform full release gate run verifying all 472 tests pass successfully
 
 - [x] K038 Project Lumen Bootstrap Foundation (Option parsing & DI cleanup)
 - [x] K039 AgentRunEvent Observer Foundation (Neutral run events)

@@ -48,6 +48,7 @@ Current reality as of this plan:
 - K055 is completed and verified (472/472 pass).
 - K056a is completed (Workspace inspected; unrelated dirty files preserved).
 - K056b is completed and verified (472/472 pass, documentation synced).
+- K057 is completed and verified (472/472 pass).
 - K053 is a candidate only (Draft only, not active).
 
 Important consistency rule:
@@ -121,6 +122,7 @@ Core K051/K052 requirements:
 | K055 | Lumen Approval Dialog Integration | Completed | 472/472 pass, dialog height integration, CJK-safe borders |
 | K056a | Worktree Hygiene Pre-clean | Completed | Workspace inspected; unrelated dirty files preserved (USER_MANUAL.md, 안정화계획.md, dotge-planner.md, lumen-fidelity-specialist.md) |
 | K056b | Release Gate And Documentation Sync | Completed | 472/472 pass, documentation synced |
+| K057 | Manual TUI Fidelity Pass | Completed | 472/472 pass, absolute height safety clamping, compatibility paths verified |
 | K053 | Not Selected | Awaiting decision | Pending user/final-controller decision |
 
 ## 5. [COMPLETED/HISTORICAL] Active Ralph Execution Card
