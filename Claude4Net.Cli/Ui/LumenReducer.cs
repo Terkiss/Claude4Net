@@ -19,7 +19,7 @@ public static class LumenReducer
                 IsRunning = true
             },
 
-            UserPromptSubmittedEvent e => AddCell(state, new UserPromptCell(e.Text)),
+            UserPromptSubmittedEvent e => string.IsNullOrWhiteSpace(e.Text) ? state : AddCell(state, new UserPromptCell(e.Text)),
 
             ThinkingStartedEvent e => AddCell(state, new ThinkingCell(e.InitialThought)),
 

@@ -33,14 +33,35 @@ public sealed class LumenFrameBuilder : ILumenFrameBuilder
             return new LumenFrame(new List<DisplayLine>(), new CursorPosition(0, 0, false), width, height);
         }
 
-        // 1. Wrap Input
         string prompt = "> ";
+        string footerText = BuildFooterText(state, width);
+        int absCursorLeft = 0;
+        int absCursorLineOffset = 0;
+
+        if (height == 1)
+        {
+            var singleLine = new List<DisplayLine> { new DisplayLine(footerText, DisplayLineKind.Footer) };
+            return new LumenFrame(singleLine, new CursorPosition(0, 0, false), width, height);
+        }
+
+        // 1. Wrap Input
         string fullInputText = prompt + (currentInput ?? string.Empty);
         var allWrappedInput = TerminalText.WrapByDisplayWidth(fullInputText, width);
         if (allWrappedInput.Count == 0) allWrappedInput = new List<string> { prompt };
 
-        // 2. Bounded Input Pane Height
-        int maxInputAllowed = Math.Min(4, Math.Max(1, height - 1));
+        if (height == 2)
+        {
+            var twoLines = new List<DisplayLine>
+            {
+                new DisplayLine(allWrappedInput.Last(), DisplayLineKind.Input),
+                new DisplayLine(footerText, DisplayLineKind.Footer)
+            };
+            CalculateCursor(fullInputText, Math.Min(cursorOffset + prompt.Length, fullInputText.Length), width, out absCursorLeft, out absCursorLineOffset);
+            return new LumenFrame(twoLines, new CursorPosition(absCursorLeft, 0, true), width, height);
+        }
+
+        // 2. Bounded Input Pane Height (height >= 3)
+        int maxInputAllowed = Math.Min(4, Math.Max(1, height - 2));
         int inputHeight = Math.Min(allWrappedInput.Count, maxInputAllowed);
 
         // 3. Transcript Viewport Height
@@ -48,8 +69,6 @@ public sealed class LumenFrameBuilder : ILumenFrameBuilder
         if (transcriptHeight < 0) transcriptHeight = 0;
 
         // 4. Calculate Cursor and Input Viewport
-        int absCursorLeft;
-        int absCursorLineOffset;
         CalculateCursor(fullInputText, Math.Min(cursorOffset + prompt.Length, fullInputText.Length), width, out absCursorLeft, out absCursorLineOffset);
 
         int inputStartLine = Math.Max(0, allWrappedInput.Count - inputHeight);
@@ -99,12 +118,11 @@ public sealed class LumenFrameBuilder : ILumenFrameBuilder
 
         lines.AddRange(visibleTranscript);
         lines.AddRange(visibleInputLines);
-
-        string footerText = BuildFooterText(state, width);
         lines.Add(new DisplayLine(footerText, DisplayLineKind.Footer));
 
         // 7. Final Cursor
         int cursorTop = transcriptHeight + (absCursorLineOffset - inputStartLine);
+        cursorTop = Math.Clamp(cursorTop, transcriptHeight, transcriptHeight + inputHeight - 1);
         int cursorLeft = absCursorLeft;
 
         return new LumenFrame(lines, new CursorPosition(cursorLeft, cursorTop, true), width, height);

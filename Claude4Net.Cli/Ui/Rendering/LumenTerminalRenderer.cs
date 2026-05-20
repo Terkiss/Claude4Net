@@ -72,11 +72,15 @@ public sealed class LumenTerminalRenderer(System.IO.TextWriter? writer = null) :
         try
         {
             // 1. Move cursor back to the start of the UI region
-            if (_lastLineCount > 0)
+            if (_lastLineCount > 1)
             {
                 // Move up (_lastLineCount - 1) lines and return to start of line
                 // We move up N-1 because the cursor is already on the last line we printed
                 _writer.Write($"\x1b[{_lastLineCount - 1}A\r");
+            }
+            else if (_lastLineCount == 1)
+            {
+                _writer.Write("\r");
             }
 
             // 2. Render all lines
@@ -85,7 +89,16 @@ public sealed class LumenTerminalRenderer(System.IO.TextWriter? writer = null) :
             {
                 // \x1b[2K: Clear entire line, \r: move to start of line
                 sb.Append("\r\x1b[2K");
-                sb.Append(frame.Lines[i].Text);
+                string text = frame.Lines[i].Text;
+                if (i == frame.Lines.Count - 1 && frame.Width > 0)
+                {
+                    int displayWidth = TerminalText.DisplayWidth(text);
+                    if (displayWidth >= frame.Width)
+                    {
+                        text = TerminalText.TruncateByDisplayWidth(text, frame.Width - 1, "");
+                    }
+                }
+                sb.Append(text);
 
                 // Only add newline if it's not the last line to prevent terminal scrolling
                 if (i < frame.Lines.Count - 1)

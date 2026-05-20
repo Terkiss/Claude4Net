@@ -73,6 +73,7 @@
 | K051c | Lumen Terminal Renderer and Live Integration | Completed | 433/433 pass |
 | K052 | Lumen v2 Search and Scroll Navigation | Completed | 441/441 pass |
 | K053a | Lumen Render Fidelity Hotfix | Completed | 450/450 pass |
+| K053b | Lumen Bottom Pane Anchoring Hotfix | Completed | 456/456 pass |
 
 ## Official Verification Commands
 - Standard Build: `dotnet build -p:UseAppHost=false`
@@ -119,6 +120,13 @@
 - [x] Add Korean/CJK render preservation tests (mojibake prevention)
 - [x] Fix footer first-character regression (repaint logic)
 - [x] Official Release Gate passed (450/450 pass)
+
+### K053b: Lumen Bottom Pane Anchoring Hotfix
+- [x] input/footer bottom-region anchoring
+- [x] footer first-character preservation
+- [x] cursor clamping inside input region
+- [x] empty input not added to transcript
+- [x] Official Release Gate passed (456/456 pass)
 
 - [x] K038 Project Lumen Bootstrap Foundation (Option parsing & DI cleanup)
 - [x] K039 AgentRunEvent Observer Foundation (Neutral run events)
