@@ -1,27 +1,42 @@
 # Claude4Net Implementation Plan
 
-Plan date: 2026-05-19
+Plan date: 2026-05-22
 Working branch: `experiment`
-Primary planning file for Gemini/Ralph agents: `Documents/Implementation_Plan.md`
+Primary planning file: `Documents/Implementation_Plan.md`
 Progress tracker: `IMPLEMENTATION_PROGRESS.md`
-Current focus: Project Lumen TUI v2
+Design source: `Documents/2026-05-21_Claude4Net-App_인사이트_기반_확장_설계.md`
+Backup before SSOT clean: `Documents/backups/2026-05-22/Implementation_Plan.pre-ssot-clean.2026-05-22.md`
 
-Next milestone: Not selected. Awaiting user/final-controller decision.
+Current focus: Agentic Runtime Expansion from the 2026-05-21 insight design
+Next milestone: K067 State Hygiene Completion
+Queue status: `running`
 
-## 0. Agent Read Order
+## 0. SSOT Purpose
 
-All `.gemini/agents/*.md` workers and reviewers should read project context in this order:
+This document is the active implementation SSOT for the next development wave. It intentionally removes historical execution cards and older Lumen work logs from the active plan.
+
+Historical detail remains in:
+
+- `IMPLEMENTATION_PROGRESS.md`
+- `Documents/backups/2026-05-22/Implementation_Plan.pre-ssot-clean.2026-05-22.md`
+- `Documents/Project_Lumen_CLI_UI_Design_Plan.md`
+- `Documents/Project_Lumen_UI_UX_V2_External_Design_Review.md`
+
+Repository state overrides old reports. If this plan conflicts with actual code or test results, verify the repository first and update this plan only with evidence.
+
+## 1. Agent Read Order
+
+Workers and reviewers must read context in this order:
 
 1. `Documents/Implementation_Plan.md`
 2. `IMPLEMENTATION_PROGRESS.md`
-3. `Documents/Project_Lumen_CLI_UI_Design_Plan.md`
-4. `Documents/Project_Lumen_UI_UX_V2_External_Design_Review.md`
-5. `git status --short --branch`
-6. Recent commits and current staged/untracked files
+3. `Documents/2026-05-21_Claude4Net-App_인사이트_기반_확장_설계.md`
+4. `git status --short --branch`
+5. Recent commits and current staged/untracked files
 
-Repository state overrides old reports. If this plan conflicts with actual code or test results, verify the repository first and update the plan only with evidence.
+Do not use old plan sections from backup as active instructions. Use backup only for historical lookup.
 
-## 1. Non-Negotiable Rules
+## 2. Non-Negotiable Rules
 
 - Do not modify `.agents/`.
 - Do not commit or push without Codex Final Controller or user approval.
@@ -29,318 +44,583 @@ Repository state overrides old reports. If this plan conflicts with actual code 
 - Do not implement the whole roadmap at once.
 - Do not remove `--legacy-cli`.
 - Do not break piped input, Discord, Dashboard, `--smoke-exit`, or `doctor` paths.
-- Do not add a new terminal UI framework for Project Lumen v2.
+- Do not treat K054-K066 scaffolding tests as product completion unless command surface, runtime integration, and release-gate evidence exist.
+- Do not expose Dashboard write/control actions unless they pass `PermissionEnforcer`, append audit/event records, and have explicit tests.
+- Do not enable recurring routines by default; new routine automation must be opt-in, permission-aware, and bounded.
 - Use `Completed` only after required tests and release gate evidence exist.
 - Documents under `Documents/` may be ignored by git; stage intentional document changes with `git add -f`.
 
-## 2. Current Queue State
+## 3. Current Verified Baseline
 
-queue_status: `running`
+Current reality after SSOT clean:
 
-Current reality as of this plan:
+- K038-K058 Lumen work is completed and retained as historical context only.
+- K059-K066 remediation is completed and verified in progress records.
+- Current implementation contains partial scaffolding for SeedSpec, routines, state isolation, skill proposal apply, provider descriptor loading, and dashboard pages.
+- These scaffolds are not product-complete.
+- Latest verified baseline before this SSOT clean: `dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --no-restore` passed 502/502, and `.\scripts\verify-release.ps1` passed.
 
-- K038-K050 are treated as Lumen v1 completed milestones.
-- K051a, K051b, K051c are treated as completed by existing progress records.
-- K052 is completed and verified (441/441 pass).
-- K053a is completed and verified as a hotfix (450/450 pass).
-- K053b is completed and verified as a hotfix (456/456 pass).
-- K054 is completed and verified (461/461 pass).
-- K055 is completed and verified (472/472 pass).
-- K056a is completed (Workspace inspected; unrelated dirty files preserved).
-- K056b is completed and verified (472/472 pass, documentation synced).
-- K057 is completed and verified (472/472 pass).
-- K058 is completed and verified (476/476 pass).
-- K059-K066 is completed and verified (502/502 pass).
-- K053 is a candidate only (Draft only, not active).
+Completion must be evidence-based. Do not mark K067-K084 complete from file existence alone.
 
-Important consistency rule:
+## 4. Target Completion Definition
 
-Do not mark K053 active while K052 changes remain unapproved or unverified.
+The 2026-05-21 expansion design is complete only when all of the following are true:
 
-## 3. Source Design Requirements
+1. Workspace/session memory is isolated and checkpoint-restorable.
+2. Important coordinate work cannot enter Execution without a locked SeedSpec when a spec is required or attached.
+3. Workspace provider descriptors can be added or overridden without code changes.
+4. Routines can be listed, shown, manually run, and scheduled through permission/checkpoint/event/verification gates.
+5. Skill proposals can be generated, validated, approved, applied with checkpoint protection, and verified.
+6. Dashboard can read runtime state and trigger only explicitly allowed typed control actions.
+7. `dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false` passes.
+8. `.\scripts\verify-release.ps1` passes.
+9. `.agents/` is not modified.
 
-### 3.1 Project Lumen v1 Design Source
+## 5. Milestone Map
 
-Source:
-
-- `Documents/Project_Lumen_CLI_UI_Design_Plan.md`
-
-Core requirements already mapped into K038-K050:
-
-- Bootstrap separation.
-- Neutral `AgentRunEvent` observer.
-- `LumenState`, reducer, history cells.
-- Prompt composer.
-- Lumen interactive app behind an explicit path.
-- Approval queue/dialog.
-- Command output normalization.
-- Piped input, Discord, Dashboard, and legacy compatibility.
-- Release gate and documentation.
-
-### 3.2 Project Lumen v2 Design Source
-
-Source:
-
-- `Documents/Project_Lumen_UI_UX_V2_External_Design_Review.md`
-
-Core K051/K052 requirements:
-
-- Replace append-only Lumen behavior with a managed terminal surface.
-- Use virtual transcript viewport plus fixed input/footer regions.
-- Use full-frame buffered repaint.
-- Use raw ANSI cursor placement in the terminal renderer.
-- Use Spectre.Console only for safe styled content where appropriate.
-- Keep footer/input out of transcript history.
-- Ensure every typed character is visible immediately.
-- Suppress duplicate assistant final responses and duplicate runtime errors.
-- Add display-width-aware Korean/CJK wrapping and truncation.
-- Implement manual transcript scrolling (K052).
-- Preserve legacy, piped input, Discord, Dashboard, smoke, and doctor paths.
-
-## 4. Milestone Status Table
-
-| Milestone | Name | Status | Evidence / Notes |
+| Milestone | Design Area | Status | Target Completion |
 | --- | --- | --- | --- |
-| K038 | Project Lumen Bootstrap Foundation | Completed | Existing progress record |
-| K039 | AgentRunEvent Observer Foundation | Completed | Existing progress record |
-| K040 | Lumen State and History Cells | Completed | Existing progress record |
-| K041 | Spectre Renderer v1 | Completed | Existing progress record |
-| K042 | Lumen Output Bridge | Completed | Existing progress record |
-| K043 | Prompt Composer Foundation | Completed | Existing progress record |
-| K044 | LumenCliApp v1 | Completed | Existing progress record |
-| K045 | Approval Dialog v1 | Completed | Existing progress record |
-| K046 | Command Output Normalization | Completed | Existing progress record |
-| K047 | Piped Input, Discord, and Legacy Compatibility | Completed | Existing progress record |
-| K048 | Render Quality and Cancellation Stabilization | Completed | Existing progress record |
-| K049 | Lumen Release Gate and Documentation | Completed | Existing progress record |
-| K050 | Transcript Hygiene and Observer Mode Fix | Completed | Existing progress record |
-| K051a | TerminalText and LumenFrame Foundation | Completed | Existing progress record |
-| K051b | Lumen Frame Builder and State Evolution | Completed | Existing progress record |
-| K051c | Lumen Terminal Renderer and Live Integration | Completed | 433/433 pass, K051c tests, release gate passed |
-| K052 | Lumen v2 Search and Scroll Navigation | Completed | 441/441 pass, K052 tests, release gate passed |
-| K053a | Lumen Render Fidelity Hotfix | Completed | 450/450 pass, K053a tests, release gate passed |
-| K053b | Lumen Bottom Pane Anchoring Hotfix | Completed | 456/456 pass, K053b tests, release gate passed |
-| K054 | Release Gate Stabilization | Completed | 461/461 pass, async-safe isolation, VectorColumn naMask concat fix |
-| K055 | Lumen Approval Dialog Integration | Completed | 472/472 pass, dialog height integration, CJK-safe borders |
-| K056a | Worktree Hygiene Pre-clean | Completed | Workspace inspected; unrelated dirty files preserved (USER_MANUAL.md, 안정화계획.md, dotge-planner.md, lumen-fidelity-specialist.md) |
-| K056b | Release Gate And Documentation Sync | Completed | 472/472 pass, documentation synced |
-| K057 | Manual TUI Fidelity Pass | Completed | 472/472 pass, absolute height safety clamping, compatibility paths verified |
-| K058 | Lumen UX Polish | Completed | 476/476 pass, collapsible blocks, help command integration |
-| K059-K066 | Final-Control P1 Remediation | Completed | 502/502 pass, Dashboard security, SSOT fixes |
-| K053 | Not Selected | Awaiting decision | Pending user/final-controller decision |
+| K067 | State Hygiene Completion | Not Started | Remove app-base memory dependency from active paths; complete workspace/session scoped memory and snapshots |
+| K068 | Memory Checkpoint Integration | Not Started | File checkpoints and memory state snapshots restore together |
+| K069 | SeedSpec Command Surface | Not Started | `/spec new/show/question/answer/criteria/lock/attach` works |
+| K070 | Coordinate Spec Enforcement | Not Started | `/coordinate start --spec`, phase enforcement, AC-to-gate sync, blocking question policy |
+| K071 | Provider Descriptor V2 Model | Not Started | `Endpoint`, `Headers`, `Metadata`, validation, unknown category errors |
+| K072 | Provider Settings Precedence | Not Started | Built-in < system < user < workspace < env < CLI |
+| K073 | Provider Factory Preparation | Not Started | `IProviderFactory` and default factory registration without breaking current provider creation |
+| K074 | Routine Command MVP | Not Started | `/routine list/show/add/enable/disable/delete/run` |
+| K075 | Routine Execution Integration | Not Started | HookPipeline, checkpoint, event store, verification records, permission gates |
+| K076 | Routine Scheduler Hardening | Not Started | manual/interval/daily scheduling, disabled default, max-run safety, tests |
+| K077 | Skill Proposal Lifecycle | Not Started | `Applied`, `Verified`, `Failed` lifecycle plus validation commands |
+| K078 | Skill Apply Engine | Not Started | patch preview, approval, checkpoint, `.agents/` direct mutation denial, verification |
+| K079 | Skill Trajectory Mining | Not Started | failure-pattern mining from trajectories/events/verification and proposal candidates |
+| K080 | Dashboard Read Models | Not Started | typed provider/coordinate/skill/routine/checkpoint/verification/state read APIs |
+| K081 | Dashboard Typed Commands | Not Started | safe typed actions only; no arbitrary command execution |
+| K082 | Dashboard UI Completion | Not Started | functional pages for Providers, Skills, Routines, Checkpoints, Verification, State |
+| K083 | Release Gate Expansion | Not Started | expansion smoke tests added to `verify-release.ps1` |
+| K084 | Final Integration and Documentation | Not Started | full pass, docs/progress sync, final risk review |
 
-## 5. [COMPLETED/HISTORICAL] Active Ralph Execution Card
+## 6. Execution Order
 
-This was the active card for K052, now completed.
+Required order:
 
-# Ralph Execution Card
+1. K067 State Hygiene Completion
+2. K068 Memory Checkpoint Integration
+3. K069 SeedSpec Command Surface
+4. K070 Coordinate Spec Enforcement
+5. K071 Provider Descriptor V2 Model
+6. K072 Provider Settings Precedence
+7. K073 Provider Factory Preparation
+8. K074 Routine Command MVP
+9. K075 Routine Execution Integration
+10. K076 Routine Scheduler Hardening
+11. K077 Skill Proposal Lifecycle
+12. K078 Skill Apply Engine
+13. K079 Skill Trajectory Mining
+14. K080 Dashboard Read Models
+15. K081 Dashboard Typed Commands
+16. K082 Dashboard UI Completion
+17. K083 Release Gate Expansion
+18. K084 Final Integration and Documentation
 
-## Milestone
+Parallelization rules:
 
-K052 Lumen v2 Search and Scroll Navigation
+- K067 and K068 must not run in parallel because both touch memory/checkpoint state.
+- K069 and K070 may be split only after K069 models/store/commands are stable.
+- K071, K072, and K073 should run sequentially to avoid registry/factory conflicts.
+- K074 can begin after K067 safety is complete, but K075 must wait for K074 command/store behavior.
+- K077 can begin before K075, but K078 must wait for checkpoint safety from K068.
+- K080 read models can begin after K071/K074/K077 are stable enough to expose state.
+- K081 must wait for K080; K082 must wait for K080 and K081.
 
-## Goal
+## 7. Active Execution Card: K067
 
-Add controlled transcript navigation on top of the K051 fixed viewport renderer.
+Milestone: K067 State Hygiene Completion
 
-## Allowed Scope
+Goal:
 
-- `Claude4Net.Cli/Ui/Rendering/LumenFrameBuilder.cs`
-- `Claude4Net.Cli/Ui/Rendering/LumenFrame.cs`
-- `Claude4Net.Cli/Ui/Rendering/TerminalMetrics.cs`
-- `Claude4Net.Cli/Ui/LumenState.cs`
-- `Claude4Net.Cli/Ui/LumenReducer.cs`
-- `Claude4Net.Cli/Ui/LumenCliApp.cs`
-- `Claude4Net.Cli/Ui/Input/KeyBindingRegistry.cs`
-- `Claude4Net.Tests/K052LumenScrollNavigationTests.cs`
+Complete workspace/session-scoped memory as the default runtime path and remove active reliance on app-base `db/memory.db`.
+
+Allowed files:
+
+- `Claude4Net.Runtime/PandasUniverseManager.cs`
+- `Claude4Net.Runtime/PandasUniverseStore.cs`
+- `Claude4Net.MyPlugins/PandasDbTool.cs`
+- `Claude4Net.Tests/D02MemoryTests.cs`
+- `Claude4Net.Tests/K063WorkspaceStateIsolationTests.cs`
 - `IMPLEMENTATION_PROGRESS.md`
 - `Documents/Implementation_Plan.md`
 
-## Forbidden Area
+Required work:
 
-- .agents/**
-- Runtime, SDK, API
-- Discord/Dashboard/piped input paths
-- K053+ implementation
+- Make all memory-modifying tools resolve a `WorkspaceStateContext` from current workspace and session.
+- Keep `PandasUniverseManager.Instance` only as a compatibility facade if immediate singleton removal is too invasive.
+- Ensure compatibility facade delegates to scoped stores for new runtime operations.
+- Stop creating app-base `db/memory.db` during normal tests and normal CLI runtime.
+- Add a migration warning or read-only fallback path for legacy app-base memory if needed.
+- Ensure parallel test execution cannot share memory unless explicitly using the same workspace/session.
+- Keep baseline tables creation deterministic for every scoped store.
 
-## Required Work
+Forbidden work:
 
-- Add manual scroll state to `LumenState`.
-- Implement PageUp/Down and Home/End logic in `LumenReducer`.
-- Update `LumenFrameBuilder` to project transcript lines based on scroll offset.
-- Ensure Input and Footer regions remain fixed during manual scroll.
-- Handle "pinned-to-bottom" behavior where new output triggers auto-scroll only if already at bottom.
+- Do not change `.agents/`.
+- Do not delete user memory files.
+- Do not change unrelated Lumen rendering behavior.
 
-## Done When
+Tests required:
 
-- User can inspect earlier transcript without corrupting input/footer.
-- New output behavior while scrolled is deterministic (distance-from-bottom preserved).
-- K051 fixed-region guarantees remain intact.
-- 8 tests pass for scroll behavior.
-- Release gate pass with 441 tests.
+- `K063WorkspaceStateIsolationTests`: workspace A/B isolation, session isolation, clear-scope behavior.
+- `D02MemoryTests`: existing memory behavior remains stable.
+- New or expanded test: app-base `db/memory.db` is not required for tests to pass.
+- Focused command:
 
-## 6. K051/K052 Cumulative Acceptance Checklist
+```powershell
+dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~D02|FullyQualifiedName~K063"
+```
 
-K051/K052 quality criteria for TUI v2 stabilization.
+Done when:
 
-### 6.1 Input Stability
+- Scoped `.claude4net/state/memory.db` is the active path.
+- App-base DB is not needed for release gate.
+- Focused tests pass.
+- Full test suite passes.
+- `.\scripts\verify-release.ps1` passes.
 
-- Every typed character appears immediately in the input pane.
-- Backspace/delete update the same input pane in place.
-- Cursor movement is reflected in the input region.
-- Input line is not appended to transcript.
-- Input placeholder is not appended to transcript.
-- Input buffer survives assistant streaming and tool result updates.
+## 8. Backlog Cards
 
-### 6.2 Footer Stability
+### K068 Memory Checkpoint Integration
 
-- Footer is fixed at the bottom region.
-- Footer is not appended to transcript.
-- `IDLE | Provider | Model | Session` does not accumulate in scrollback as normal transcript content.
-- Footer updates in place when status changes.
-- Footer uses compact mode at 80 columns.
+Goal: Make checkpoint restore cover memory state as well as file state.
 
-### 6.3 Transcript Correctness
+Allowed files:
 
-- Transcript contains durable cells only.
-- User prompt appears exactly once.
-- Assistant final response appears exactly once.
-- Streaming deltas merge into one assistant cell.
-- Thought updates do not duplicate assistant text.
-- Tool call appears once per tool call id.
-- Tool result appears once per tool result id.
-- Workspace/runtime error appears as one `ErrorCell`.
+- `Claude4Net.SDK/CheckpointModels.cs`
+- `Claude4Net.Runtime/CheckpointStore.cs`
+- `Claude4Net.Runtime/ToolOrchestrator.cs`
+- `Claude4Net.Runtime/PandasUniverseStore.cs`
+- `Claude4Net.Tests/K064MemoryCheckpointTests.cs`
+- `IMPLEMENTATION_PROGRESS.md`
+- `Documents/Implementation_Plan.md`
 
-### 6.4 Dialog Correctness
+Required work:
 
-- Approval dialog is not appended repeatedly.
-- `D` toggles details in place.
-- `Y`, `N`, and `Esc` resolve approval exactly once.
-- Closing dialog restores input/footer layout.
+- Add `StateSnapshotId` and `IncludesMemoryState` to `CheckpointManifest`.
+- Detect memory-modifying tools such as `pandas_agent_memory_upsert`, `pandas_agent_memory_clear`, `pandas_restore`, and `pandas_import`.
+- Create a memory snapshot before memory-modifying actions.
+- Store snapshot metadata in the checkpoint manifest.
+- Restore memory snapshots during checkpoint restore.
+- Preserve file-only checkpoint behavior.
+- Add clear error messages for missing or corrupt snapshots.
 
-### 6.5 Terminal Layout
+Required tests:
 
-- 80-column layout has no normal horizontal overflow.
-- 120-column layout remains readable.
-- Korean/CJK text is wrapped/truncated by display width, not raw string length.
-- ANSI/Spectre markup escapes all untrusted user/model/tool text.
-- Terminal resize triggers or allows a full repaint.
-- If ANSI cursor control is unavailable, Lumen has a safe fallback or clear warning.
+- `K064MemoryCheckpointTests`
+- Existing `K029CheckpointRewindTests`
 
-### 6.6 Compatibility
+### K069 SeedSpec Command Surface
 
-- `--lumen` uses the v2 renderer.
-- Legacy CLI remains available.
-- Piped input does not use TUI control sequences.
-- Discord path remains unchanged.
-- Dashboard broadcaster path remains unchanged.
-- `--smoke-exit` does not start the TUI renderer.
-- `doctor` fast path does not start the TUI renderer.
+Goal: Expose the SeedSpec store through a complete slash command group.
 
-### 6.7 Scroll Navigation (K052)
+Required commands:
 
-- PageUp/PageDown move transcript viewport.
-- Ctrl+Home/End move to extremes.
-- Input and Footer remain fixed during manual scroll.
-- Pinned-to-bottom auto-follow works for new output.
-- Manual-scroll preserves distance-from-bottom, not visual line position.
+```text
+/spec list
+/spec new <id> <title>
+/spec show <id>
+/spec question <id> <question>
+/spec answer <id> <questionId> <answer>
+/spec criteria add <id> <description>
+/spec lock <id>
+/spec attach <specId> <coordinateTaskId>
+```
 
-## 7. K051/K052 Sub-Milestone Definitions
+Required behavior:
 
-### K051a TerminalText and LumenFrame Foundation
+- Use `.claude4net/specs/{specId}/seed-spec.json`.
+- Reject path traversal spec IDs.
+- `lock` fails if blocking questions have no answers.
+- `lock` fails if no required acceptance criteria exist.
+- `attach` calls coordinator spec sync and reports generated gates.
 
-Status: Completed by existing progress record.
+Required tests:
 
-Required scope:
+- `K054SeedSpecTests`
+- New `K069SeedSpecCommandTests`
 
-- `TerminalText` display-width, wrap, and truncate helpers.
-- `LumenFrame`.
-- `FooterState`.
-- `TerminalMetrics`.
-- Unit tests for ASCII and Korean/CJK display width.
+### K070 Coordinate Spec Enforcement
 
-### K051b Lumen Frame Builder and State Evolution
+Goal: Make SeedSpec a real execution gate for coordinated work.
 
-Status: Completed by existing progress record.
+Required work:
 
-Required scope:
+- Support `/coordinate start <id> <title> --spec <specId>`.
+- Attach locked spec during task creation when `--spec` is present.
+- Reject unknown spec IDs.
+- Reject unlocked specs for immediate Execution.
+- Convert required acceptance criteria to evidence-required gates.
+- Convert optional acceptance criteria to non-blocking gates.
+- Block Execution when attached spec is unlocked or has unanswered blocking questions.
+- Preserve existing Planning gate behavior.
 
-- `LumenFrameBuilder`.
-- Transcript viewport projection.
-- Fixed input/footer frame projection.
-- State additions for terminal metrics, footer state, scroll state, and render flags.
-- Unit tests for 80-column and viewport behavior.
+Required tests:
 
-### K051c Lumen Terminal Renderer and Live Integration
+- `K055CoordinateSpecGateTests`
+- New `K070CoordinateSpecCommandTests`
 
-Status: Completed.
+### K071 Provider Descriptor V2 Model
 
-Required scope:
+Goal: Complete descriptor schema and fail-closed validation.
 
-- `LumenTerminalRenderer` with buffered ANSI frame output.
-- Integration through `LumenRenderer` facade.
-- `LumenCliApp` refresh path so prompt input appears immediately.
-- Tests for frame output, cursor placement, footer/input non-accumulation, and fallback behavior where practical.
+Required work:
 
-### K052 Lumen v2 Search and Scroll Navigation
+- Add `Endpoint`, `Headers`, and `Metadata` to `ProviderDescriptor`.
+- Validate required fields and endpoint URI.
+- Parse routing categories case-insensitively from JSON.
+- Fail closed for invalid descriptors and report which file failed.
+- Keep permissive non-strict load only where explicitly needed.
 
-Status: Completed.
+Required tests:
 
-Required scope:
+- `K056ProviderDescriptorLoadingTests`
+- New `K071ProviderDescriptorV2Tests`
 
-- `ViewportScrollState` with `AutoScroll` and `ScrollOffset`.
-- Scroll keyboard bindings (PageUp/Down, Ctrl+Home/End).
-- `LumenFrameBuilder` offset-based projection.
-- Tests for manual scroll persistence and input/footer fixity.
+### K072 Provider Settings Precedence
 
-Completion evidence: 441/441 pass, K052 tests, release gate passed.
+Goal: Implement complete descriptor and config precedence.
 
-## 8. Next Milestone Candidate
+Precedence:
 
-# [DRAFT ONLY / NOT ACTIVE] Ralph Execution Card Candidate
+```text
+Built-in descriptors
+< system descriptors
+< user descriptors
+< workspace descriptors
+< environment overrides
+< CLI overrides
+```
 
-## Milestone
+Required work:
 
-K053 Lumen v2 UI Aesthetics and Polish
+- Load system descriptors from `{AppBase}/providers/*.json`.
+- Load user descriptors from `%USERPROFILE%/.claude4net/providers/*.json`.
+- Load workspace descriptors from `{workspace}/.claude4net/providers/*.json`.
+- Merge user and workspace config with workspace taking precedence.
+- Apply environment override variables for active provider/model where defined.
+- Ensure CLI active model/provider wins over all config.
+- SmartRouter and doctor paths must use the same resolved registry/config.
 
-## Goal
+Required tests:
 
-Enhance the visual quality of the Lumen TUI with high-fidelity styles.
+- `K057SettingsPrecedenceTests`
+- New `K072ProviderPrecedenceTests`
 
-## Required Work (Draft)
+### K073 Provider Factory Preparation
 
-- Add distinct separators between transcript and input.
-- Use styled status indicators in the footer.
-- Ensure all assistant/thought/tool outputs are consistently styled.
-- Verify 80/120 column aesthetics.
+Goal: Introduce provider factories without forcing a risky provider creation rewrite.
 
-## 9. Completed Lumen v1 Milestone Summary
+Required work:
 
-These are retained for historical traceability. Do not re-run them unless a regression requires it.
+- Add `IProviderFactory`.
+- Add default factories for Anthropic, Gemini, Ollama, Gemini CLI, and OpenAI-compatible descriptors.
+- Keep existing provider creation switch as fallback during transition.
+- Register factories through DI.
+- Ensure `OpenAiCompatProviderFactory` can validate endpoint and auth mode.
 
-| Milestone | Historical Purpose |
-| --- | --- |
-| K038 | Bootstrap and option parsing foundation |
-| K039 | Neutral runtime observer foundation |
-| K040 | State and history cells |
-| K041 | Spectre renderer v1 |
-| K042 | Output bridge |
-| K043 | Prompt composer |
-| K044 | Lumen interactive app |
-| K045 | Approval dialog |
-| K046 | Command output normalization |
-| K047 | Piped input, Discord, legacy compatibility |
-| K048 | Render quality and cancellation stabilization |
-| K049 | Lumen v1 release gate and documentation |
-| K050 | Transcript hygiene and observer mode fix |
+Required tests:
 
-## 10. Verification Standard
+- New `K073ProviderFactoryTests`
+- Existing provider creation tests
+
+### K074 Routine Command MVP
+
+Goal: Expose routine definition management through slash commands.
+
+Required commands:
+
+```text
+/routine list
+/routine show <id>
+/routine add <id> <name>
+/routine enable <id>
+/routine disable <id>
+/routine delete <id>
+/routine run <id>
+```
+
+Required behavior:
+
+- New routines default to disabled unless explicitly enabled.
+- IDs are path-safe.
+- `show` displays trigger, actions, permission mode, workspace, last run, and enabled state.
+- Delete removes definition only, not historical run records.
+
+Required tests:
+
+- `K058RoutineStoreTests`
+- New `K074RoutineCommandTests`
+
+### K075 Routine Execution Integration
+
+Goal: Make routine runs pass through the same safety layers as normal tool work.
+
+Execution order:
+
+1. Validate routine definition.
+2. Validate workspace path.
+3. Evaluate permission mode.
+4. Create checkpoint when action may modify files or state.
+5. Execute HookPipeline before routine action.
+6. Execute action.
+7. Record `RoutineRunRecord`.
+8. Append event store event.
+9. Execute HookPipeline after routine action.
+10. Run verification action when configured.
+
+Required behavior:
+
+- Script action is denied outside workspace.
+- Read-only mode denies write/script actions.
+- Slash command action only permits allowlisted commands initially.
+- Prompt action creates a run request record, not an uncontrolled background agent loop.
+- Verification action stores structured verification evidence.
+
+Required tests:
+
+- `K059RoutineRunnerPermissionTests`
+- New `K075RoutineExecutionIntegrationTests`
+
+### K076 Routine Scheduler Hardening
+
+Goal: Make manual, interval, and daily routines safe for long-running use.
+
+Required work:
+
+- Support `Manual`, `Interval`, and `DailyTime`.
+- Do not schedule disabled routines.
+- Add next-run calculation.
+- Add max concurrent runs per routine: 1.
+- Add minimum interval floor to avoid hot loops.
+- Add run timeout support.
+- Persist last run and next run metadata.
+- Reject unsupported `Webhook` and `Event` triggers for now.
+
+Required tests:
+
+- `K060RoutineSchedulerTests`
+- New `K076RoutineSchedulerHardeningTests`
+
+### K077 Skill Proposal Lifecycle
+
+Goal: Complete lifecycle states and command group around skill proposals.
+
+Required commands:
+
+```text
+/skill analyze
+/skill proposals
+/skill propose <skillId_or_path> <summary>
+/skill validate <proposalId>
+/skill approve <proposalId>
+/skill reject <proposalId>
+/skill apply <proposalId>
+```
+
+Required states:
+
+```text
+Draft -> Proposed -> Approved -> Applied -> Verified
+Draft -> Proposed -> Rejected
+Approved -> Superseded
+Applied -> Failed
+Failed -> Superseded
+```
+
+Required behavior:
+
+- Existing `!skills`, `!skill-proposals`, and `!skill-propose` remain aliases.
+- `validate` checks metadata, target path, status, and applyability.
+- `approve` requires validation success.
+- `apply` refuses anything not Approved.
+
+Required tests:
+
+- `K022SkillProposalTests`
+- New `K077SkillProposalLifecycleTests`
+
+### K078 Skill Apply Engine
+
+Goal: Apply approved skill proposals safely.
+
+Required work:
+
+- Add patch preview or structured file change preview.
+- Require approval before write.
+- Create checkpoint before apply.
+- Reject direct `.agents/` mutation.
+- Permit only approved projection/safe paths.
+- Apply patch or generated file changes.
+- Record diff/evidence.
+- Run verification after apply.
+- Mark `Verified` on pass and `Failed` on fail.
+
+Required tests:
+
+- `K061SkillProposalApplyTests`
+- New `K078SkillApplyEngineTests`
+
+### K079 Skill Trajectory Mining
+
+Goal: Generate proposal candidates from repeated failures.
+
+Required work:
+
+- Record skill usage success/failure and score.
+- Mine `agent_trajectories`, event store, and verification results.
+- Detect repeated failure classes by skill/tool/path/error.
+- Generate proposal candidates with metadata linking evidence.
+- Deduplicate similar proposal candidates.
+- Do not auto-approve or auto-apply generated proposals.
+
+Required tests:
+
+- `K062SkillTrajectoryMiningTests`
+- New `K079SkillTrajectoryMiningIntegrationTests`
+
+### K080 Dashboard Read Models
+
+Goal: Expose typed read APIs for the control plane.
+
+Required hub/API methods:
+
+```csharp
+Task<ProviderControlPlaneState> GetProviders();
+Task<CoordinateControlPlaneState> GetCoordinateTasks();
+Task<CheckpointControlPlaneState> GetCheckpoints(string sessionId);
+Task<VerificationControlPlaneState> GetVerification(string sessionId);
+Task<SkillControlPlaneState> GetSkills();
+Task<RoutineControlPlaneState> GetRoutines();
+Task<StateControlPlaneState> GetState(string sessionId);
+```
+
+Required behavior:
+
+- Read state primarily from event store, projections, registry services, and store services.
+- Do not execute arbitrary commands.
+- Return serializable DTOs only.
+- Handle missing workspace/session gracefully.
+
+Required tests:
+
+- `K065DashboardControlPlaneTests`
+- New `K080DashboardReadModelTests`
+
+### K081 Dashboard Typed Commands
+
+Goal: Add safe control actions without restoring arbitrary remote command execution.
+
+Allowed methods:
+
+```csharp
+Task<CommandResult> RunRoutine(string routineId);
+Task<CommandResult> RestoreCheckpoint(string checkpointId);
+Task<CommandResult> ApproveSkillProposal(string proposalId);
+Task<CommandResult> RejectSkillProposal(string proposalId, string reason);
+Task<CommandResult> ApplySkillProposal(string proposalId);
+Task<CommandResult> RunVerification(string sessionId);
+```
+
+Required behavior:
+
+- Keep `ExecuteCommand(string)` denied.
+- Every write/control action evaluates permission.
+- Every write/control action appends audit/event data.
+- Restore/apply actions require approval-capable permission mode.
+- Errors are structured and user-safe.
+
+Required tests:
+
+- `K066DashboardCommandPermissionTests`
+- New `K081DashboardTypedCommandTests`
+
+### K082 Dashboard UI Completion
+
+Goal: Replace placeholder pages with usable views.
+
+Required views:
+
+- Providers: descriptors, health/local/remote, default model, category, routing preview.
+- Skills: registry, metrics, proposals, validate/approve/reject/apply buttons.
+- Routines: list, enabled/disabled, trigger, last run, next run, manual run.
+- Checkpoints: session checkpoint list, changed files, memory snapshot flag, restore action.
+- Verification: latest result, checks, evidence, run verification action.
+- State: memory table summary, session record count, snapshot list, restore action if allowed.
+
+Required UI constraints:
+
+- No arbitrary command input box.
+- Disable buttons when permission is insufficient.
+- Show clear pending/success/failure states.
+- Avoid direct runtime state scraping from the client.
+
+Required tests:
+
+- Blazor build passes.
+- Hub call failures are rendered safely.
+- Important buttons call typed hub methods, not `ExecuteCommand`.
+
+### K083 Release Gate Expansion
+
+Goal: Make release verification catch regressions in the new architecture.
+
+Required release steps:
+
+```powershell
+Run-Step "State Isolation Smoke" {
+    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K063|FullyQualifiedName~K064"
+}
+
+Run-Step "Spec Gate Smoke" {
+    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K054|FullyQualifiedName~K055|FullyQualifiedName~K069|FullyQualifiedName~K070"
+}
+
+Run-Step "Provider Descriptor Smoke" {
+    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K056|FullyQualifiedName~K057|FullyQualifiedName~K071|FullyQualifiedName~K072"
+}
+
+Run-Step "Routine Permission Smoke" {
+    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K058|FullyQualifiedName~K059|FullyQualifiedName~K060|FullyQualifiedName~K074|FullyQualifiedName~K075|FullyQualifiedName~K076"
+}
+
+Run-Step "Dashboard Control Plane Smoke" {
+    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K065|FullyQualifiedName~K066|FullyQualifiedName~K080|FullyQualifiedName~K081"
+}
+```
+
+Required behavior:
+
+- Keep the full unit/integration test step.
+- Add focused smoke steps after full tests or in a clearly named architecture smoke section.
+- Do not make the release script depend on network or real provider credentials.
+
+### K084 Final Integration and Documentation
+
+Goal: Close the roadmap with evidence and synchronized documentation.
+
+Required work:
+
+- Update `IMPLEMENTATION_PROGRESS.md` with K067-K084 evidence only after verification.
+- Update this plan's milestone table with final statuses.
+- Record final test counts and release gate output.
+- List any known residual risk.
+- Confirm `.agents/` was not modified.
+- Confirm no unrelated dirty files were staged or reverted.
+
+## 9. Verification Standard
 
 Standard commands:
 
 ```powershell
 dotnet build -p:UseAppHost=false
-dotnet test
+dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false
 dotnet .\Claude4Net.Cli\bin\Debug\net10.0\Claude4Net.Cli.dll --smoke-exit
 dotnet run --project Claude4Net.Cli -- doctor --output-format json
 ```
@@ -362,192 +642,16 @@ git diff --cached --check
 git ls-files --others --exclude-standard
 ```
 
-## 11. Manual Verification Matrix
-
-Manual evidence is required before declaring a user-facing Lumen renderer milestone fully complete.
-**Note: manual smoke is required before user-facing release declaration.**
-
-- [x] Fresh `--lumen` startup render.
-- [x] Current input buffer appears while typing.
-- [x] Footer stays fixed and does not accumulate.
-- [x] `/help`.
-- [x] `/status`.
-- [x] Normal prompt.
-- [x] Streaming assistant response.
-- [x] Tool call display.
-- [x] Tool result display.
-- [x] File read request.
-- [x] File edit approval deny.
-- [x] File edit approval allow.
-- [x] Workspace error appears as one `ErrorCell`.
-- [x] ESC cancellation during active run.
-- [x] Ctrl+C exit.
-- [x] `--legacy-cli` fallback.
-- [x] `--smoke-exit`.
-- [x] `doctor --output-format json`.
-- [x] Piped input path.
-- [x] Dashboard startup path.
-- [x] Discord project compile path.
-- [x] 80-column render.
-- [x] 120-column render.
-- [x] Korean/CJK wrapping sanity check.
-- [x] Long tool output summarization.
-- [x] No duplicate assistant/tool/error output in Lumen mode.
-- [x] PageUp/PageDown scroll move transcript viewport.
-- [x] Ctrl+Home/End move to extremes.
-- [x] Input/Footer fixed during manual scroll.
-
-## 12. Ralph Queue State Template
-
-Ralph orchestrator may create `ralph-queue-state.md` using this shape:
-
-```markdown
-# Ralph Queue State
-
-source_plan: Documents/Implementation_Plan.md
-current_branch: experiment
-queue_status: running
-
-## Completed In This Run
-- K055 Lumen Approval Dialog Integration
-- K056a Worktree Hygiene Pre-clean
-- K056b Release Gate And Documentation Sync
-
-## Current Execution Card
-- milestone: K056b
-- goal: Sync progress documentation and perform final release gate checks
-- allowed_files:
-  - IMPLEMENTATION_PROGRESS.md
-  - Documents/Implementation_Plan.md
-- forbidden_files:
-  - .agents/**
-- done_when:
-  - 469 tests pass, release gate passes
-- verification:
-  - .\scripts\verify-release.ps1
-
-## Remaining Queue
-- None selected. Awaiting user/final-controller decision.
-
-## Blocked Or Skipped
-- None
-```
-
-## 13. Worker Result Template
-
-Workers should write `worker-result.md` in this format when the Ralph Loop asks for it:
-
-```markdown
-# Ralph Worker Result
-
-status: Completed | Partial | Implemented, Not Operationalized | Blocked
-
-## Scope
--
-
-## Changed Files
--
-
-## New Files
--
-
-## Implementation Summary
-- Core:
-- Safety:
-
-## Verification
-- git diff --cached --check:
-- build:
-- test:
-- smoke:
-- doctor:
-- release gate:
-
-## Remaining Risks
--
-
-## Commit Push Status
-Not performed
-```
-
-## 14. Reviewer Result Template
-
-Reviewers should write `judge-result.md` in this format:
-
-```markdown
-# Ralph Judge Result
-
-status: Approved | Rework Needed | Blocked | Handoff
-legacy_status: PASS | FAIL
-next_action: final-control | re-exec | stop | handoff
-loop_count:
-
-## Reviewed Milestone
--
-
-## Verification Commands
-- command:
-  result:
-
-## Changed Files
--
-
-## Staged Files
--
-
-## Untracked Files
--
-
-## Findings
-- Priority:
-  File:
-  Line:
-  Problem:
-  Required Fix:
-
-## Rework Prompt
--
-
-## Residual Risk
--
-
-## Commit Push Status
-Not performed
-```
-
-## 15. Final Control Result Template
-
-Final controller should write `final-control-result.md` in this format:
-
-```markdown
-# Ralph Final Control Result
-
-status: Approved | Pending | Blocked | Handoff
-next_action: finish | stop | handoff
-
-## Evidence
--
-
-## Blocking Issues
--
-
-## Remaining Risks
--
-
-## Handoff Summary
--
-```
-
-## 16. Documentation Synchronization Rules
+## 10. Documentation Synchronization Rules
 
 - `IMPLEMENTATION_PROGRESS.md` records verified completion evidence.
 - `Documents/Implementation_Plan.md` records queue state, current card, and next card.
-- `Documents/Project_Lumen_CLI_UI_Design_Plan.md` remains the original Lumen architecture source.
-- `Documents/Project_Lumen_UI_UX_V2_External_Design_Review.md` remains the K051 UI/UX source.
+- Historical execution details belong in backups or progress logs, not in the active SSOT.
 - Do not keep conflicting status lines such as `Completed` and `pending` for the same milestone.
 - If a milestone is implemented in the working tree but not reviewed/final-controlled, use `In Review / Final-Control Pending`.
+- When a milestone completes, update this file by moving the next K-card into section 7 as the active execution card.
 
-## 17. Branch and Commit Policy
+## 11. Branch and Commit Policy
 
 - Feature work starts on `experiment`.
 - Stable release branches are not direct implementation targets unless explicitly selected.
@@ -555,11 +659,27 @@ next_action: finish | stop | handoff
 - Do not use `git add .` or `git add -A` in automated instructions.
 - Stage only files in the active Execution Card.
 
-## 18. End Condition for Current Queue
+## 12. Completion Dashboard
 
-The current queue can advance to K053 only when:
+Do not mark any item checked until implementation, tests, and release evidence exist.
 
-- K052 receives final approval or an explicit handoff decision.
-- K051c and K052 documentation and progress records are consistent.
-- No P1 renderer/input/footer/scroll regression remains.
-- Required tests and release gate evidence are recorded.
+- [ ] K067 State Hygiene Completion
+- [ ] K068 Memory Checkpoint Integration
+- [ ] K069 SeedSpec Command Surface
+- [ ] K070 Coordinate Spec Enforcement
+- [ ] K071 Provider Descriptor V2 Model
+- [ ] K072 Provider Settings Precedence
+- [ ] K073 Provider Factory Preparation
+- [ ] K074 Routine Command MVP
+- [ ] K075 Routine Execution Integration
+- [ ] K076 Routine Scheduler Hardening
+- [ ] K077 Skill Proposal Lifecycle
+- [ ] K078 Skill Apply Engine
+- [ ] K079 Skill Trajectory Mining
+- [ ] K080 Dashboard Read Models
+- [ ] K081 Dashboard Typed Commands
+- [ ] K082 Dashboard UI Completion
+- [ ] K083 Release Gate Expansion
+- [ ] K084 Final Integration and Documentation
+
+The expansion roadmap is complete only when every item above is checked and K084 records a full test and release-gate pass.
