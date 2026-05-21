@@ -50,6 +50,7 @@ Current reality as of this plan:
 - K056b is completed and verified (472/472 pass, documentation synced).
 - K057 is completed and verified (472/472 pass).
 - K058 is completed and verified (476/476 pass).
+- K059-K066 is completed and verified (502/502 pass).
 - K053 is a candidate only (Draft only, not active).
 
 Important consistency rule:
@@ -125,6 +126,7 @@ Core K051/K052 requirements:
 | K056b | Release Gate And Documentation Sync | Completed | 472/472 pass, documentation synced |
 | K057 | Manual TUI Fidelity Pass | Completed | 472/472 pass, absolute height safety clamping, compatibility paths verified |
 | K058 | Lumen UX Polish | Completed | 476/476 pass, collapsible blocks, help command integration |
+| K059-K066 | Final-Control P1 Remediation | Completed | 502/502 pass, Dashboard security, SSOT fixes |
 | K053 | Not Selected | Awaiting decision | Pending user/final-controller decision |
 
 ## 5. [COMPLETED/HISTORICAL] Active Ralph Execution Card

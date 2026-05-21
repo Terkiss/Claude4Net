@@ -75,7 +75,7 @@ namespace Claude4Net.SDK
         Proposed,
         Approved,
         Rejected,
-        Superseded
+        Superseded, Applied
     }
 
     /// <summary>

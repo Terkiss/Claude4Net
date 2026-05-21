@@ -687,7 +687,7 @@ namespace Claude4Net.Tools
                     }
 
                     // 복구 후 기본 테이블 존재 여부 보장
-                    PandasUniverseManager.Instance.EnsureBaselineTablesInternal(u);
+                    PandasUniverseManager.EnsureBaselineTablesInternal(u);
                 });
 
                 return new { status = "Success", message = $"DataUniverse restored from snapshot {safeName}." };

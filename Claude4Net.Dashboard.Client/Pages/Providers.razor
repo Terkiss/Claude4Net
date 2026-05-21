@@ -1,0 +1,22 @@
+@page "/providers"
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager NavigationManager
+@implements IAsyncDisposable
+
+<PageTitle>Providers</PageTitle>
+
+<h1>Providers Configuration</h1>
+<p>Manage model routing and provider descriptors.</p>
+
+<div class="mt-3">
+    <pre class="bg-dark text-light p-3">@_output</pre>
+</div>
+
+@code {
+    private string _output = "Provider management commands will be routed here.";
+
+    public async ValueTask DisposeAsync()
+    {
+        await Task.CompletedTask;
+    }
+}

@@ -1,0 +1,55 @@
+@page "/skills"
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager NavigationManager
+@implements IAsyncDisposable
+
+<PageTitle>Skills</PageTitle>
+
+<h1>Self-Evolving Skills</h1>
+<p>Manage your agent's skills and proposals.</p>
+
+<div>
+    <button class="btn btn-primary" @onclick="AnalyzeSkills">Analyze Failure Patterns</button>
+</div>
+
+<div class="mt-3">
+    <pre class="bg-dark text-light p-3">@_output</pre>
+</div>
+
+@code {
+    private HubConnection? _hubConnection;
+    private string _output = "Ready.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/controlPlaneHub"))
+            .Build();
+
+        await _hubConnection.StartAsync();
+    }
+
+    private async Task AnalyzeSkills()
+    {
+        if (_hubConnection is not null)
+        {
+            try
+            {
+                _output = "Analyzing...";
+                _output = await _hubConnection.InvokeAsync<string>("ExecuteCommand", "/skill analyze");
+            }
+            catch (Exception ex)
+            {
+                _output = $"Error: {ex.Message}";
+            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+}

@@ -1,0 +1,22 @@
+@page "/checkpoints"
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager NavigationManager
+@implements IAsyncDisposable
+
+<PageTitle>Checkpoints</PageTitle>
+
+<h1>State Checkpoints</h1>
+<p>Manage workspace memory and state isolation checkpoints.</p>
+
+<div class="mt-3">
+    <pre class="bg-dark text-light p-3">@_output</pre>
+</div>
+
+@code {
+    private string _output = "Checkpoint management commands will be routed here.";
+
+    public async ValueTask DisposeAsync()
+    {
+        await Task.CompletedTask;
+    }
+}

@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 using System.IO;
-using System.Collections.Generic;
+using System.Collections.Generic; using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -9,17 +9,27 @@ using TeruTeruPandas.Core;
 namespace Claude4Net.Runtime
 {
     /// <summary>
-    /// TeruTeruPandas의 DataUniverse를 관리하는 싱글톤 매니저입니다.
-    /// 인메모리 데이터의 스레드 안전한 트랜잭션 처리와 SQLite 기반의 영구 저장을 담당합니다.
+    /// TeruTeruPandas??DataUniverse瑜?愿由ы븯???깃???留ㅻ땲??낅땲??
+    /// ?몃찓紐⑤━ ?곗씠?곗쓽 ?ㅻ젅???덉쟾???몃옖??뀡 泥섎━? SQLite 湲곕컲???곴뎄 ??μ쓣 ?대떦?⑸땲??
     /// </summary>
     public class PandasUniverseManager
     {
         private static readonly Lazy<PandasUniverseManager> _instance = new Lazy<PandasUniverseManager>(() => new PandasUniverseManager());
-        
+
         /// <summary>
-        /// PandasUniverseManager의 싱글톤 인스턴스입니다.
+        /// PandasUniverseManager???깃????몄뒪?댁뒪?낅땲??
         /// </summary>
         public static PandasUniverseManager Instance => _instance.Value;
+
+        private readonly ConcurrentDictionary<string, IPandasUniverseStore> _storeCache = new();
+
+        public IPandasUniverseStore GetStore(WorkspaceStateContext ctx)
+        {
+            string key = $"{ctx.WorkspaceRoot}|{ctx.SessionId}";
+            return _storeCache.GetOrAdd(key, _ => new ScopedPandasUniverseStore(ctx));
+        }
+
+
 
         private readonly DataUniverse _universe;
         private readonly string _dbPath;
@@ -27,19 +37,19 @@ namespace Claude4Net.Runtime
         private bool _isDirty = false;
 
         /// <summary>
-        /// 현재 유니버스에 포함된 테이블 이름 목록입니다.
+        /// ?꾩옱 ?좊땲踰꾩뒪???ы븿???뚯씠釉??대쫫 紐⑸줉?낅땲??
         /// </summary>
         public IEnumerable<string> TableNames => _universe.TableNames;
 
         private PandasUniverseManager()
         {
-            // 1. 데이터베이스 저장 경로 확정 (db/memory.db)
+            // 1. ?곗씠?곕쿋?댁뒪 ???寃쎈줈 ?뺤젙 (db/memory.db)
             string baseDir = AppDomain.CurrentDomain.BaseDirectory;
             string dbDir = Path.Combine(baseDir, "db");
             if (!Directory.Exists(dbDir)) Directory.CreateDirectory(dbDir);
             _dbPath = Path.Combine(dbDir, "memory.db");
 
-            // 2. 기존 DB 로드 시도
+            // 2. 湲곗〈 DB 濡쒕뱶 ?쒕룄
             if (File.Exists(_dbPath))
             {
                 try
@@ -56,19 +66,19 @@ namespace Claude4Net.Runtime
                 _universe = new DataUniverse();
             }
 
-            // 3. 트랜잭션 큐 초기화: 모든 DB 작업은 큐를 통해 순차적으로 처리되어 스레드 안전성을 보장합니다.
+            // 3. ?몃옖??뀡 ??珥덇린?? 紐⑤뱺 DB ?묒뾽? ?먮? ?듯빐 ?쒖감?곸쑝濡?泥섎━?섏뼱 ?ㅻ젅???덉쟾?깆쓣 蹂댁옣?⑸땲??
             _transactionQueue = Channel.CreateUnbounded<Func<DataUniverse, Task>>();
 
-            // 4. 필수 베이스라인 테이블(Schema) 초기화
+            // 4. ?꾩닔 踰좎씠?ㅻ씪???뚯씠釉?Schema) 珥덇린??
             EnsureBaselineTablesInternal(_universe);
 
-            // 5. 백그라운드 트랜잭션 처리 루프 시작
+            // 5. 諛깃렇?쇱슫???몃옖??뀡 泥섎━ 猷⑦봽 ?쒖옉
             _ = ProcessQueueAsync();
 
-            // 6. 10분 주기 자동 저장 루프 시작
+            // 6. 10遺?二쇨린 ?먮룞 ???猷⑦봽 ?쒖옉
             _ = AutoSaveLoopAsync();
 
-            // 7. 애플리케이션 종료 시 데이터 강제 저장 보장
+            // 7. ?좏뵆由ъ??댁뀡 醫낅즺 ???곗씠??媛뺤젣 ???蹂댁옣
             AppDomain.CurrentDomain.ProcessExit += (s, e) =>
             {
                 if (_isDirty)
@@ -79,7 +89,7 @@ namespace Claude4Net.Runtime
         }
 
         /// <summary>
-        /// 필수 베이스라인 테이블이 존재하는지 비동기로 확인하고 생성합니다.
+        /// ?꾩닔 踰좎씠?ㅻ씪???뚯씠釉붿씠 議댁옱?섎뒗吏 鍮꾨룞湲곕줈 ?뺤씤?섍퀬 ?앹꽦?⑸땲??
         /// </summary>
         public async Task EnsureBaselineTablesAsync()
         {
@@ -90,11 +100,11 @@ namespace Claude4Net.Runtime
         }
 
         /// <summary>
-        /// DataUniverse 내부에 필요한 핵심 테이블(메모리, 궤적, 감사 로그, 임베딩 캐시) 스키마를 생성합니다.
+        /// DataUniverse ?대????꾩슂???듭떖 ?뚯씠釉?硫붾え由? 沅ㅼ쟻, 媛먯궗 濡쒓렇, ?꾨쿋??罹먯떆) ?ㅽ궎留덈? ?앹꽦?⑸땲??
         /// </summary>
-        public void EnsureBaselineTablesInternal(DataUniverse u)
+        public static void EnsureBaselineTablesInternal(DataUniverse u)
         {
-            // RAG 및 장기 기억을 위한 테이블
+            // RAG 諛??κ린 湲곗뼲???꾪븳 ?뚯씠釉?
             if (!u.ContainsTable("agent_memory"))
             {
                 var columns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>
@@ -115,7 +125,7 @@ namespace Claude4Net.Runtime
             }
             else
             {
-                // 기존 테이블이 있는 경우 누락된 컬럼에 대한 마이그레이션 수행
+                // 湲곗〈 ?뚯씠釉붿씠 ?덈뒗 寃쎌슦 ?꾨씫??而щ읆?????留덉씠洹몃젅?댁뀡 ?섑뻾
                 var df = u.GetTableOrThrow("agent_memory");
                 var requiredCols = new Dictionary<string, Func<int, TeruTeruPandas.Core.Column.IColumn>>
                 {
@@ -137,7 +147,7 @@ namespace Claude4Net.Runtime
                 if (modified) u.AddOrUpdateTable("agent_memory", df);
             }
 
-            // 에이전트의 실행 궤적(Trajectories) 저장을 위한 테이블
+            // ?먯씠?꾪듃???ㅽ뻾 沅ㅼ쟻(Trajectories) ??μ쓣 ?꾪븳 ?뚯씠釉?
             if (!u.ContainsTable("agent_trajectories"))
             {
                 var columns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>
@@ -152,7 +162,7 @@ namespace Claude4Net.Runtime
                 u.AddTable("agent_trajectories", new DataFrame(columns), "Execution history for self-reflection and auditing.");
             }
 
-            // 보안 감사 로그 기록을 위한 테이블
+            // 蹂댁븞 媛먯궗 濡쒓렇 湲곕줉???꾪븳 ?뚯씠釉?
             if (!u.ContainsTable("audit_logs"))
             {
                 var columns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>
@@ -168,7 +178,7 @@ namespace Claude4Net.Runtime
                 u.AddTable("audit_logs", new DataFrame(columns), "Security audit trail for sensitive operations.");
             }
 
-            // API 호출 절감을 위한 임베딩 캐시 테이블
+            // API ?몄텧 ?덇컧???꾪븳 ?꾨쿋??罹먯떆 ?뚯씠釉?
             if (!u.ContainsTable("embedding_cache"))
             {
                 var columns = new Dictionary<string, TeruTeruPandas.Core.Column.IColumn>
@@ -188,7 +198,7 @@ namespace Claude4Net.Runtime
                 await Task.Delay(TimeSpan.FromMinutes(10));
                 if (_isDirty)
                 {
-                    // 트랜잭션 큐를 통해 일관성 있게 저장 작업 수행
+                    // ?몃옖??뀡 ?먮? ?듯빐 ?쇨????덇쾶 ????묒뾽 ?섑뻾
                     await ExecuteAsync(u =>
                     {
                         Save(u);
@@ -199,7 +209,7 @@ namespace Claude4Net.Runtime
         }
 
         /// <summary>
-        /// DataUniverse에 대해 반환값이 있는 작업을 순차적으로 실행합니다.
+        /// DataUniverse?????諛섑솚媛믪씠 ?덈뒗 ?묒뾽???쒖감?곸쑝濡??ㅽ뻾?⑸땲??
         /// </summary>
         public async Task<T> ExecuteAsync<T>(Func<DataUniverse, T> action)
         {
@@ -224,7 +234,7 @@ namespace Claude4Net.Runtime
         }
 
         /// <summary>
-        /// DataUniverse에 대해 반환값이 없는 작업을 순차적으로 실행합니다.
+        /// DataUniverse?????諛섑솚媛믪씠 ?녿뒗 ?묒뾽???쒖감?곸쑝濡??ㅽ뻾?⑸땲??
         /// </summary>
         public async Task ExecuteAsync(Action<DataUniverse> action)
         {
@@ -236,7 +246,7 @@ namespace Claude4Net.Runtime
         }
 
         /// <summary>
-        /// DataUniverse에 대해 반환값이 있는 비동기 작업을 순차적으로 실행합니다.
+        /// DataUniverse?????諛섑솚媛믪씠 ?덈뒗 鍮꾨룞湲??묒뾽???쒖감?곸쑝濡??ㅽ뻾?⑸땲??
         /// </summary>
         public async Task<T> ExecuteAsync<T>(Func<DataUniverse, Task<T>> action)
         {
@@ -266,7 +276,7 @@ namespace Claude4Net.Runtime
         }
 
         /// <summary>
-        /// DataUniverse에 대해 반환값이 없는 비동기 작업을 순차적으로 실행합니다.
+        /// DataUniverse?????諛섑솚媛믪씠 ?녿뒗 鍮꾨룞湲??묒뾽???쒖감?곸쑝濡??ㅽ뻾?⑸땲??
         /// </summary>
         public async Task ExecuteAsync(Func<DataUniverse, Task> action)
         {
@@ -282,12 +292,12 @@ namespace Claude4Net.Runtime
         {
             try
             {
-                // 인메모리 유니버스의 스냅샷을 SQLite 파일로 영구 저장
+                // ?몃찓紐⑤━ ?좊땲踰꾩뒪???ㅻ깄?룹쓣 SQLite ?뚯씪濡??곴뎄 ???
                 u.ToSqlite(_dbPath, overwrite: true);
             }
             catch (Exception)
             {
-                // 저장 오류 시 별도의 로깅이나 복구 로직 필요
+                // ????ㅻ쪟 ??蹂꾨룄??濡쒓퉭?대굹 蹂듦뎄 濡쒖쭅 ?꾩슂
             }
         }
 
@@ -300,7 +310,7 @@ namespace Claude4Net.Runtime
         }
 
         /// <summary>
-        /// 테스트 격리를 위해 트랜잭션 큐를 순차적으로 통과하는 안전한 비동기 리셋 작업을 수행합니다.
+        /// ?뚯뒪??寃⑸━瑜??꾪빐 ?몃옖??뀡 ?먮? ?쒖감?곸쑝濡??듦낵?섎뒗 ?덉쟾??鍮꾨룞湲?由ъ뀑 ?묒뾽???섑뻾?⑸땲??
         /// </summary>
         internal async Task ResetAndFlushForTestAsync()
         {

@@ -597,3 +597,12 @@
 - [x] Integrate interactive `/help` commands and slash documentation
 - [x] Extend existing K040 Lumen state reducer tests for K058 clear/theme/model/collapsible behavior
 - [x] Official Release Gate passed (476/476 pass)
+
+### K059-K066: Final-Control P1 Remediation
+- [x] P1-1: Dashboard ControlPlaneHub Security Fix
+- [x] P1-2: RoutineSchedulerService Fix
+- [x] P1-3: xUnit Parallelization Consolidation
+- [x] P1-4: Whitespace Cleanup
+- [x] P1-5: SSOT Doc Sync
+- [x] Official Release Gate passed (502/502 pass)
+- [x] [K055, K064 Test Fix] K055 K064 P1 test fixes applied and all 502/502 tests passing.

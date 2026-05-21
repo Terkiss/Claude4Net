@@ -4,58 +4,58 @@ using System.Collections.Generic;
 namespace Claude4Net.SDK
 {
     /// <summary>
-    /// ?�업 조정(Coordination)???�계�??�의?�는 ?�거?�입?�다.
+    /// ?묒뾽 議곗젙(Coordination)???④퀎瑜??뺤쓽?섎뒗 ?닿굅?뺤엯?덈떎.
     /// </summary>
     public enum CoordinatePhase
     {
-        /// <summary> 계획 ?�계 </summary>
+        /// <summary> 怨꾪쉷 ?④퀎 </summary>
         Planning,
-        /// <summary> ?�행 ?�계 </summary>
+        /// <summary> ?ㅽ뻾 ?④퀎 </summary>
         Execution,
-        /// <summary> 검�??�계 </summary>
+        /// <summary> 寃利??④퀎 </summary>
         Verification,
-        /// <summary> ?�료??</summary>
+        /// <summary> ?꾨즺??</summary>
         Completed,
-        /// <summary> ?�패??</summary>
+        /// <summary> ?ㅽ뙣??</summary>
         Failed
     }
 
     /// <summary>
-    /// ?�이?�트????��???�의?�니??
+    /// ?먯씠?꾪듃????븷???뺤쓽?⑸땲??
     /// </summary>
     public enum AgentRole
     {
-        /// <summary> ?�체 목표�??�립?�고 ?�위 ?�업??관리하??중재??</summary>
+        /// <summary> ?꾩껜 紐⑺몴瑜??섎┰?섍퀬 ?섏쐞 ?묒뾽??愿由ы븯??以묒옱??</summary>
         Orchestrator,
-        /// <summary> ?�보 ?�집 �?조사�??�당 </summary>
+        /// <summary> ?뺣낫 ?섏쭛 諛?議곗궗瑜??대떦 </summary>
         Researcher,
-        /// <summary> ?�제 코드 구현???�당 </summary>
+        /// <summary> ?ㅼ젣 肄붾뱶 援ы쁽???대떦 </summary>
         Coder,
-        /// <summary> 코드 �?결과물의 ?�질??검??</summary>
+        /// <summary> 肄붾뱶 諛?寃곌낵臾쇱쓽 ?덉쭏??寃??</summary>
         Reviewer,
-        /// <summary> 기�? ?�반 ?�업 ?�행 </summary>
+        /// <summary> 湲고? ?쇰컲 ?묒뾽 ?섑뻾 </summary>
         Worker
     }
 
     /// <summary>
-    /// ?�이?�트???�세 ?�로???�보�??�는 ?�래?�입?�다.
+    /// ?먯씠?꾪듃???곸꽭 ?꾨줈???뺣낫瑜??대뒗 ?대옒?ㅼ엯?덈떎.
     /// </summary>
     public class AgentProfile
     {
-        /// <summary> ?�이?�트??고유 명칭 </summary>
+        /// <summary> ?먯씠?꾪듃??怨좎쑀 紐낆묶 </summary>
         public string Name { get; set; } = string.Empty;
-        /// <summary> 주된 ??�� </summary>
+        /// <summary> 二쇰맂 ??븷 </summary>
         public AgentRole Role { get; set; } = AgentRole.Worker;
-        /// <summary> ?�문 분야 (?? "C#", "Security", "WebSearch") </summary>
+        /// <summary> ?꾨Ц 遺꾩빞 (?? "C#", "Security", "WebSearch") </summary>
         public List<string> Specializations { get; set; } = new();
-        /// <summary> 권한 모드 </summary>
+        /// <summary> 沅뚰븳 紐⑤뱶 </summary>
         public PermissionMode MaxPermission { get; set; } = PermissionMode.Prompt;
-        /// <summary> ?�재 바쁜 ?�태 ?��? </summary>
+        /// <summary> ?꾩옱 諛붿걶 ?곹깭 ?щ? </summary>
         public bool IsBusy { get; set; }
     }
 
     /// <summary>
-    /// ?�업 ?�당 ?�보�??�는 ?�래?�입?�다.
+    /// ?묒뾽 ?좊떦 ?뺣낫瑜??대뒗 ?대옒?ㅼ엯?덈떎.
     /// </summary>
     public class TaskAssignment
     {
@@ -67,116 +67,116 @@ namespace Claude4Net.SDK
     }
 
     /// <summary>
-    /// 공유 ?�업 보드(Shared Task Board) ?�터?�이?�입?�다.
+    /// 怨듭쑀 ?묒뾽 蹂대뱶(Shared Task Board) ?명꽣?섏씠?ㅼ엯?덈떎.
     /// </summary>
     public interface ITaskBoard
     {
-        /// <summary> ?�업??보드??추�??�니?? </summary>
+        /// <summary> ?묒뾽??蹂대뱶??異붽??⑸땲?? </summary>
         void AddTask(CoordinateTask task);
-        /// <summary> ?�정 ?�업??가?�옵?�다. </summary>
+        /// <summary> ?뱀젙 ?묒뾽??媛?몄샃?덈떎. </summary>
         CoordinateTask? GetTask(string taskId);
-        /// <summary> ?�정 조건??맞는 ?�용 가?�한 ?�업??검?�합?�다. </summary>
+        /// <summary> ?뱀젙 議곌굔??留욌뒗 ?ъ슜 媛?ν븳 ?묒뾽??寃?됲빀?덈떎. </summary>
         IEnumerable<CoordinateTask> GetPendingTasks();
-        /// <summary> ?�업 ?�태�??�데?�트?�니?? </summary>
+        /// <summary> ?묒뾽 ?곹깭瑜??낅뜲?댄듃?⑸땲?? </summary>
         void UpdateTask(CoordinateTask task);
-        /// <summary> ?�이?�트�??�정 ?�업???�당?�니?? </summary>
+        /// <summary> ?먯씠?꾪듃瑜??뱀젙 ?묒뾽???좊떦?⑸땲?? </summary>
         bool TryAssignTask(string taskId, string agentName);
-        /// <summary> ?�위 ?�업???�성?�고 ?�위 ?�업???�결?�니?? </summary>
+        /// <summary> ?섏쐞 ?묒뾽???앹꽦?섍퀬 ?곸쐞 ?묒뾽???곌껐?⑸땲?? </summary>
         void DecomposeTask(string parentTaskId, List<CoordinateTask> subTasks);
     }
 
     /// <summary>
-    /// 검?�자??결정 ?�태�??�의?�는 ?�거?�입?�다.
+    /// 寃?좎옄??寃곗젙 ?곹깭瑜??뺤쓽?섎뒗 ?닿굅?뺤엯?덈떎.
     /// </summary>
     public enum ReviewerDecision
     {
-        /// <summary> ?��?�?</summary>
+        /// <summary> ?湲?以?</summary>
         Pending,
-        /// <summary> ?�인??</summary>
+        /// <summary> ?뱀씤??</summary>
         Approved,
-        /// <summary> 거절??</summary>
+        /// <summary> 嫄곗젅??</summary>
         Rejected,
-        /// <summary> ?�정 ?�청 </summary>
+        /// <summary> ?섏젙 ?붿껌 </summary>
         RequestChanges
     }
 
     /// <summary>
-    /// ?�업 진행??근거(Evidence)�?기록?�는 ?�래?�입?�다.
+    /// ?묒뾽 吏꾪뻾??洹쇨굅(Evidence)瑜?湲곕줉?섎뒗 ?대옒?ㅼ엯?덈떎.
     /// </summary>
     public class CoordinateEvidence
     {
-        /// <summary> 근거 고유 ID </summary>
+        /// <summary> 洹쇨굅 怨좎쑀 ID </summary>
         public string Id { get; set; } = Guid.NewGuid().ToString().Substring(0, 8);
-        /// <summary> ?�성??(?�이?�트 ?�름 ?? </summary>
+        /// <summary> ?묒꽦??(?먯씠?꾪듃 ?대쫫 ?? </summary>
         public string Author { get; set; } = string.Empty;
-        /// <summary> 기록 ?�간 </summary>
+        /// <summary> 湲곕줉 ?쒓컙 </summary>
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
-        /// <summary> 기록 ?�시???�계 </summary>
+        /// <summary> 湲곕줉 ?뱀떆???④퀎 </summary>
         public CoordinatePhase Phase { get; set; }
-        /// <summary> 관?�된 게이???�름 </summary>
+        /// <summary> 愿?⑤맂 寃뚯씠???대쫫 </summary>
         public string GateName { get; set; } = string.Empty;
-        /// <summary> ?�약 ?�용 </summary>
+        /// <summary> ?붿빟 ?댁슜 </summary>
         public string Summary { get; set; } = string.Empty;
-        /// <summary> ?�세 ?�용 (?�택 ?�항) </summary>
+        /// <summary> ?곸꽭 ?댁슜 (?좏깮 ?ы빆) </summary>
         public string? Details { get; set; }
     }
 
     /// <summary>
-    /// ?�계 ?�환???�해 ?�과?�야 ?�는 검�?지??Gate)???�의?�니??
+    /// ?④퀎 ?꾪솚???꾪빐 ?듦낵?댁빞 ?섎뒗 寃利?吏??Gate)???뺤쓽?⑸땲??
     /// </summary>
     public class CoordinateGate
     {
-        /// <summary> 게이??명칭 </summary>
+        /// <summary> 寃뚯씠??紐낆묶 </summary>
         public string Name { get; set; } = string.Empty;
-        /// <summary> ?�과 ?��? </summary>
+        /// <summary> ?듦낵 ?щ? </summary>
         public bool IsPassed { get; set; }
-        /// <summary> ?�과�??�해 근거(Evidence) 기록???�수?��? ?��? </summary>
+        /// <summary> ?듦낵瑜??꾪빐 洹쇨굅(Evidence) 湲곕줉???꾩닔?몄? ?щ? </summary>
         public bool IsEvidenceRequired { get; set; } = true;
-        /// <summary> 추�? ?�견 </summary>
+        /// <summary> 異붽? ?섍껄 </summary>
         public string? Comments { get; set; }
-        /// <summary> 마�?�??�데?�트 ?�간 </summary>
+        /// <summary> 留덉?留??낅뜲?댄듃 ?쒓컙 </summary>
         public DateTime? UpdatedAt { get; set; }
-        /// <summary> ?�결??근거 목록 </summary>
+        /// <summary> ?곌껐??洹쇨굅 紐⑸줉 </summary>
         public List<CoordinateEvidence> Evidences { get; set; } = new();
-        /// <summary> ?�인??</summary>
+        /// <summary> ?뱀씤??</summary>
         public string? ApprovedBy { get; set; }
     }
 
     /// <summary>
-    /// ?�러 ?�이?�트 간의 ?�업 �??�계�??�인???�요??조정 ?�업??관리하???�래?�입?�다.
+    /// ?щ윭 ?먯씠?꾪듃 媛꾩쓽 ?묒뾽 諛??④퀎蹂??뱀씤???꾩슂??議곗젙 ?묒뾽??愿由ы븯???대옒?ㅼ엯?덈떎.
     /// </summary>
     public class CoordinateTask : TaskStateBase
     {
-        /// <summary> ?�업 ?�목 </summary>
+        /// <summary> ?묒뾽 ?쒕ぉ </summary>
         public string Title { get; set; } = string.Empty;
-        /// <summary> ?�업 ?�세 ?�명 </summary>
+        /// <summary> ?묒뾽 ?곸꽭 ?ㅻ챸 </summary>
         public string Description { get; set; } = string.Empty;
-        /// <summary> ?�재 진행 ?�계 </summary>
+        /// <summary> ?꾩옱 吏꾪뻾 ?④퀎 </summary>
         public CoordinatePhase CurrentPhase { get; set; } = CoordinatePhase.Planning;
-        /// <summary> 구성??검�?게이??목록 </summary>
+        /// <summary> 援ъ꽦??寃利?寃뚯씠??紐⑸줉 </summary>
         public List<CoordinateGate> Gates { get; set; } = new();
-        /// <summary> 검???�태 </summary>
+        /// <summary> 寃???곹깭 </summary>
         public ReviewerDecision ReviewStatus { get; set; } = ReviewerDecision.Pending;
-        /// <summary> ?�당???�이?�트 명칭 </summary>
+        /// <summary> ?좊떦???먯씠?꾪듃 紐낆묶 </summary>
         public string? AssignedAgent { get; set; }
-        /// <summary> ?�구?�는 ?�이?�트 ??�� </summary>
+        /// <summary> ?붽뎄?섎뒗 ?먯씠?꾪듃 ??븷 </summary>
         public AgentRole RequiredRole { get; set; } = AgentRole.Worker;
-        /// <summary> ?�존?�고 ?�는 ?�업 ID 목록 </summary>
+        /// <summary> ?섏〈?섍퀬 ?덈뒗 ?묒뾽 ID 紐⑸줉 </summary>
         public List<string> Dependencies { get; set; } = new();
-        /// <summary> ?�위 ?�업 ID </summary>
-        public string? ParentTaskId { get; set; }
-        /// <summary> ?�위 ?�업 ID 목록 </summary>
+        /// <summary> ?곸쐞 ?묒뾽 ID </summary>
+        public string? ParentTaskId { get; set; } public string? SpecId { get; set; } public DateTime? SpecLockedAt { get; set; }
+        /// <summary> ?섏쐞 ?묒뾽 ID 紐⑸줉 </summary>
         public List<string> SubTaskIds { get; set; } = new();
-        /// <summary> ?�성 ?�시 </summary>
+        /// <summary> ?앹꽦 ?쇱떆 </summary>
         public DateTime CreatedAt { get; set; } = DateTime.Now;
-        /// <summary> 마�?�??�정 ?�시 </summary>
+        /// <summary> 留덉?留??섏젙 ?쇱떆 </summary>
         public DateTime LastUpdatedAt { get; set; } = DateTime.Now;
-        /// <summary> ?�업 변�??�력 </summary>
+        /// <summary> ?묒뾽 蹂寃??대젰 </summary>
         public List<string> History { get; set; } = new();
 
-        /// <summary> 병합 준�??�수 (0~100) </summary>
+        /// <summary> 蹂묓빀 以鍮??먯닔 (0~100) </summary>
         public double ReadinessScore { get; set; }
-        /// <summary> 진행??가로막???�소(Blocker) 목록 </summary>
+        /// <summary> 吏꾪뻾??媛濡쒕쭑???붿냼(Blocker) 紐⑸줉 </summary>
         public List<string> Blockers { get; set; } = new();
 
         public CoordinateTask()

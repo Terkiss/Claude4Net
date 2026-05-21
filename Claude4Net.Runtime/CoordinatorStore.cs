@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Claude4Net.SDK;
@@ -22,7 +22,7 @@ namespace Claude4Net.Runtime
                 CreatedAt = DateTime.UtcNow,
                 LastUpdatedAt = DateTime.UtcNow
             };
-            
+
             // Add default gates for Planning phase
             task.Gates.Add(new CoordinateGate { Name = "DesignDoc", IsPassed = false, IsEvidenceRequired = true });
             task.Gates.Add(new CoordinateGate { Name = "ResourceCheck", IsPassed = false, IsEvidenceRequired = false });
@@ -43,13 +43,17 @@ namespace Claude4Net.Runtime
             // Validation: Cannot move to Execution if Planning gates are not passed
             if (nextPhase == CoordinatePhase.Execution && task.CurrentPhase == CoordinatePhase.Planning)
             {
+                if (task.SpecId != null && task.SpecLockedAt == null)
+                {
+                    return $"Error: Cannot transition to Execution. Attached Spec '{task.SpecId}' must be locked first.";
+                }
                 var pendingGates = task.Gates.Where(g => !g.IsPassed).ToList();
                 if (pendingGates.Any())
                 {
                     return $"Error: Cannot transition to Execution. Pending gates: {string.Join(", ", pendingGates.Select(g => g.Name))}";
                 }
             }
-            
+
             // Validation: Cannot move to Verification if Execution gates are not passed
             if (nextPhase == CoordinatePhase.Verification && task.CurrentPhase == CoordinatePhase.Execution)
             {
@@ -116,7 +120,7 @@ namespace Claude4Net.Runtime
                 Details = details,
                 Timestamp = DateTime.UtcNow
             };
-            
+
             gate.Evidences.Add(evidence);
             task.LastUpdatedAt = DateTime.UtcNow;
             task.History.Add($"Evidence added to Gate '{gateName}' by {author} at {evidence.Timestamp}");
@@ -211,6 +215,20 @@ namespace Claude4Net.Runtime
 
              UpdateMergeReadiness(task);
              return $"Success: Review status for task '{taskId}' set to {decision}.";
+        }
+
+        public void SyncGatesFromSpec(string taskId, SeedSpecRecord spec)
+        {
+            if (!AppState.Tasks.TryGetValue(taskId, out var st) || st is not CoordinateTask task) return;
+
+            task.SpecId = spec.Id;
+            task.SpecLockedAt = spec.Status == SeedSpecStatus.Locked ? DateTime.UtcNow : null;
+            foreach(var ac in spec.AcceptanceCriteria)
+            {
+                string gateName = "Spec-" + ac.Id;
+                if (!task.Gates.Any(x => x.Name == gateName))
+                    task.Gates.Add(new CoordinateGate { Name = gateName, IsEvidenceRequired = ac.Required, IsPassed = !ac.Required });
+            }
         }
     }
 }

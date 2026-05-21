@@ -11,8 +11,8 @@ using Claude4Net.SDK;
 namespace Claude4Net.Runtime
 {
     /// <summary>
-    /// 泥댄겕?ъ씤???곗씠?곕? ??ν븯怨?愿由ы븯???대옒?ㅼ엯?덈떎.
-    /// .claude4net/sessions/{sessionId}/checkpoints/ ?섏쐞???곗씠?곕? ?좎??⑸땲??
+    /// 泥댄???????곗씠??? ???ν????????ы븯?????????엯???떎.
+    /// .claude4net/sessions/{sessionId}/checkpoints/ ???쐞???곗씠??? ??????땲??
     /// </summary>
     public class CheckpointStore
     {
@@ -75,10 +75,9 @@ namespace Claude4Net.Runtime
         }
 
         /// <summary>
-        /// ?덈줈??泥댄겕?ъ씤?몃? ?앹꽦?섍퀬 蹂寃쎈맆 ?뚯씪?ㅼ쓣 諛깆뾽?⑸땲??
+        /// ???줈??泥댄??????? ???꽦?????蹂寃쎈??????????쓣 諛깆????땲??
         /// </summary>
-        public async Task<string> CreateCheckpointAsync(string toolCallId, string toolName, List<string> files, string? description = null)
-        {
+        public async Task<string> CreateCheckpointAsync(string toolCallId, string toolName, List<string> files, string? description = null, bool includeMemoryState = false) { if (includeMemoryState) { var ctx = new WorkspaceStateContext { WorkspaceRoot = _workspaceRoot, SessionId = _sessionId }; PandasUniverseManager.Instance.GetStore(ctx).ForceSaveSync(); if (!files.Contains(ctx.MemoryDbPath)) { files = new List<string>(files) { ctx.MemoryDbPath }; } }
             string checkpointId = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-") + Guid.NewGuid().ToString("N").Substring(0, 8);
             string dir = Path.Combine(_checkpointsDir, checkpointId);
             Directory.CreateDirectory(dir);
@@ -123,7 +122,7 @@ namespace Claude4Net.Runtime
         }
 
         /// <summary>
-        /// 泥댄겕?ъ씤?몄뿉 蹂寃쎈맂 ?⑥튂(diff)瑜???ν빀?덈떎.
+        /// 泥댄?????몄뿉 蹂寃쎈?????튂(diff)?????ν빀???떎.
         /// </summary>
         public async Task SaveDiffAsync(string checkpointId, string diff)
         {
@@ -135,7 +134,7 @@ namespace Claude4Net.Runtime
         }
 
         /// <summary>
-        /// 紐⑤뱺 泥댄겕?ъ씤??紐⑸줉??諛섑솚?⑸땲??
+        /// 紐⑤??泥댄??????紐⑸???諛섑????땲??
         /// </summary>
         public async Task<List<CheckpointManifest>> ListCheckpointsAsync()
         {
@@ -163,7 +162,7 @@ namespace Claude4Net.Runtime
         }
 
         /// <summary>
-        /// 泥댄겕?ъ씤?몄쓽 'before' ?곹깭濡??뚯씪??蹂듦뎄?⑸땲??
+        /// 泥댄?????몄쓽 'before' ?곹깭?????????蹂듦????땲??
         /// </summary>
         public async Task RestoreCheckpointAsync(string checkpointId)
         {
@@ -173,7 +172,7 @@ namespace Claude4Net.Runtime
             string beforeDir = Path.Combine(dir, "before");
             if (!Directory.Exists(beforeDir)) return;
 
-            var files = Directory.GetFiles(beforeDir, "*", SearchOption.AllDirectories);
+            bool memoryRestored = false; var files = Directory.GetFiles(beforeDir, "*", SearchOption.AllDirectories);
             foreach (var file in files)
             {
                 string relativePath = Path.GetRelativePath(beforeDir, file);
@@ -188,7 +187,12 @@ namespace Claude4Net.Runtime
                 string? targetDir = Path.GetDirectoryName(targetPath);
                 if (!string.IsNullOrEmpty(targetDir)) Directory.CreateDirectory(targetDir);
 
-                File.Copy(file, targetPath, true);
+                File.Copy(file, targetPath, true); if (targetPath.EndsWith("memory.db", StringComparison.OrdinalIgnoreCase)) memoryRestored = true;
+            }
+            if (memoryRestored)
+            {
+                var ctx = new WorkspaceStateContext { WorkspaceRoot = _workspaceRoot, SessionId = _sessionId };
+                await PandasUniverseManager.Instance.GetStore(ctx).ReloadAsync();
             }
         }
 

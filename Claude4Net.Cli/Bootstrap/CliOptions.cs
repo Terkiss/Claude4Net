@@ -45,6 +45,9 @@ public sealed class CliOptions
     /// </summary>
     public bool UseLumen { get; set; }
 
+    public string? Provider { get; set; }
+    public string? Model { get; set; }
+
     /// <summary>
     /// Remaining non-option arguments.
     /// </summary>
@@ -88,11 +91,20 @@ public sealed class CliOptions
                 options.DoctorArgs = string.Join(" ", args.Skip(1));
                 break;
             }
+            else if (arg.Equals("--provider", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                options.Provider = args[++i];
+            }
+            else if (arg.Equals("--model", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                options.Model = args[++i];
+            }
             else
             {
                 remaining.Add(arg);
             }
         }
+
 
         options.RemainingArgs = remaining.ToArray();
         return options;

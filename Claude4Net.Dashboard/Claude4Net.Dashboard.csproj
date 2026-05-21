@@ -15,6 +15,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Claude4Net.SDK\Claude4Net.SDK.csproj" />
     <ProjectReference Include="..\Claude4Net.Runtime\Claude4Net.Runtime.csproj" />
+    <ProjectReference Include="..\Claude4Net.Commands\Claude4Net.Commands.csproj" />
   </ItemGroup>
 
 </Project>
