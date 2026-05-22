@@ -8,7 +8,7 @@ Design source: `Documents/2026-05-21_Claude4Net-App_인사이트_기반_확장_�
 Backup before SSOT clean: `Documents/backups/2026-05-22/Implementation_Plan.pre-ssot-clean.2026-05-22.md`
 
 Current focus: Agentic Runtime Expansion from the 2026-05-21 insight design
-Next milestone: K067 State Hygiene Completion
+Next milestone: K071 Provider Descriptor V2 Model (awaiting user/final-controller decision)
 Queue status: `running`
 
 ## 0. SSOT Purpose
@@ -80,11 +80,11 @@ The 2026-05-21 expansion design is complete only when all of the following are t
 
 | Milestone | Design Area | Status | Target Completion |
 | --- | --- | --- | --- |
-| K067 | State Hygiene Completion | Not Started | Remove app-base memory dependency from active paths; complete workspace/session scoped memory and snapshots |
-| K068 | Memory Checkpoint Integration | Not Started | File checkpoints and memory state snapshots restore together |
-| K069 | SeedSpec Command Surface | Not Started | `/spec new/show/question/answer/criteria/lock/attach` works |
-| K070 | Coordinate Spec Enforcement | Not Started | `/coordinate start --spec`, phase enforcement, AC-to-gate sync, blocking question policy |
-| K071 | Provider Descriptor V2 Model | Not Started | `Endpoint`, `Headers`, `Metadata`, validation, unknown category errors |
+| K067 | State Hygiene Completion | Completed | Remove app-base memory dependency from active paths; complete workspace/session scoped memory and snapshots |
+| K068 | Memory Checkpoint Integration | Completed | File checkpoints and memory state snapshots restore together |
+| K069 | SeedSpec Command Surface | Completed | `/spec new/show/question/answer/criteria/lock/attach` works |
+| K070 | Coordinate Spec Enforcement | Completed | /coordinate start --spec, phase enforcement, AC-to-gate sync, blocking question policy |
+| K071 | Provider Descriptor V2 Model | Awaiting user/final-controller decision | `Endpoint`, `Headers`, `Metadata`, validation, unknown category errors |
 | K072 | Provider Settings Precedence | Not Started | Built-in < system < user < workspace < env < CLI |
 | K073 | Provider Factory Preparation | Not Started | `IProviderFactory` and default factory registration without breaking current provider creation |
 | K074 | Routine Command MVP | Not Started | `/routine list/show/add/enable/disable/delete/run` |
@@ -132,139 +132,16 @@ Parallelization rules:
 - K080 read models can begin after K071/K074/K077 are stable enough to expose state.
 - K081 must wait for K080; K082 must wait for K080 and K081.
 
-## 7. Active Execution Card: K067
+## 7. Active Execution Card: None
 
-Milestone: K067 State Hygiene Completion
+Milestone: None (Awaiting user/final-controller decision for next milestone)
 
-Goal:
+All preceding milestones (K067-K070) are Completed.
+K071 is awaiting user/final-controller decision.
+No active execution card is currently assigned.
 
-Complete workspace/session-scoped memory as the default runtime path and remove active reliance on app-base `db/memory.db`.
-
-Allowed files:
-
-- `Claude4Net.Runtime/PandasUniverseManager.cs`
-- `Claude4Net.Runtime/PandasUniverseStore.cs`
-- `Claude4Net.MyPlugins/PandasDbTool.cs`
-- `Claude4Net.Tests/D02MemoryTests.cs`
-- `Claude4Net.Tests/K063WorkspaceStateIsolationTests.cs`
-- `IMPLEMENTATION_PROGRESS.md`
-- `Documents/Implementation_Plan.md`
-
-Required work:
-
-- Make all memory-modifying tools resolve a `WorkspaceStateContext` from current workspace and session.
-- Keep `PandasUniverseManager.Instance` only as a compatibility facade if immediate singleton removal is too invasive.
-- Ensure compatibility facade delegates to scoped stores for new runtime operations.
-- Stop creating app-base `db/memory.db` during normal tests and normal CLI runtime.
-- Add a migration warning or read-only fallback path for legacy app-base memory if needed.
-- Ensure parallel test execution cannot share memory unless explicitly using the same workspace/session.
-- Keep baseline tables creation deterministic for every scoped store.
-
-Forbidden work:
-
-- Do not change `.agents/`.
-- Do not delete user memory files.
-- Do not change unrelated Lumen rendering behavior.
-
-Tests required:
-
-- `K063WorkspaceStateIsolationTests`: workspace A/B isolation, session isolation, clear-scope behavior.
-- `D02MemoryTests`: existing memory behavior remains stable.
-- New or expanded test: app-base `db/memory.db` is not required for tests to pass.
-- Focused command:
-
-```powershell
-dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~D02|FullyQualifiedName~K063"
-```
-
-Done when:
-
-- Scoped `.claude4net/state/memory.db` is the active path.
-- App-base DB is not needed for release gate.
-- Focused tests pass.
-- Full test suite passes.
-- `.\scripts\verify-release.ps1` passes.
 
 ## 8. Backlog Cards
-
-### K068 Memory Checkpoint Integration
-
-Goal: Make checkpoint restore cover memory state as well as file state.
-
-Allowed files:
-
-- `Claude4Net.SDK/CheckpointModels.cs`
-- `Claude4Net.Runtime/CheckpointStore.cs`
-- `Claude4Net.Runtime/ToolOrchestrator.cs`
-- `Claude4Net.Runtime/PandasUniverseStore.cs`
-- `Claude4Net.Tests/K064MemoryCheckpointTests.cs`
-- `IMPLEMENTATION_PROGRESS.md`
-- `Documents/Implementation_Plan.md`
-
-Required work:
-
-- Add `StateSnapshotId` and `IncludesMemoryState` to `CheckpointManifest`.
-- Detect memory-modifying tools such as `pandas_agent_memory_upsert`, `pandas_agent_memory_clear`, `pandas_restore`, and `pandas_import`.
-- Create a memory snapshot before memory-modifying actions.
-- Store snapshot metadata in the checkpoint manifest.
-- Restore memory snapshots during checkpoint restore.
-- Preserve file-only checkpoint behavior.
-- Add clear error messages for missing or corrupt snapshots.
-
-Required tests:
-
-- `K064MemoryCheckpointTests`
-- Existing `K029CheckpointRewindTests`
-
-### K069 SeedSpec Command Surface
-
-Goal: Expose the SeedSpec store through a complete slash command group.
-
-Required commands:
-
-```text
-/spec list
-/spec new <id> <title>
-/spec show <id>
-/spec question <id> <question>
-/spec answer <id> <questionId> <answer>
-/spec criteria add <id> <description>
-/spec lock <id>
-/spec attach <specId> <coordinateTaskId>
-```
-
-Required behavior:
-
-- Use `.claude4net/specs/{specId}/seed-spec.json`.
-- Reject path traversal spec IDs.
-- `lock` fails if blocking questions have no answers.
-- `lock` fails if no required acceptance criteria exist.
-- `attach` calls coordinator spec sync and reports generated gates.
-
-Required tests:
-
-- `K054SeedSpecTests`
-- New `K069SeedSpecCommandTests`
-
-### K070 Coordinate Spec Enforcement
-
-Goal: Make SeedSpec a real execution gate for coordinated work.
-
-Required work:
-
-- Support `/coordinate start <id> <title> --spec <specId>`.
-- Attach locked spec during task creation when `--spec` is present.
-- Reject unknown spec IDs.
-- Reject unlocked specs for immediate Execution.
-- Convert required acceptance criteria to evidence-required gates.
-- Convert optional acceptance criteria to non-blocking gates.
-- Block Execution when attached spec is unlocked or has unanswered blocking questions.
-- Preserve existing Planning gate behavior.
-
-Required tests:
-
-- `K055CoordinateSpecGateTests`
-- New `K070CoordinateSpecCommandTests`
 
 ### K071 Provider Descriptor V2 Model
 
@@ -663,10 +540,10 @@ git ls-files --others --exclude-standard
 
 Do not mark any item checked until implementation, tests, and release evidence exist.
 
-- [ ] K067 State Hygiene Completion
-- [ ] K068 Memory Checkpoint Integration
-- [ ] K069 SeedSpec Command Surface
-- [ ] K070 Coordinate Spec Enforcement
+- [x] K067 State Hygiene Completion
+- [x] K068 Memory Checkpoint Integration
+- [x] K069 SeedSpec Command Surface
+- [x] K070 Coordinate Spec Enforcement
 - [ ] K071 Provider Descriptor V2 Model
 - [ ] K072 Provider Settings Precedence
 - [ ] K073 Provider Factory Preparation

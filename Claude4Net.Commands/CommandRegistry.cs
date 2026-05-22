@@ -559,36 +559,28 @@ namespace Claude4Net.Commands
                             sb.AppendLine();
                             sb.AppendLine("[bold blue]Session Projection (CQRS Read Model):[/]");
                             sb.AppendLine($"  Total Events: {summary.TotalEventCount}");
-                            sb.AppendLine($"  Tool Calls: {summary.ToolCallCount}");
                         }
                     }
-                    catch { /* Ignore projection errors in status output */ }
+                    catch
+                    {
+                    }
                 }
-
                 return sb.ToString();
             }},
 
-            /// <summary> ?�용???�인: 모델�??�큰 ?�용???�계�?보여줍니?? </summary>
+            /// <summary> ?용???인: 모델??큰 ?용???계?보여줍니?? </summary>
             new Command { Name = "usage", Description = "Show model token usage summary", Handler = (a, sp) => {
                 return Task.FromResult("[yellow]Usage tracking is active. Summary display pending SDK update.[/]");
             }},
 
-            /// <summary> 종료: ?�플리�??�션???�전?�게 종료?�니?? </summary>
-            new Command { Name = "exit", Description = "Exit the application", Handler = (a, sp) => {
-                return Task.FromResult("[bold yellow]System is shutting down... Goodbye![/]");
-            }},
-
-            /// <summary> ?�션 리셋: ?�재 LLM과의 ?�??기록??초기?�합?�다. </summary>
+            /// <summary> ?션 리셋: ?재 LLM과의 ???기록??초기?합?다. </summary>
             new Command { Name = "reset", Description = "Reset current conversation history", Handler = (a, sp) => {
                 return Task.FromResult("[yellow]Session reset command issued. Provider history will be cleared on next turn.[/]");
             }},
 
-            // --- [고급 코디?�이?? ---
-
-            /// <summary> 코디?�이?? 복잡???�스?��? Planning -> Execution -> Verification ?�계별로 ?��??�트?�이?�합?�다. </summary>
-            new Command { Name = "coordinate", Description = "Orchestrate tasks through Planning -> Execution -> Verification phases", Handler = (a, sp) => {
+            new Command { Name = "coordinate", Description = "Orchestrate tasks through Planning -> Execution -> Verification phases", Handler = async (a, sp) => {
                 var parts = a.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length == 0) return Task.FromResult("Usage: /coordinate <list|start|status|phase|gate|evidence|approve|reject>");
+                if (parts.Length == 0) return "Usage: /coordinate <list|start|status|phase|gate|evidence|approve|reject>";
 
                 string sub = parts[0].ToLowerInvariant();
                 var store = CoordinatorStore.Instance;
@@ -597,7 +589,7 @@ namespace Claude4Net.Commands
                 {
                     case "list":
                         var tasks = AppState.GetCoordinatedTasks().ToList();
-                        if (!tasks.Any()) return Task.FromResult("[grey]No coordinated tasks found.[/]");
+                        if (!tasks.Any()) return "[grey]No coordinated tasks found.[/]";
                         var table = new System.Text.StringBuilder();
                         table.AppendLine("[bold cyan]Coordinated Tasks:[/]");
                         foreach(var t in tasks)
@@ -605,23 +597,80 @@ namespace Claude4Net.Commands
                             string scoreColor = t.ReadinessScore > 80 ? "green" : t.ReadinessScore > 40 ? "yellow" : "red";
                             table.AppendLine($"  - [[{t.Id}]] [bold]{t.Title}[/] ({t.CurrentPhase}) [[[{scoreColor}]{t.ReadinessScore:0}%[/]]] - {t.ReviewStatus}");
                         }
-                        return Task.FromResult(table.ToString());
+                        return table.ToString();
 
                     case "start":
-                        if (parts.Length < 3) return Task.FromResult("Usage: /coordinate start <id> <title> [description]");
-                        string id = parts[1];
-                        string title = parts[2];
-                        string desc = parts.Length > 3 ? string.Join(" ", parts.Skip(3)) : title;
-                        try {
-                            store.CreateTask(id, title, desc);
-                            return Task.FromResult($"[green]Task '{title}' started with ID '{id}'. Phase: Planning[/]");
-                        } catch (Exception ex) {
-                            return Task.FromResult($"[red]Error:[/] {ex.Message}");
+                        {
+                            if (parts.Length < 3) return "Usage: /coordinate start <id> <title> [description]";
+                            string id = parts[1];
+                            string title = parts[2];
+                            string desc = title;
+                            string? specId = null;
+
+                            int specIndex = Array.FindIndex(parts, p => p.Equals("--spec", StringComparison.OrdinalIgnoreCase));
+                            if (specIndex != -1)
+                            {
+                                if (specIndex + 1 < parts.Length)
+                                {
+                                    specId = parts[specIndex + 1];
+                                    if (specId.Contains("..") || specId.Contains('/') || specId.Contains('\\') || specId.Contains(':'))
+                                    {
+                                        return "[red]Error:[/] Invalid Spec ID. Path traversal or invalid characters detected.";
+                                    }
+                                    var invalidChars = System.IO.Path.GetInvalidFileNameChars();
+                                    if (specId.Any(c => invalidChars.Contains(c)))
+                                    {
+                                        return "[red]Error:[/] Invalid Spec ID. Path traversal or invalid characters detected.";
+                                    }
+                                }
+                                else
+                                {
+                                    return "[red]Error:[/] Missing spec ID after --spec option.";
+                                }
+
+                                if (specIndex > 3)
+                                {
+                                    desc = string.Join(" ", parts.Skip(3).Take(specIndex - 3));
+                                }
+                            }
+                            else
+                            {
+                                if (parts.Length > 3)
+                                {
+                                    desc = string.Join(" ", parts.Skip(3));
+                                }
+                            }
+
+                            SeedSpecRecord? spec = null;
+                            if (specId != null)
+                            {
+                                var specStore = new SeedSpecStore(AppState.CurrentCwd ?? string.Empty);
+                                spec = await specStore.LoadAsync(specId);
+                                if (spec == null)
+                                {
+                                    return $"[red]Error:[/] Spec '{specId}' not found.";
+                                }
+                                if (spec.Status != SeedSpecStatus.Locked)
+                                {
+                                    return $"[red]Error: Spec '{specId}' is not in Locked status (Current: {spec.Status}). Only Locked specs can be attached.[/]";
+                                }
+                            }
+
+                            try {
+                                store.CreateTask(id, title, desc);
+                                if (spec != null)
+                                {
+                                    store.SyncGatesFromSpec(id, spec);
+                                }
+                                return $"[green]Task '{title}' started with ID '{id}'. Phase: Planning[/]";
+                            } catch (Exception ex) {
+                                return $"[red]Error:[/] {ex.Message}";
+                            }
                         }
 
                     case "status":
-                        if (parts.Length < 2) return Task.FromResult("Usage: /coordinate status <id>");
-                        if (!AppState.Tasks.TryGetValue(parts[1], out var st) || st is not CoordinateTask task) return Task.FromResult($"[red]Error:[/] Coordinated task '{parts[1]}' not found.");
+                        if (parts.Length < 2) return $"[red]Error:[/] Usage: /coordinate status <id>";
+                        if (!AppState.Tasks.TryGetValue(parts[1], out var st) || st is not CoordinateTask task) return $"[red]Error:[/] Coordinated task '{parts[1]}' not found.";
 
                         var sb = new System.Text.StringBuilder();
                         sb.AppendLine($"[bold cyan]Task Details: {task.Title} ({task.Id})[/]");
@@ -629,7 +678,7 @@ namespace Claude4Net.Commands
                         sb.AppendLine($"  [bold]Phase:[/] {task.CurrentPhase}");
                         sb.AppendLine($"  [bold]Review:[/] {task.ReviewStatus}");
 
-                        // 병합 준비도(Readiness) 진행 �??�시
+                        // 병합 준비도(Readiness) 진행 ??시
                         int barWidth = 20;
                         int filled = (int)(task.ReadinessScore / 100 * barWidth);
                         string bar = new string('=', filled) + new string('-', barWidth - filled);
@@ -646,42 +695,42 @@ namespace Claude4Net.Commands
                         if (!task.Gates.Any()) sb.AppendLine("    (No gates defined)");
                         foreach(var g in task.Gates)
                         {
-                            string statusIcon = g.IsPassed ? "[green]??/]" : "[red]??/]";
+                            string statusIcon = g.IsPassed ? "[green]✔[/]" : "[red]✘[/]";
                             string evidenceInfo = g.Evidences.Any() ? $" ({g.Evidences.Count} Evidence)" : (g.IsEvidenceRequired ? " [red](Evidence Required)[/]" : "");
                             sb.AppendLine($"    - {statusIcon} [bold]{g.Name}[/]: {g.Comments}{evidenceInfo}");
                             if (g.ApprovedBy != null) sb.AppendLine($"      [grey]Approved by: {g.ApprovedBy} at {g.UpdatedAt}[/]");
 
                             foreach(var ev in g.Evidences)
                             {
-                                sb.AppendLine($"      [grey]??Evidence: {ev.Summary} (by {ev.Author})[/]");
+                                sb.AppendLine($"      [grey]✔ Evidence: {ev.Summary} (by {ev.Author})[/]");
                             }
                         }
 
                         sb.AppendLine($"  [bold]History (Last 5):[/]");
                         foreach(var h in task.History.AsEnumerable().Reverse().Take(5)) sb.AppendLine($"    - {h}");
 
-                        return Task.FromResult(sb.ToString());
+                        return sb.ToString();
 
                     case "phase":
-                        if (parts.Length < 3) return Task.FromResult("Usage: /coordinate phase <id> <Planning|Execution|Verification|Completed>");
+                        if (parts.Length < 3) return "Usage: /coordinate phase <id> <Planning|Execution|Verification|Completed>";
                         if (Enum.TryParse<CoordinatePhase>(parts[2], true, out var newPhase)) {
                             string res = store.TransitionPhase(parts[1], newPhase);
-                            return Task.FromResult(res.StartsWith("Error") ? $"[red]{res}[/]" : $"[green]{res}[/]");
+                            return res.StartsWith("Error") ? $"[red]{res}[/]" : $"[green]{res}[/]";
                         }
-                        return Task.FromResult($"[red]Error:[/] Invalid phase '{parts[2]}'.");
+                        return $"[red]Error:[/] Invalid phase '{parts[2]}'.";
 
                     case "gate":
-                        if (parts.Length < 4) return Task.FromResult("Usage: /coordinate gate <id> <name> <true|false> [comments]");
+                        if (parts.Length < 4) return "Usage: /coordinate gate <id> <name> <true|false> [comments]";
                         if (bool.TryParse(parts[3], out bool passed)) {
                             string? gComments = parts.Length > 4 ? string.Join(" ", parts.Skip(4)) : null;
                             string user = Environment.UserName;
                             string res = store.UpdateGate(parts[1], parts[2], passed, gComments, user);
-                            return Task.FromResult(res.StartsWith("Error") ? $"[red]{res}[/]" : $"[green]{res}[/]");
+                            return res.StartsWith("Error") ? $"[red]{res}[/]" : $"[green]{res}[/]";
                         }
-                        return Task.FromResult($"[red]Error:[/] Invalid boolean value '{parts[3]}'.");
+                        return $"[red]Error:[/] Invalid boolean value '{parts[3]}'.";
 
                     case "evidence":
-                        if (parts.Length < 4) return Task.FromResult("Usage: /coordinate evidence <taskId> <gateName> <summary> [details]");
+                        if (parts.Length < 4) return "Usage: /coordinate evidence <taskId> <gateName> <summary> [details]";
                         string evTaskId = parts[1];
                         string evGateName = parts[2];
                         string evSummary = parts[3];
@@ -689,22 +738,22 @@ namespace Claude4Net.Commands
                         string evAuthor = Environment.UserName;
 
                         string evRes = store.AddEvidence(evTaskId, evGateName, evAuthor, evSummary, evDetails);
-                        return Task.FromResult(evRes.StartsWith("Error") ? $"[red]{evRes}[/]" : $"[green]{evRes}[/]");
+                        return evRes.StartsWith("Error") ? $"[red]{evRes}[/]" : $"[green]{evRes}[/]";
 
                     case "approve":
-                        if (parts.Length < 2) return Task.FromResult("Usage: /coordinate approve <id> [comments]");
+                        if (parts.Length < 2) return "Usage: /coordinate approve <id> [comments]";
                         string aComments = parts.Length > 2 ? string.Join(" ", parts.Skip(2)) : "Approved via CLI";
                         string aRes = store.SetReview(parts[1], ReviewerDecision.Approved, aComments);
-                        return Task.FromResult(aRes.StartsWith("Error") ? $"[red]{aRes}[/]" : $"[green]{aRes}[/]");
+                        return aRes.StartsWith("Error") ? $"[red]{aRes}[/]" : $"[green]{aRes}[/]";
 
                     case "reject":
-                        if (parts.Length < 2) return Task.FromResult("Usage: /coordinate reject <id> [comments]");
+                        if (parts.Length < 2) return "Usage: /coordinate reject <id> [comments]";
                         string rComments = parts.Length > 2 ? string.Join(" ", parts.Skip(2)) : "Rejected via CLI";
                         string rRes = store.SetReview(parts[1], ReviewerDecision.Rejected, rComments);
-                        return Task.FromResult(rRes.StartsWith("Error") ? $"[red]{rRes}[/]" : $"[yellow]{rRes}[/]");
+                        return rRes.StartsWith("Error") ? $"[red]{rRes}[/]" : $"[yellow]{rRes}[/]";
 
                     default:
-                        return Task.FromResult($"[red]Unknown subcommand:[/] {sub}");
+                        return $"[red]Unknown subcommand:[/] {sub}";
                 }
             }},
 
@@ -854,8 +903,375 @@ namespace Claude4Net.Commands
                 // CLI 출력 포맷
                 string cliOutput = VerificationOrchestrator.FormatResultForCli(result);
                 return cliOutput;
+            }},
+
+            new Command { Name = "spec", Description = "Manage specifications (list | new | show | question | answer | criteria | lock | attach)", Handler = async (a, sp) => {
+                if (string.IsNullOrEmpty(AppState.CurrentCwd))
+                    return "[red]Error:[/] Workspace not set. Use /setworkspace <path> first.";
+
+                var store = new SeedSpecStore(AppState.CurrentCwd);
+                var parts = a.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length == 0)
+                {
+                    return "[bold cyan]Usage:[/]\n" +
+                           "  /spec list\n" +
+                           "  /spec new <id> <title>\n" +
+                           "  /spec show <id>\n" +
+                           "  /spec question <id> <question>\n" +
+                           "  /spec answer <id> <questionId> <answer>\n" +
+                           "  /spec criteria add <id> <description>\n" +
+                           "  /spec lock <id>\n" +
+                           "  /spec attach <specId> <coordinateTaskId>";
+                }
+
+                string sub = parts[0].ToLowerInvariant();
+
+                // Helper for path traversal defense
+                bool IsValidSpecId(string specId)
+                {
+                    if (string.IsNullOrEmpty(specId)) return false;
+                    if (specId.Contains("..") || specId.Contains('/') || specId.Contains('\\') || specId.Contains(':')) return false;
+                    var invalidChars = Path.GetInvalidFileNameChars();
+                    if (specId.Any(c => invalidChars.Contains(c))) return false;
+                    return true;
+                }
+
+                switch (sub)
+                {
+                    case "list":
+                        {
+                            var specs = store.ListSpecs().ToList();
+                            if (!specs.Any()) return "[grey]No specs found in workspace.[/]";
+
+                            var table = new Table().Border(TableBorder.Rounded);
+                            table.AddColumn("[bold]ID[/]");
+                            table.AddColumn("[bold]Title[/]");
+                            table.AddColumn("[bold]Status[/]");
+                            table.AddColumn("[bold]Criteria[/]");
+                            table.AddColumn("[bold]Open Qs[/]");
+                            table.AddColumn("[bold]Updated At[/]");
+
+                            foreach (var s in specs.OrderBy(x => x.Id))
+                            {
+                                string statusColor = s.Status switch
+                                {
+                                    SeedSpecStatus.Locked => "green",
+                                    SeedSpecStatus.Draft => "yellow",
+                                    SeedSpecStatus.NeedsClarification => "blue",
+                                    SeedSpecStatus.Superseded => "grey",
+                                    _ => "white"
+                                };
+                                table.AddRow(
+                                    Markup.Escape(s.Id),
+                                    Markup.Escape(s.Title),
+                                    $"[{statusColor}]{s.Status}[/]",
+                                    s.AcceptanceCriteria.Count.ToString(),
+                                    s.OpenQuestions.Count.ToString(),
+                                    s.UpdatedAt.ToString("yyyy-MM-dd HH:mm:ss")
+                                );
+                            }
+
+                            AnsiConsole.Write(table);
+                            return $"Total {specs.Count} specs listed.";
+                        }
+
+                    case "new":
+                        {
+                            var newParts = a.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
+                            if (newParts.Length < 3)
+                            {
+                                return "[red]Error:[/] Usage: /spec new <id> <title>";
+                            }
+
+                            string specId = newParts[1];
+                            if (!IsValidSpecId(specId))
+                            {
+                                return "[red]Error:[/] Invalid Spec ID. Path traversal or invalid characters detected.";
+                            }
+
+                            var existing = await store.LoadAsync(specId);
+                            if (existing != null)
+                            {
+                                return $"[red]Error:[/] Spec with ID '{specId}' already exists.";
+                            }
+
+                            string title = newParts[2].Trim('\"');
+                            var spec = new SeedSpecRecord
+                            {
+                                Id = specId,
+                                Title = title,
+                                Status = SeedSpecStatus.Draft,
+                                CreatedAt = DateTimeOffset.UtcNow,
+                                UpdatedAt = DateTimeOffset.UtcNow
+                            };
+                            await store.SaveAsync(spec);
+                            return $"[green]Spec '{title}' created successfully with ID '{specId}'.[/]";
+                        }
+
+                    case "show":
+                        {
+                            if (parts.Length < 2)
+                            {
+                                return "[red]Error:[/] Usage: /spec show <id>";
+                            }
+
+                            string specId = parts[1];
+                            if (!IsValidSpecId(specId))
+                            {
+                                return "[red]Error:[/] Invalid Spec ID. Path traversal or invalid characters detected.";
+                            }
+
+                            var spec = await store.LoadAsync(specId);
+                            if (spec == null)
+                            {
+                                return $"[red]Error:[/] Spec '{specId}' not found.";
+                            }
+
+                            var sb = new System.Text.StringBuilder();
+                            sb.AppendLine($"[bold cyan]Spec:[/] {Markup.Escape(spec.Title)} ([bold]{Markup.Escape(spec.Id)}[/])");
+                            sb.AppendLine($"[bold]Status:[/] {spec.Status}");
+                            sb.AppendLine($"[bold]Goal:[/] {Markup.Escape(string.IsNullOrEmpty(spec.Goal) ? "(None)" : spec.Goal)}");
+                            sb.AppendLine();
+                            sb.AppendLine("[bold yellow]Acceptance Criteria:[/]");
+                            if (spec.AcceptanceCriteria.Count == 0)
+                            {
+                                sb.AppendLine("  (No acceptance criteria defined)");
+                            }
+                            else
+                            {
+                                foreach (var ac in spec.AcceptanceCriteria)
+                                {
+                                    string reqStr = ac.Required ? "[red](Required)[/]" : "[grey](Optional)[/]";
+                                    sb.AppendLine($"  - [[[bold]{Markup.Escape(ac.Id)}[/]]] {Markup.Escape(ac.Description)} {reqStr}");
+                                }
+                            }
+                            sb.AppendLine();
+                            sb.AppendLine("[bold yellow]Open Questions:[/]");
+                            if (spec.OpenQuestions.Count == 0)
+                            {
+                                sb.AppendLine("  (No open questions)");
+                            }
+                            else
+                            {
+                                foreach (var q in spec.OpenQuestions)
+                                {
+                                    string blockStr = q.IsBlocking ? "[red](Blocking)[/]" : "[grey](Non-blocking)[/]";
+                                    string ansStr = string.IsNullOrEmpty(q.Answer) ? "[yellow]Unanswered[/]" : $"[green]Answered:[/] {Markup.Escape(q.Answer)}";
+                                    sb.AppendLine($"  - [[[bold]{Markup.Escape(q.Id)}[/]]] {Markup.Escape(q.Question)} {blockStr}");
+                                    sb.AppendLine($"    {ansStr}");
+                                }
+                            }
+                            return sb.ToString();
+                        }
+
+                    case "question":
+                        {
+                            var qParts = a.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
+                            if (qParts.Length < 3)
+                            {
+                                return "[red]Error:[/] Usage: /spec question <id> <question>";
+                            }
+
+                            string specId = qParts[1];
+                            if (!IsValidSpecId(specId))
+                            {
+                                return "[red]Error:[/] Invalid Spec ID. Path traversal or invalid characters detected.";
+                            }
+
+                            var spec = await store.LoadAsync(specId);
+                            if (spec == null)
+                            {
+                                return $"[red]Error:[/] Spec '{specId}' not found.";
+                            }
+
+                            string questionText = qParts[2].Trim('\"');
+
+                            int nextNum = 1;
+                            if (spec.OpenQuestions.Any())
+                            {
+                                var maxId = spec.OpenQuestions
+                                    .Select(q => q.Id)
+                                    .Where(id => id.StartsWith("Q-") && int.TryParse(id.Substring(2), out _))
+                                    .Select(id => int.Parse(id.Substring(2)))
+                                    .DefaultIfEmpty(0)
+                                    .Max();
+                                nextNum = maxId + 1;
+                            }
+                            string qId = $"Q-{nextNum}";
+
+                            var clarifyingQuestion = new ClarifyingQuestion
+                            {
+                                Id = qId,
+                                Question = questionText,
+                                IsBlocking = true
+                            };
+                            spec.OpenQuestions.Add(clarifyingQuestion);
+                            await store.SaveAsync(spec);
+                            return $"[green]Blocking question '{qId}' added to Spec '{specId}':[/] {Markup.Escape(questionText)}";
+                        }
+
+                    case "answer":
+                        {
+                            var ansParts = a.Split(' ', 4, StringSplitOptions.RemoveEmptyEntries);
+                            if (ansParts.Length < 4)
+                            {
+                                return "[red]Error:[/] Usage: /spec answer <id> <questionId> <answer>";
+                            }
+
+                            string specId = ansParts[1];
+                            if (!IsValidSpecId(specId))
+                            {
+                                return "[red]Error:[/] Invalid Spec ID. Path traversal or invalid characters detected.";
+                            }
+
+                            var spec = await store.LoadAsync(specId);
+                            if (spec == null)
+                            {
+                                return $"[red]Error:[/] Spec '{specId}' not found.";
+                            }
+
+                            string qId = ansParts[2];
+                            var question = spec.OpenQuestions.FirstOrDefault(q => q.Id.Equals(qId, StringComparison.OrdinalIgnoreCase));
+                            if (question == null)
+                            {
+                                return $"[red]Error:[/] Question '{qId}' not found in Spec '{specId}'.";
+                            }
+
+                            string answerText = ansParts[3].Trim('\"');
+                            question.Answer = answerText;
+                            await store.SaveAsync(spec);
+                            return $"[green]Question '{qId}' in Spec '{specId}' answered successfully.[/]";
+                        }
+
+                    case "criteria":
+                        {
+                            var critParts = a.Split(' ', 4, StringSplitOptions.RemoveEmptyEntries);
+                            if (critParts.Length < 4 || !critParts[1].Equals("add", StringComparison.OrdinalIgnoreCase))
+                            {
+                                return "[red]Error:[/] Usage: /spec criteria add <id> <description>";
+                            }
+
+                            string specId = critParts[2];
+                            if (!IsValidSpecId(specId))
+                            {
+                                return "[red]Error:[/] Invalid Spec ID. Path traversal or invalid characters detected.";
+                            }
+
+                            var spec = await store.LoadAsync(specId);
+                            if (spec == null)
+                            {
+                                return $"[red]Error:[/] Spec '{specId}' not found.";
+                            }
+
+                            string descText = critParts[3].Trim('\"');
+
+                            int nextNum = 1;
+                            if (spec.AcceptanceCriteria.Any())
+                            {
+                                var maxId = spec.AcceptanceCriteria
+                                    .Select(ac => ac.Id)
+                                    .Where(id => id.StartsWith("AC-") && int.TryParse(id.Substring(3), out _))
+                                    .Select(id => int.Parse(id.Substring(3)))
+                                    .DefaultIfEmpty(0)
+                                    .Max();
+                                nextNum = maxId + 1;
+                            }
+                            string acId = $"AC-{nextNum}";
+
+                            var criterion = new AcceptanceCriterion
+                            {
+                                Id = acId,
+                                Description = descText,
+                                Required = true
+                            };
+                            spec.AcceptanceCriteria.Add(criterion);
+                            await store.SaveAsync(spec);
+                            return $"[green]Required acceptance criterion '{acId}' added to Spec '{specId}':[/] {Markup.Escape(descText)}";
+                        }
+
+                    case "lock":
+                        {
+                            if (parts.Length < 2)
+                            {
+                                return "[red]Error:[/] Usage: /spec lock <id>";
+                            }
+
+                            string specId = parts[1];
+                            if (!IsValidSpecId(specId))
+                            {
+                                return "[red]Error:[/] Invalid Spec ID. Path traversal or invalid characters detected.";
+                            }
+
+                            var spec = await store.LoadAsync(specId);
+                            if (spec == null)
+                            {
+                                return $"[red]Error:[/] Spec '{specId}' not found.";
+                            }
+
+                            var unansweredBlocking = spec.OpenQuestions.Where(q => q.IsBlocking && string.IsNullOrEmpty(q.Answer)).ToList();
+                            if (unansweredBlocking.Any())
+                            {
+                                return $"[red]Error: Cannot lock spec. Unanswered blocking questions exist: {string.Join(", ", unansweredBlocking.Select(q => q.Id))}.[/]";
+                            }
+
+                            var requiredCriteria = spec.AcceptanceCriteria.Where(ac => ac.Required).ToList();
+                            if (!requiredCriteria.Any())
+                            {
+                                return "[red]Error: Cannot lock spec. At least one required acceptance criterion is needed.[/]";
+                            }
+
+                            spec.Status = SeedSpecStatus.Locked;
+                            await store.SaveAsync(spec);
+                            return $"[green]Spec '{specId}' is now Locked.[/]";
+                        }
+
+                    case "attach":
+                        {
+                            if (parts.Length < 3)
+                            {
+                                return "[red]Error:[/] Usage: /spec attach <specId> <coordinateTaskId>";
+                            }
+
+                            string specId = parts[1];
+                            string coordinateTaskId = parts[2];
+
+                            if (!IsValidSpecId(specId))
+                            {
+                                return "[red]Error:[/] Invalid Spec ID. Path traversal or invalid characters detected.";
+                            }
+
+                            var spec = await store.LoadAsync(specId);
+                            if (spec == null)
+                            {
+                                return $"[red]Error:[/] Spec '{specId}' not found.";
+                            }
+
+                            if (spec.Status != SeedSpecStatus.Locked)
+                            {
+                                return $"[red]Error: Spec '{specId}' is not in Locked status (Current: {spec.Status}). Only Locked specs can be attached.[/]";
+                            }
+
+                            if (!AppState.Tasks.TryGetValue(coordinateTaskId, out var st) || st is not CoordinateTask task)
+                            {
+                                return $"[red]Error: Coordinate task '{coordinateTaskId}' not found.[/]";
+                            }
+
+                            CoordinatorStore.Instance.SyncGatesFromSpec(coordinateTaskId, spec);
+
+                            var generatedGates = spec.AcceptanceCriteria.Select(ac => "Spec-" + ac.Id).ToList();
+                            return $"[green]Spec '{specId}' successfully attached to Coordinate Task '{coordinateTaskId}'.[/]\nGenerated gates: {string.Join(", ", generatedGates)}";
+                        }
+
+                    default:
+                        return $"[red]Error:[/] Unknown subcommand '{sub}'.";
+                }
+            }},
+
+            new Command { Name = "exit", Description = "Exit the CLI application", Handler = (a, sp) => {
+                return Task.FromResult("System is shutting down... Goodbye!");
             }}
         };
+
 
 
         /// <summary>

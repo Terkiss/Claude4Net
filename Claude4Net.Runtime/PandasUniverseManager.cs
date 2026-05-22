@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Collections.Generic; using System.Collections.Concurrent;
 using System.Linq;
@@ -29,64 +29,24 @@ namespace Claude4Net.Runtime
             return _storeCache.GetOrAdd(key, _ => new ScopedPandasUniverseStore(ctx));
         }
 
-
-
-        private readonly DataUniverse _universe;
-        private readonly string _dbPath;
-        private readonly Channel<Func<DataUniverse, Task>> _transactionQueue;
-        private bool _isDirty = false;
-
-        /// <summary>
-        /// ?꾩옱 ?좊땲踰꾩뒪???ы븿???뚯씠釉??대쫫 紐⑸줉?낅땲??
-        /// </summary>
-        public IEnumerable<string> TableNames => _universe.TableNames;
-
-        private PandasUniverseManager()
+        public static WorkspaceStateContext GetCurrentContext()
         {
-            // 1. ?곗씠?곕쿋?댁뒪 ???寃쎈줈 ?뺤젙 (db/memory.db)
-            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            string dbDir = Path.Combine(baseDir, "db");
-            if (!Directory.Exists(dbDir)) Directory.CreateDirectory(dbDir);
-            _dbPath = Path.Combine(dbDir, "memory.db");
-
-            // 2. 湲곗〈 DB 濡쒕뱶 ?쒕룄
-            if (File.Exists(_dbPath))
+            string? root = Claude4Net.SDK.AppState.CurrentCwd;
+            if (string.IsNullOrEmpty(root))
             {
-                try
-                {
-                    _universe = DataUniverseIO.FromSqlite(_dbPath);
-                }
-                catch (Exception)
-                {
-                    _universe = new DataUniverse();
-                }
+                root = Directory.GetCurrentDirectory();
             }
-            else
+            return new WorkspaceStateContext
             {
-                _universe = new DataUniverse();
-            }
-
-            // 3. ?몃옖??뀡 ??珥덇린?? 紐⑤뱺 DB ?묒뾽? ?먮? ?듯빐 ?쒖감?곸쑝濡?泥섎━?섏뼱 ?ㅻ젅???덉쟾?깆쓣 蹂댁옣?⑸땲??
-            _transactionQueue = Channel.CreateUnbounded<Func<DataUniverse, Task>>();
-
-            // 4. ?꾩닔 踰좎씠?ㅻ씪???뚯씠釉?Schema) 珥덇린??
-            EnsureBaselineTablesInternal(_universe);
-
-            // 5. 諛깃렇?쇱슫???몃옖??뀡 泥섎━ 猷⑦봽 ?쒖옉
-            _ = ProcessQueueAsync();
-
-            // 6. 10遺?二쇨린 ?먮룞 ???猷⑦봽 ?쒖옉
-            _ = AutoSaveLoopAsync();
-
-            // 7. ?좏뵆由ъ??댁뀡 醫낅즺 ???곗씠??媛뺤젣 ???蹂댁옣
-            AppDomain.CurrentDomain.ProcessExit += (s, e) =>
-            {
-                if (_isDirty)
-                {
-                    try { _universe.ToSqlite(_dbPath, overwrite: true); } catch { }
-                }
+                WorkspaceRoot = root,
+                SessionId = Claude4Net.SDK.AppState.SessionId ?? "default-session"
             };
         }
+
+        /// <summary>
+        /// Gets the table names from the active scoped store.
+        /// </summary>
+        public IEnumerable<string> TableNames => GetStore(GetCurrentContext()).TableNames;
 
         /// <summary>
         /// ?꾩닔 踰좎씠?ㅻ씪???뚯씠釉붿씠 議댁옱?섎뒗吏 鍮꾨룞湲곕줈 ?뺤씤?섍퀬 ?앹꽦?⑸땲??
@@ -191,144 +151,44 @@ namespace Claude4Net.Runtime
             }
         }
 
-        private async Task AutoSaveLoopAsync()
-        {
-            while (true)
-            {
-                await Task.Delay(TimeSpan.FromMinutes(10));
-                if (_isDirty)
-                {
-                    // ?몃옖??뀡 ?먮? ?듯빐 ?쇨????덇쾶 ????묒뾽 ?섑뻾
-                    await ExecuteAsync(u =>
-                    {
-                        Save(u);
-                        _isDirty = false;
-                    });
-                }
-            }
-        }
-
         /// <summary>
-        /// DataUniverse?????諛섑솚媛믪씠 ?덈뒗 ?묒뾽???쒖감?곸쑝濡??ㅽ뻾?⑸땲??
+        /// Execute operation on the active scoped store.
         /// </summary>
         public async Task<T> ExecuteAsync<T>(Func<DataUniverse, T> action)
         {
-            var tcs = new TaskCompletionSource<T>();
-
-            await _transactionQueue.Writer.WriteAsync(async u =>
-            {
-                try
-                {
-                    T result = action(u);
-                    _isDirty = true;
-                    tcs.SetResult(result);
-                }
-                catch (Exception ex)
-                {
-                    tcs.SetException(ex);
-                }
-                await Task.CompletedTask;
-            });
-
-            return await tcs.Task;
+            return await GetStore(GetCurrentContext()).ExecuteAsync(action);
         }
 
         /// <summary>
-        /// DataUniverse?????諛섑솚媛믪씠 ?녿뒗 ?묒뾽???쒖감?곸쑝濡??ㅽ뻾?⑸땲??
+        /// Execute operation on the active scoped store.
         /// </summary>
         public async Task ExecuteAsync(Action<DataUniverse> action)
         {
-            await ExecuteAsync<object?>((Func<DataUniverse, object?>)(u =>
-            {
-                action(u);
-                return null;
-            }));
+            await GetStore(GetCurrentContext()).ExecuteAsync(action);
         }
 
         /// <summary>
-        /// DataUniverse?????諛섑솚媛믪씠 ?덈뒗 鍮꾨룞湲??묒뾽???쒖감?곸쑝濡??ㅽ뻾?⑸땲??
+        /// Execute operation on the active scoped store.
         /// </summary>
         public async Task<T> ExecuteAsync<T>(Func<DataUniverse, Task<T>> action)
         {
-            var tcs = new TaskCompletionSource<T>();
-
-            await _transactionQueue.Writer.WriteAsync(async u =>
-            {
-                try
-                {
-                    var task = action(u);
-                    if (task == null)
-                    {
-                        tcs.SetException(new InvalidOperationException("Action returned a null task."));
-                        return;
-                    }
-                    T result = await task;
-                    _isDirty = true;
-                    tcs.SetResult(result);
-                }
-                catch (Exception ex)
-                {
-                    tcs.SetException(ex);
-                }
-            });
-
-            return await tcs.Task;
+            return await GetStore(GetCurrentContext()).ExecuteAsync(action);
         }
 
         /// <summary>
-        /// DataUniverse?????諛섑솚媛믪씠 ?녿뒗 鍮꾨룞湲??묒뾽???쒖감?곸쑝濡??ㅽ뻾?⑸땲??
+        /// Execute operation on the active scoped store.
         /// </summary>
         public async Task ExecuteAsync(Func<DataUniverse, Task> action)
         {
-            await ExecuteAsync<object?>(async u =>
-            {
-                var task = action(u);
-                if (task != null) await task;
-                return null;
-            });
-        }
-
-        private void Save(DataUniverse u)
-        {
-            try
-            {
-                // ?몃찓紐⑤━ ?좊땲踰꾩뒪???ㅻ깄?룹쓣 SQLite ?뚯씪濡??곴뎄 ???
-                u.ToSqlite(_dbPath, overwrite: true);
-            }
-            catch (Exception)
-            {
-                // ????ㅻ쪟 ??蹂꾨룄??濡쒓퉭?대굹 蹂듦뎄 濡쒖쭅 ?꾩슂
-            }
-        }
-
-        private async Task ProcessQueueAsync()
-        {
-            await foreach (var transaction in _transactionQueue.Reader.ReadAllAsync())
-            {
-                await transaction(_universe);
-            }
+            await GetStore(GetCurrentContext()).ExecuteAsync(action);
         }
 
         /// <summary>
-        /// ?뚯뒪??寃⑸━瑜??꾪빐 ?몃옖??뀡 ?먮? ?쒖감?곸쑝濡??듦낵?섎뒗 ?덉쟾??鍮꾨룞湲?由ъ뀑 ?묒뾽???섑뻾?⑸땲??
+        /// Reset and flush the active scoped store.
         /// </summary>
         internal async Task ResetAndFlushForTestAsync()
         {
-            await ExecuteAsync(u =>
-            {
-                u.ClearAll();
-                EnsureBaselineTablesInternal(u);
-                _isDirty = false;
-            });
-
-            try
-            {
-                if (File.Exists(_dbPath))
-                {
-                    File.Delete(_dbPath);
-                }
-            }
-            catch { }
+            await GetStore(GetCurrentContext()).ResetAndFlushForTestAsync();
         }
     }
 }

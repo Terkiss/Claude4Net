@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Claude4Net.SDK;
@@ -43,10 +43,47 @@ namespace Claude4Net.Runtime
             // Validation: Cannot move to Execution if Planning gates are not passed
             if (nextPhase == CoordinatePhase.Execution && task.CurrentPhase == CoordinatePhase.Planning)
             {
-                if (task.SpecId != null && task.SpecLockedAt == null)
+                if (task.SpecId != null)
                 {
-                    return $"Error: Cannot transition to Execution. Attached Spec '{task.SpecId}' must be locked first.";
+                    SeedSpecRecord? spec = null;
+                    if (!string.IsNullOrEmpty(AppState.CurrentCwd))
+                    {
+                        string specPath = System.IO.Path.Combine(AppState.CurrentCwd, ".claude4net", "specs", task.SpecId, "seed-spec.json");
+                        if (System.IO.File.Exists(specPath))
+                        {
+                            try
+                            {
+                                string json = System.IO.File.ReadAllText(specPath);
+                                spec = System.Text.Json.JsonSerializer.Deserialize<SeedSpecRecord>(json, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                            }
+                            catch (Exception)
+                            {
+                            }
+                        }
+                    }
+
+                    if (spec == null)
+                    {
+                        if (task.SpecLockedAt == null)
+                        {
+                            return $"Error: Cannot transition to Execution. Attached Spec '{task.SpecId}' must be locked first.";
+                        }
+                    }
+                    else
+                    {
+                        if (spec.Status != SeedSpecStatus.Locked)
+                        {
+                            return $"Error: Cannot transition to Execution. Attached Spec '{task.SpecId}' must be locked first.";
+                        }
+
+                        var unansweredBlocking = spec.OpenQuestions?.Where(q => q.IsBlocking && string.IsNullOrEmpty(q.Answer)).ToList();
+                        if (unansweredBlocking != null && unansweredBlocking.Any())
+                        {
+                            return $"Error: Cannot transition to Execution. Attached Spec '{task.SpecId}' has unanswered blocking questions: {string.Join(", ", unansweredBlocking.Select(q => q.Question))}";
+                        }
+                    }
                 }
+
                 var pendingGates = task.Gates.Where(g => !g.IsPassed).ToList();
                 if (pendingGates.Any())
                 {

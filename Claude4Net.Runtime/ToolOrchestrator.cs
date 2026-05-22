@@ -162,16 +162,19 @@ namespace Claude4Net.Runtime
                     return new ToolUseResult { ToolUseId = request.Id, Content = "Error: Workspace not set. Use /setworkspace <path> first.", IsError = true };
                 }
 
-                // --- K029: Automatic Checkpointing before file-modifying tools ---
-                if (!string.IsNullOrEmpty(AppState.CurrentCwd) && IsFileModifyingTool(tool.Name))
+                // --- K029: Automatic Checkpointing before file-modifying or memory-modifying tools ---
+                bool isFileModifying = IsFileModifyingTool(tool.Name);
+                bool isMemoryModifying = IsMemoryModifyingTool(tool.Name);
+
+                if (!string.IsNullOrEmpty(AppState.CurrentCwd) && (isFileModifying || isMemoryModifying))
                 {
                     try
                     {
                         var checkpointStore = new CheckpointStore(AppState.CurrentCwd, AppState.SessionId);
                         var targetFiles = ExtractTargetFiles(tool.Name, request.Input);
-                        if (targetFiles.Any())
+                        if (targetFiles.Any() || isMemoryModifying)
                         {
-                            string cpId = await checkpointStore.CreateCheckpointAsync(request.Id, tool.Name, targetFiles);
+                            string cpId = await checkpointStore.CreateCheckpointAsync(request.Id, tool.Name, targetFiles, includeMemoryState: isMemoryModifying);
                             AnsiConsole.MarkupLine($"[grey]Auto-checkpoint created: {cpId} (pre-{tool.Name})[/]");
 
                             if (tool is IPreviewableTool previewTool)
@@ -291,6 +294,12 @@ namespace Claude4Net.Runtime
         {
             var modifiers = new[] { "write", "edit", "replace", "sed", "patch", "delete", "remove", "save" };
             return modifiers.Any(m => name.Contains(m, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static bool IsMemoryModifyingTool(string name)
+        {
+            var memoryModifiers = new[] { "pandas_agent_memory_upsert", "pandas_agent_memory_clear", "pandas_restore", "pandas_import" };
+            return memoryModifiers.Any(m => name.Equals(m, StringComparison.OrdinalIgnoreCase));
         }
 
         private List<string> ExtractTargetFiles(string toolName, object? input)

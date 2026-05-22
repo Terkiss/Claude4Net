@@ -627,7 +627,8 @@ namespace Claude4Net.Tools
 
             try
             {
-                string snapshotDir = Path.Combine(AppState.SystemBaseDir, "db", "snapshots");
+                var stateCtx = PandasUniverseManager.GetCurrentContext();
+                string snapshotDir = stateCtx.SnapshotsDir;
                 if (!Directory.Exists(snapshotDir)) Directory.CreateDirectory(snapshotDir);
                 string snapshotPath = Path.Combine(snapshotDir, $"{safeName}.db");
 
@@ -671,7 +672,8 @@ namespace Claude4Net.Tools
 
             try
             {
-                string snapshotPath = Path.Combine(AppState.SystemBaseDir, "db", "snapshots", $"{safeName}.db");
+                var stateCtx = PandasUniverseManager.GetCurrentContext();
+                string snapshotPath = Path.Combine(stateCtx.SnapshotsDir, $"{safeName}.db");
                 if (!File.Exists(snapshotPath))
                     return new { status = "Error", message = $"Snapshot file not found: {snapshotPath}" };
 

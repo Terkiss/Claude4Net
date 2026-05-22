@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Threading;
@@ -36,6 +36,8 @@ namespace Claude4Net.Runtime
         Task ExecuteAsync(Func<DataUniverse, Task> action);
 
         Task ResetAndFlushForTestAsync(); void ForceSaveSync(); Task ReloadAsync();
+
+        IEnumerable<string> TableNames { get; }
     }
 
     public class ScopedPandasUniverseStore : IPandasUniverseStore
@@ -44,6 +46,8 @@ namespace Claude4Net.Runtime
         private DataUniverse _universe;
         private readonly Channel<Func<DataUniverse, Task>> _transactionQueue;
         private bool _isDirty = false;
+
+        public IEnumerable<string> TableNames => _universe.TableNames;
 
         public ScopedPandasUniverseStore(WorkspaceStateContext context)
         {
@@ -68,7 +72,23 @@ namespace Claude4Net.Runtime
             }
             else
             {
-                _universe = new DataUniverse();
+                string legacyDbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "db", "memory.db");
+                if (File.Exists(legacyDbPath))
+                {
+                    Console.WriteLine($"[Warning] Active database not found. Loading legacy app-base memory database from '{legacyDbPath}' as read-only fallback.");
+                    try
+                    {
+                        _universe = DataUniverseIO.FromSqlite(legacyDbPath);
+                    }
+                    catch (Exception)
+                    {
+                        _universe = new DataUniverse();
+                    }
+                }
+                else
+                {
+                    _universe = new DataUniverse();
+                }
             }
 
             _transactionQueue = Channel.CreateUnbounded<Func<DataUniverse, Task>>();
@@ -78,6 +98,14 @@ namespace Claude4Net.Runtime
 
             _ = ProcessQueueAsync();
             _ = AutoSaveLoopAsync();
+
+            AppDomain.CurrentDomain.ProcessExit += (s, e) =>
+            {
+                if (_isDirty)
+                {
+                    try { _universe.ToSqlite(_context.MemoryDbPath, overwrite: true); _isDirty = false; } catch { }
+                }
+            };
         }
 
         public Task<DataUniverse> LoadAsync(WorkspaceStateContext context, CancellationToken ct = default)

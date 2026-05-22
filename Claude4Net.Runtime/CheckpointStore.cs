@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text.Json;
 using System.Collections.Generic;
@@ -75,9 +75,23 @@ namespace Claude4Net.Runtime
         }
 
         /// <summary>
-        /// ???줈??泥댄??????? ???꽦?????蹂寃쎈??????????쓣 諛깆????땲??
+        /// 새로운 체크포인트를 생성하고 변경된 파일 및 메모리 상태를 백업합니다.
         /// </summary>
-        public async Task<string> CreateCheckpointAsync(string toolCallId, string toolName, List<string> files, string? description = null, bool includeMemoryState = false) { if (includeMemoryState) { var ctx = new WorkspaceStateContext { WorkspaceRoot = _workspaceRoot, SessionId = _sessionId }; PandasUniverseManager.Instance.GetStore(ctx).ForceSaveSync(); if (!files.Contains(ctx.MemoryDbPath)) { files = new List<string>(files) { ctx.MemoryDbPath }; } }
+        public async Task<string> CreateCheckpointAsync(string toolCallId, string toolName, List<string> files, string? description = null, bool includeMemoryState = false)
+        {
+            string? stateSnapshotId = null;
+            if (includeMemoryState)
+            {
+                var ctx = new WorkspaceStateContext { WorkspaceRoot = _workspaceRoot, SessionId = _sessionId };
+                var store = PandasUniverseManager.Instance.GetStore(ctx);
+                store.ForceSaveSync();
+                stateSnapshotId = await store.CreateSnapshotAsync(ctx, $"checkpoint_{toolName}");
+
+                if (!files.Contains(ctx.MemoryDbPath))
+                {
+                    files = new List<string>(files) { ctx.MemoryDbPath };
+                }
+            }
             string checkpointId = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-") + Guid.NewGuid().ToString("N").Substring(0, 8);
             string dir = Path.Combine(_checkpointsDir, checkpointId);
             Directory.CreateDirectory(dir);
@@ -112,7 +126,9 @@ namespace Claude4Net.Runtime
                 ChangedFiles = relativeFiles,
                 CreatedAt = DateTime.UtcNow,
                 Provider = AppState.ActiveProvider,
-                Model = AppState.ActiveModel
+                Model = AppState.ActiveModel,
+                StateSnapshotId = stateSnapshotId,
+                IncludesMemoryState = includeMemoryState
             };
 
             string manifestPath = Path.Combine(dir, "manifest.json");
@@ -122,7 +138,7 @@ namespace Claude4Net.Runtime
         }
 
         /// <summary>
-        /// 泥댄?????몄뿉 蹂寃쎈?????튂(diff)?????ν빀???떎.
+        /// 泥댄?????몄뿉 蹂€寃쎈?????튂(diff)?????ν빀???떎.
         /// </summary>
         public async Task SaveDiffAsync(string checkpointId, string diff)
         {
@@ -162,17 +178,52 @@ namespace Claude4Net.Runtime
         }
 
         /// <summary>
-        /// 泥댄?????몄쓽 'before' ?곹깭?????????蹂듦????땲??
+        /// 체크포인트의 'before' 상태로 파일 및 메모리 상태를 복구합니다.
         /// </summary>
         public async Task RestoreCheckpointAsync(string checkpointId)
         {
             string dir = GetSafeCheckpointDir(checkpointId);
             if (!Directory.Exists(dir)) throw new DirectoryNotFoundException($"Checkpoint {checkpointId} not found.");
 
+            string manifestPath = Path.Combine(dir, "manifest.json");
+            CheckpointManifest? manifest = null;
+            if (File.Exists(manifestPath))
+            {
+                try
+                {
+                    string json = await File.ReadAllTextAsync(manifestPath);
+                    manifest = JsonSerializer.Deserialize<CheckpointManifest>(json);
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException($"Failed to deserialize checkpoint manifest for {checkpointId}: {ex.Message}", ex);
+                }
+            }
+
+            // Restore memory state if checkpoint contains a snapshot reference
+            if (manifest != null && manifest.IncludesMemoryState && !string.IsNullOrEmpty(manifest.StateSnapshotId))
+            {
+                var ctx = new WorkspaceStateContext { WorkspaceRoot = _workspaceRoot, SessionId = _sessionId };
+                var store = PandasUniverseManager.Instance.GetStore(ctx);
+                try
+                {
+                    await store.RestoreSnapshotAsync(ctx, manifest.StateSnapshotId);
+                }
+                catch (FileNotFoundException fnfEx)
+                {
+                    throw new InvalidOperationException($"Memory snapshot file for snapshot ID '{manifest.StateSnapshotId}' is missing or has been deleted.", fnfEx);
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException($"Memory snapshot data for snapshot ID '{manifest.StateSnapshotId}' is corrupted or failed to load: {ex.Message}", ex);
+                }
+            }
+
             string beforeDir = Path.Combine(dir, "before");
             if (!Directory.Exists(beforeDir)) return;
 
-            bool memoryRestored = false; var files = Directory.GetFiles(beforeDir, "*", SearchOption.AllDirectories);
+            bool memoryRestored = false;
+            var files = Directory.GetFiles(beforeDir, "*", SearchOption.AllDirectories);
             foreach (var file in files)
             {
                 string relativePath = Path.GetRelativePath(beforeDir, file);
@@ -187,9 +238,12 @@ namespace Claude4Net.Runtime
                 string? targetDir = Path.GetDirectoryName(targetPath);
                 if (!string.IsNullOrEmpty(targetDir)) Directory.CreateDirectory(targetDir);
 
-                File.Copy(file, targetPath, true); if (targetPath.EndsWith("memory.db", StringComparison.OrdinalIgnoreCase)) memoryRestored = true;
+                File.Copy(file, targetPath, true);
+                if (targetPath.EndsWith("memory.db", StringComparison.OrdinalIgnoreCase)) memoryRestored = true;
             }
-            if (memoryRestored)
+
+            // If we restored a legacy checkpoint (without snapshot but had memory.db in backup)
+            if (memoryRestored && (manifest == null || !manifest.IncludesMemoryState || string.IsNullOrEmpty(manifest.StateSnapshotId)))
             {
                 var ctx = new WorkspaceStateContext { WorkspaceRoot = _workspaceRoot, SessionId = _sessionId };
                 await PandasUniverseManager.Instance.GetStore(ctx).ReloadAsync();

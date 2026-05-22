@@ -80,6 +80,12 @@
 | K056b | Release Gate And Documentation Sync | Completed | 472/472 pass |
 | K057 | Manual TUI Fidelity Pass | Completed | 472/472 pass |
 | K058 | Lumen UX Polish | Completed | 476/476 pass |
+| K059-K066 | Final-Control P1 Remediation | Completed | 502/502 pass |
+| K067 | State Hygiene Completion | Completed | 502/502 pass |
+| K068 | Memory Checkpoint Integration | Completed | 504/504 pass |
+| K069 | SeedSpec Command Surface | Completed | 512/512 pass |
+| K070 | Coordinate Spec Enforcement | Completed | 517/517 pass |
+
 
 
 ## Official Verification Commands
@@ -606,3 +612,50 @@
 - [x] P1-5: SSOT Doc Sync
 - [x] Official Release Gate passed (502/502 pass)
 - [x] [K055, K064 Test Fix] K055 K064 P1 test fixes applied and all 502/502 tests passing.
+
+### K067: State Hygiene Completion
+- [x] Complete workspace/session-scoped memory as the default runtime path.
+- [x] Remove active reliance on app-base `db/memory.db`.
+- [x] Refactor `PandasUniverseManager` to act as a compatibility-only delegating facade.
+- [x] Implement read-only fallback to legacy database if active database not found.
+- [x] Redirect snapshots and restores to the scoped workspace state directory instead of system base directory.
+- [x] Maintain isolation for parallel test runs using separate workspace contexts.
+- [x] Ensure deterministic baseline table creation.
+- [x] Official Release Gate passed (502/502 pass).
+
+### K068: Memory Checkpoint Integration
+- [x] Add `StateSnapshotId` and `IncludesMemoryState` properties to `CheckpointManifest` (`Claude4Net.SDK/CheckpointModels.cs`).
+- [x] Detect memory-modifying tools such as `pandas_agent_memory_upsert`, `pandas_agent_memory_clear`, `pandas_restore`, and `pandas_import` in `ToolOrchestrator.cs`.
+- [x] Automatically trigger memory state snapshot creation immediately prior to the execution of memory-modifying tools.
+- [x] Persist memory state snapshot ID and toggle in the checkpoint manifest file.
+- [x] Restore memory snapshot synchronously alongside standard file recovery during checkpoint rollback.
+- [x] Ensure seamless backward compatibility with legacy checkpoints that only contain file records.
+- [x] Implement robust error handling throwing descriptive exceptions when memory snapshots are missing or corrupted.
+- [x] Resolve SQLite file locking issues during test setup by utilizing connection pool clearings.
+- [x] Add `K064MemoryCheckpointTests` to verify happy path and descriptive error paths.
+- [x] Official Release Gate passed (504/504 pass).
+
+### K069: SeedSpec Command Surface
+- [x] Register `/spec` slash command group in `Claude4Net.Commands/CommandRegistry.cs`
+- [x] Implement `/spec list` to display specifications cleanly inside a Spectre Table
+- [x] Implement `/spec new <id> <title>` to create new draft specifications in the workspace
+- [x] Implement `/spec show <id>` to display goal, status, acceptance criteria, and questions
+- [x] Implement `/spec question <id> <question>` to append auto-incremented blocking questions (Q-n)
+- [x] Implement `/spec answer <id> <questionId> <answer>` to add answers to clarifying questions
+- [x] Implement `/spec criteria add <id> <description>` to append required acceptance criteria (AC-n)
+- [x] Implement `/spec lock <id>` with validation verifying at least one criterion exists and no blocking questions are unanswered
+- [x] Implement `/spec attach <specId> <coordinateTaskId>` to synchronize acceptance criteria to task gates via `CoordinatorStore`
+- [x] Implement path traversal defense for all `specId` inputs to prevent file system traversal
+- [x] Add 8 unit test scenarios in `Claude4Net.Tests/K069SeedSpecCommandTests.cs`
+- [x] Official Release Gate passed (512/512 pass).
+
+### K070: Coordinate Spec Enforcement
+- [x] Integrate `--spec <specId>` argument support in `/coordinate start <id> <title> [--spec <specId>]` command.
+- [x] Lock task creation by rejecting unknown, non-existent, or invalid Spec IDs.
+- [x] Reject unlocked draft specifications from initiating coordinated tasks in `Execution` phase.
+- [x] Automatically synchronize and convert required acceptance criteria to evidence-required gates (`Spec-AC-n`).
+- [x] Automatically synchronize and convert optional/clarification criteria to non-blocking gates.
+- [x] Enforce blocking policy: reject transition to `Execution` phase if the attached specification contains any unanswered clarifying questions.
+- [x] Enforce phase gate transitions ensuring task remains in Planning phase until specification criteria and questions are fully resolved.
+- [x] Add comprehensive unit tests verifying spec enforcement, invalid ID paths, unlocked spec rejection, and blocking question verification.
+- [x] Official Release Gate passed (517/517 pass).

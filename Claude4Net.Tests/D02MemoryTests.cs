@@ -156,7 +156,8 @@ namespace Claude4Net.Tests
             // Snapshot
             await snapshotTool.ExecuteAsync(JsonSerializer.Serialize(new { snapshotName }), new object());
             
-            string snapshotPath = Path.Combine(AppState.SystemBaseDir, "db", "snapshots", $"{snapshotName}.db");
+            var stateCtx = PandasUniverseManager.GetCurrentContext();
+            string snapshotPath = Path.Combine(stateCtx.SnapshotsDir, $"{snapshotName}.db");
             Assert.True(File.Exists(snapshotPath), $"Snapshot file should exist at {snapshotPath}");
             
             // Restore

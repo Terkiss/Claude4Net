@@ -17,6 +17,8 @@ namespace Claude4Net.SDK
         public string? Provider { get; set; }
         public string? Model { get; set; }
         public string? ConversationSummary { get; set; }
+        public string? StateSnapshotId { get; set; }
+        public bool IncludesMemoryState { get; set; }
         public Dictionary<string, string> Metadata { get; set; } = new();
     }
 }
