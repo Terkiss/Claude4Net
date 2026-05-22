@@ -85,7 +85,20 @@
 | K068 | Memory Checkpoint Integration | Completed | 504/504 pass |
 | K069 | SeedSpec Command Surface | Completed | 512/512 pass |
 | K070 | Coordinate Spec Enforcement | Completed | 517/517 pass |
-
+| K071 | Provider Descriptor V2 Model | Completed | 527/527 pass |
+| K072 | Provider Settings Precedence | Not Started | - |
+| K073 | Provider Factory Preparation | Not Started | - |
+| K074 | Routine Command MVP | Not Started | - |
+| K075 | Routine Execution Integration | Not Started | - |
+| K076 | Routine Scheduler Hardening | Not Started | - |
+| K077 | Skill Proposal Lifecycle | Not Started | - |
+| K078 | Skill Apply Engine | Not Started | - |
+| K079 | Skill Trajectory Mining | Not Started | - |
+| K080 | Dashboard Read Models | Not Started | - |
+| K081 | Dashboard Typed Commands | Not Started | - |
+| K082 | Dashboard UI Completion | Not Started | - |
+| K083 | Release Gate Expansion | Not Started | - |
+| K084 | Final Integration and Documentation | Not Started | - |
 
 
 ## Official Verification Commands
@@ -659,3 +672,14 @@
 - [x] Enforce phase gate transitions ensuring task remains in Planning phase until specification criteria and questions are fully resolved.
 - [x] Add comprehensive unit tests verifying spec enforcement, invalid ID paths, unlocked spec rejection, and blocking question verification.
 - [x] Official Release Gate passed (517/517 pass).
+
+### K071: Provider Descriptor V2 Model
+- [x] Add `Endpoint`, `Headers`, and `Metadata` fields to `ProviderDescriptor` record (`Claude4Net.SDK/ProviderModels.cs`).
+- [x] Implement robust validation of required fields and absolute HTTP/HTTPS URI format for `Endpoint` where provided.
+- [x] Return descriptive error messages including target file path or provider ID when loading invalid descriptors.
+- [x] Parse routing categories case-insensitively and fail-closed on unknown categories using custom JSON converter (`RoutingCategoryJsonConverter`).
+- [x] Enforce fail-closed policy on deserialization or schema errors, bubble up errors, and prevent loading of malformed descriptor files.
+- [x] Provide backward compatibility by adding default Ollama local endpoint configuration in defaults setup and ensuring built-in providers (claude, gemini, gemini-cli, ollama) load successfully.
+- [x] Adjust existing K056 tests to match fail-closed expectations (assert throwing exceptions on invalid json).
+- [x] Add K071ProviderDescriptorV2Tests covering 8 test methods / 10 cases
+- [x] Official Release Gate passed (527/527 pass).

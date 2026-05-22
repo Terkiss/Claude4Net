@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Linq;
 using Claude4Net.SDK;
+using Claude4Net.Api;
 
 namespace Claude4Net.Runtime
 {
@@ -23,11 +24,9 @@ namespace Claude4Net.Runtime
         /// <summary>
         /// 湲곕낯 ?댁옣 ?꾨줈諛붿씠???붿뒪?щ┰?곕? 濡쒕뱶?섏뿬 珥덇린?뷀빀?덈떎.
         /// </summary>
-        public static ProviderRegistry CreateWithDefaults()
+        private void RegisterBuiltInDefaults()
         {
-            var registry = new ProviderRegistry();
-
-            registry.Register(new ProviderDescriptor
+            Register(new ProviderDescriptor
             {
                 Id = "claude",
                 Label = "Anthropic Claude",
@@ -61,7 +60,7 @@ namespace Claude4Net.Runtime
                 ContextWindowSize = 200_000
             });
 
-            registry.Register(new ProviderDescriptor
+            Register(new ProviderDescriptor
             {
                 Id = "gemini",
                 Label = "Google Gemini",
@@ -97,11 +96,12 @@ namespace Claude4Net.Runtime
                 ContextWindowSize = 1_000_000
             });
 
-            registry.Register(new ProviderDescriptor
+            Register(new ProviderDescriptor
             {
                 Id = "ollama",
                 Label = "Ollama (Local)",
                 TransportKind = "openai-compat",
+                Endpoint = "http://localhost:11434",
                 DefaultModels = new ProviderDefaultModels
                 {
                     Small = "llama3",
@@ -131,7 +131,7 @@ namespace Claude4Net.Runtime
                 ContextWindowSize = Claude4Net.Api.OllamaProvider.GetEffectiveContextLimit()
             });
 
-            registry.Register(new ProviderDescriptor
+            Register(new ProviderDescriptor
             {
                 Id = "gemini-cli",
                 Label = "Gemini CLI (Local OAuth)",
@@ -166,13 +166,18 @@ namespace Claude4Net.Runtime
                 },
                 ContextWindowSize = 1_000_000
             });
+        }
 
+        public static ProviderRegistry CreateWithDefaults()
+        {
+            var registry = new ProviderRegistry();
+            registry.RegisterBuiltInDefaults();
             return registry;
         }
 
         /// <summary>
-        /// ?꾨줈諛붿씠???붿뒪?щ┰?곕? ?깅줉?⑸땲??
-        /// ID媛 鍮꾩뼱?덇굅???좏슚?섏? ?딆쑝硫??덉쇅瑜?諛쒖깮?쒗궢?덈떎.
+        /// 프로바이더 디스크립터를 지정한 디렉토리에서 JSON 파일들로 로드합니다.
+        /// 파싱 오류 또는 유효성 검사 실패 시 예외를 던집니다 (Fail-Closed).
         /// </summary>
         public void LoadFromDirectory(string path)
         {
@@ -186,24 +191,70 @@ namespace Claude4Net.Runtime
                     var descriptor = System.Text.Json.JsonSerializer.Deserialize<ProviderDescriptor>(json, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                     if (descriptor != null)
                     {
-                        Register(descriptor);
+                        RegisterInternal(descriptor, file);
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException("Parsed descriptor was null.");
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException($"Failed to load provider descriptor from file '{file}': {ex.Message}", ex);
+                }
             }
         }
 
         public void Register(ProviderDescriptor descriptor)
         {
-            if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
-            if (string.IsNullOrWhiteSpace(descriptor.Id))
-                throw new ArgumentException("Provider descriptor ID cannot be empty.", nameof(descriptor));
-            if (string.IsNullOrWhiteSpace(descriptor.Label))
-                throw new ArgumentException("Provider descriptor label cannot be empty.", nameof(descriptor));
-            if (string.IsNullOrWhiteSpace(descriptor.TransportKind))
-                throw new ArgumentException("Provider descriptor transport kind cannot be empty.", nameof(descriptor));
+            RegisterInternal(descriptor, null);
+        }
 
-            _descriptors[descriptor.Id] = descriptor;
+        private void RegisterInternal(ProviderDescriptor descriptor, string? filePath)
+        {
+            if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
+
+            string context = string.IsNullOrEmpty(filePath)
+                ? $"provider ID '{descriptor.Id}'"
+                : $"file '{filePath}' (provider ID '{descriptor.Id}')";
+
+            if (string.IsNullOrWhiteSpace(descriptor.Id))
+                throw new ArgumentException($"Provider descriptor ID cannot be empty. Context: {context}", nameof(descriptor));
+            if (string.IsNullOrWhiteSpace(descriptor.Label))
+                throw new ArgumentException($"Provider descriptor label cannot be empty. Context: {context}", nameof(descriptor));
+            if (string.IsNullOrWhiteSpace(descriptor.TransportKind))
+                throw new ArgumentException($"Provider descriptor transport kind cannot be empty. Context: {context}", nameof(descriptor));
+
+            // DefaultModels validation
+            if (descriptor.DefaultModels == null ||
+                string.IsNullOrWhiteSpace(descriptor.DefaultModels.Small) ||
+                string.IsNullOrWhiteSpace(descriptor.DefaultModels.Large))
+            {
+                throw new ArgumentException($"Provider descriptor default models (both Small and Large) must be specified. Context: {context}", nameof(descriptor));
+            }
+
+            // Endpoint validation
+            if (!string.IsNullOrWhiteSpace(descriptor.Endpoint))
+            {
+                if (!Uri.TryCreate(descriptor.Endpoint, UriKind.Absolute, out var uriResult) ||
+                    !(uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps))
+                {
+                    throw new ArgumentException($"Provider descriptor endpoint '{descriptor.Endpoint}' is not a valid absolute HTTP/HTTPS URI. Context: {context}", nameof(descriptor));
+                }
+            }
+
+            // Ensure non-null collections for Headers and Metadata
+            var finalDescriptor = descriptor;
+            if (descriptor.Headers == null || descriptor.Metadata == null)
+            {
+                finalDescriptor = descriptor with
+                {
+                    Headers = descriptor.Headers ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+                    Metadata = descriptor.Metadata ?? new Dictionary<string, object?>()
+                };
+            }
+
+            _descriptors[finalDescriptor.Id] = finalDescriptor;
         }
 
         /// <summary>

@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Claude4Net.SDK
 {
@@ -7,6 +9,7 @@ namespace Claude4Net.SDK
     /// 라우팅 카테고리를 정의합니다.
     /// SmartRouter가 요청의 성격에 따라 적합한 프로바이더를 선택할 때 사용됩니다.
     /// </summary>
+    [JsonConverter(typeof(RoutingCategoryJsonConverter))]
     public enum RoutingCategory
     {
         /// <summary> 간단한 버그 수정이나 빠른 작업 </summary>
@@ -25,6 +28,36 @@ namespace Claude4Net.SDK
         LocalPrivate,
         /// <summary> 저비용 유틸리티 작업 </summary>
         CheapUtility
+    }
+
+    /// <summary>
+    /// RoutingCategory를 대소문자 구분 없이 파싱하고, 알 수 없는 카테고리가 입력되었을 때 예외를 던지는 JsonConverter입니다.
+    /// </summary>
+    public class RoutingCategoryJsonConverter : JsonConverter<RoutingCategory>
+    {
+        public override RoutingCategory Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.String)
+            {
+                var val = reader.GetString();
+                if (string.IsNullOrWhiteSpace(val))
+                {
+                    throw new JsonException("Routing category string value cannot be empty.");
+                }
+
+                if (Enum.TryParse<RoutingCategory>(val, true, out var result))
+                {
+                    return result;
+                }
+                throw new JsonException($"Unknown routing category: '{val}'");
+            }
+            throw new JsonException("Expected string value for RoutingCategory.");
+        }
+
+        public override void Write(Utf8JsonWriter writer, RoutingCategory value, JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value.ToString());
+        }
     }
 
     /// <summary>
@@ -92,5 +125,13 @@ namespace Claude4Net.SDK
         public IReadOnlyList<RoutingCategory> SupportedCategories { get; init; } = Array.Empty<RoutingCategory>();
         /// <summary> 컨텍스트 윈도우 크기 (토큰 수) </summary>
         public int ContextWindowSize { get; init; }
+
+        // V2 Fields
+        /// <summary> 프로바이더 API 엔드포인트 또는 베이스 URL </summary>
+        public string Endpoint { get; init; } = string.Empty;
+        /// <summary> 추가 HTTP 헤더 설정 </summary>
+        public IReadOnlyDictionary<string, string> Headers { get; init; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        /// <summary> 라우팅 및 트랜스포트 확장을 위한 메타데이터 </summary>
+        public IReadOnlyDictionary<string, object?> Metadata { get; init; } = new Dictionary<string, object?>();
     }
 }

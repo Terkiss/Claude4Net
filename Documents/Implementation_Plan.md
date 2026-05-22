@@ -7,9 +7,10 @@ Progress tracker: `IMPLEMENTATION_PROGRESS.md`
 Design source: `Documents/2026-05-21_Claude4Net-App_인사이트_기반_확장_설계.md`
 Backup before SSOT clean: `Documents/backups/2026-05-22/Implementation_Plan.pre-ssot-clean.2026-05-22.md`
 
-Current focus: Agentic Runtime Expansion from the 2026-05-21 insight design
-Next milestone: K071 Provider Descriptor V2 Model (awaiting user/final-controller decision)
-Queue status: `running`
+Current focus: K071 Provider Descriptor V2 Model closure
+Next milestone: Not selected. Awaiting user/final-controller decision.
+Queue status: running
+
 
 ## 0. SSOT Purpose
 
@@ -84,14 +85,14 @@ The 2026-05-21 expansion design is complete only when all of the following are t
 | K068 | Memory Checkpoint Integration | Completed | File checkpoints and memory state snapshots restore together |
 | K069 | SeedSpec Command Surface | Completed | `/spec new/show/question/answer/criteria/lock/attach` works |
 | K070 | Coordinate Spec Enforcement | Completed | /coordinate start --spec, phase enforcement, AC-to-gate sync, blocking question policy |
-| K071 | Provider Descriptor V2 Model | Awaiting user/final-controller decision | `Endpoint`, `Headers`, `Metadata`, validation, unknown category errors |
+| K071 | Provider Descriptor V2 Model | Completed | Endpoint, Headers, Metadata, validation, unknown category errors |
 | K072 | Provider Settings Precedence | Not Started | Built-in < system < user < workspace < env < CLI |
 | K073 | Provider Factory Preparation | Not Started | `IProviderFactory` and default factory registration without breaking current provider creation |
-| K074 | Routine Command MVP | Not Started | `/routine list/show/add/enable/disable/delete/run` |
-| K075 | Routine Execution Integration | Not Started | HookPipeline, checkpoint, event store, verification records, permission gates |
-| K076 | Routine Scheduler Hardening | Not Started | manual/interval/daily scheduling, disabled default, max-run safety, tests |
-| K077 | Skill Proposal Lifecycle | Not Started | `Applied`, `Verified`, `Failed` lifecycle plus validation commands |
-| K078 | Skill Apply Engine | Not Started | patch preview, approval, checkpoint, `.agents/` direct mutation denial, verification |
+| K074 | Routine Command MVP | Not Started | Expose routine definition management through slash commands; add path-safe ID checks |
+| K075 | Routine Execution Integration | Not Started | Make routine runs pass through safety layers, validation, checkpoint, hooks, event logging, verification |
+| K076 | Routine Scheduler Hardening | Not Started | Safety features, concurrency limit, DailyTime/Interval logic, timeouts, persistence |
+| K077 | Skill Proposal Lifecycle | Not Started | Active execution card completed |
+| K078 | Skill Apply Engine | Not Started | Active Execution Card completed |
 | K079 | Skill Trajectory Mining | Not Started | failure-pattern mining from trajectories/events/verification and proposal candidates |
 | K080 | Dashboard Read Models | Not Started | typed provider/coordinate/skill/routine/checkpoint/verification/state read APIs |
 | K081 | Dashboard Typed Commands | Not Started | safe typed actions only; no arbitrary command execution |
@@ -134,12 +135,10 @@ Parallelization rules:
 
 ## 7. Active Execution Card: None
 
-Milestone: None (Awaiting user/final-controller decision for next milestone)
-
-All preceding milestones (K067-K070) are Completed.
-K071 is awaiting user/final-controller decision.
-No active execution card is currently assigned.
-
+Current focus: K071 Provider Descriptor V2 Model closure
+Status: Awaiting Decision
+Assigned to: None
+Dependencies: None
 
 ## 8. Backlog Cards
 
@@ -544,7 +543,7 @@ Do not mark any item checked until implementation, tests, and release evidence e
 - [x] K068 Memory Checkpoint Integration
 - [x] K069 SeedSpec Command Surface
 - [x] K070 Coordinate Spec Enforcement
-- [ ] K071 Provider Descriptor V2 Model
+- [x] K071 Provider Descriptor V2 Model
 - [ ] K072 Provider Settings Precedence
 - [ ] K073 Provider Factory Preparation
 - [ ] K074 Routine Command MVP

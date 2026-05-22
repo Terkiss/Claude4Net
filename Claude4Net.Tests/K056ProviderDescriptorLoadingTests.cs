@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using Claude4Net.Runtime;
 using Claude4Net.SDK;
@@ -33,6 +33,7 @@ namespace Claude4Net.Tests
                 ""id"": ""ollama"",
                 ""label"": ""Ollama Custom"",
                 ""transportKind"": ""openai-compat"",
+                ""endpoint"": ""http://localhost:11434"",
                 ""defaultModels"": { ""small"": ""qwen2.5"", ""large"": ""qwen2.5"" }
             }";
 
@@ -52,8 +53,8 @@ namespace Claude4Net.Tests
             var registry = new ProviderRegistry();
             File.WriteAllText(Path.Combine(_testDir, "invalid.json"), "{ invalid_json ]");
 
-            registry.LoadFromDirectory(_testDir);
-            Assert.Equal(0, registry.Count);
+            var ex = Assert.Throws<InvalidOperationException>(() => registry.LoadFromDirectory(_testDir));
+            Assert.Contains("invalid.json", ex.Message);
         }
     }
 }
