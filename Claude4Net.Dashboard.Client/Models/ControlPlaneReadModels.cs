@@ -213,4 +213,11 @@ namespace Claude4Net.Dashboard.Client.Models
         public string Description { get; set; } = string.Empty;
         public int RowCount { get; set; }
     }
+
+    public class CommandResult
+    {
+        public bool Success { get; set; }
+        public string? Message { get; set; }
+        public string? Error { get; set; }
+    }
 }

@@ -270,6 +270,7 @@ namespace Claude4Net.Tests
             var provider = services.BuildServiceProvider();
 
             var hub = new ControlPlaneHub(provider);
+            AppState.CurrentCwd = _tempWorkspace;
             var state = await hub.GetSkills();
 
             Assert.NotNull(state);

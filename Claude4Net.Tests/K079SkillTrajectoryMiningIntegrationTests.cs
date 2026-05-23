@@ -57,7 +57,7 @@ namespace Claude4Net.Tests
             }
 
             AppState.CurrentCwd = _originalCwd;
-            AppState.SessionId = _originalSessionId;
+            AppState.SessionId = _originalSessionId ?? Guid.NewGuid().ToString();
         }
 
         [Fact]

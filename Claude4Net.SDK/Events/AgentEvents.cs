@@ -151,6 +151,19 @@ namespace Claude4Net.SDK.Events
         public string? Error { get; set; }
     }
 
+    /// <summary>
+    /// K081: Dashboard Command Event - records dashboard control actions execution and outcome.
+    /// </summary>
+    public class DashboardCommandEvent : AgentEventBase
+    {
+        public override string EventType => "DashboardCommand";
+        public string CommandName { get; set; } = string.Empty;
+        public string TargetId { get; set; } = string.Empty;
+        public bool Success { get; set; }
+        public string? Message { get; set; }
+        public string? Error { get; set; }
+    }
+
 
     /// <summary>
     /// 에이전트 상태 스냅샷 (이벤트 소싱 재생 최적화용)

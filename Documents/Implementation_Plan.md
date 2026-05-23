@@ -7,9 +7,9 @@ Progress tracker: `IMPLEMENTATION_PROGRESS.md`
 Design source: `Documents/2026-05-21_Claude4Net-App_인사이트_기반_확장_설계.md`
 Backup before SSOT clean: `Documents/backups/2026-05-22/Implementation_Plan.pre-ssot-clean.2026-05-22.md`
 
-Current focus: K081 Dashboard Typed Commands
-Next milestone: K082 Dashboard UI Completion
-Queue status: running
+Current focus: K082 Dashboard UI Completion
+Next milestone: K083 Release Gate Expansion
+Queue status: paused
 
 
 ## 0. SSOT Purpose
@@ -644,7 +644,7 @@ Do not mark any item checked until implementation, tests, and release evidence e
 - [x] K078 Skill Apply Engine
 - [x] K079 Skill Trajectory Mining
 - [x] K080 Dashboard Read Models
-- [ ] K081 Dashboard Typed Commands
+- [x] K081 Dashboard Typed Commands
 - [ ] K082 Dashboard UI Completion
 - [ ] K083 Release Gate Expansion
 - [ ] K084 Final Integration and Documentation

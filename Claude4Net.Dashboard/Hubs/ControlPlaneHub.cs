@@ -2,12 +2,14 @@ using Microsoft.AspNetCore.SignalR;
 using Claude4Net.Commands;
 using Claude4Net.Runtime;
 using Claude4Net.SDK;
+using Claude4Net.SDK.Events;
 using Claude4Net.Dashboard.Client.Models;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Claude4Net.Dashboard.Hubs;
 
@@ -461,6 +463,406 @@ public class ControlPlaneHub : Hub
         catch (Exception)
         {
             return new StateControlPlaneState();
+        }
+    }
+
+    private bool IsApprovalCapable(PermissionMode mode)
+    {
+        var normalized = PermissionEnforcer.Normalize(mode);
+        return normalized != PermissionMode.ReadOnly;
+    }
+
+    private async Task<(string output, string error, int exitCode)> RunProcessAsync(string command, string workspaceRoot)
+    {
+        try
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = $"-NoProfile -Command \"{command}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WorkingDirectory = workspaceRoot
+            };
+            using var process = System.Diagnostics.Process.Start(psi);
+            if (process == null) return (string.Empty, "Could not start powershell process.", -1);
+
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+
+            return (outputTask.Result, errorTask.Result, process.ExitCode);
+        }
+        catch (Exception ex)
+        {
+            return (string.Empty, ex.Message, -1);
+        }
+    }
+
+    public async Task<CommandResult> RunRoutine(string routineId)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(routineId))
+            {
+                return new CommandResult { Success = false, Error = "Routine ID cannot be empty." };
+            }
+
+            // ID Validation to prevent path traversal/injection
+            if (!Regex.IsMatch(routineId, @"^[a-zA-Z0-9\-_]+$"))
+            {
+                return new CommandResult { Success = false, Error = "Invalid Routine ID format." };
+            }
+
+            string ws = GetWorkspaceRoot();
+            var store = _serviceProvider?.GetService(typeof(RoutineStore)) as RoutineStore ?? new RoutineStore(ws);
+            var runner = _serviceProvider?.GetService(typeof(RoutineRunner)) as RoutineRunner
+                         ?? new RoutineRunner(store, new PermissionEnforcer(), new PathSafetyEvaluator(), _serviceProvider);
+
+            var record = await runner.RunAsync(routineId, ws, AppState.CurrentPermissionMode);
+
+            if (record.Success)
+            {
+                return new CommandResult { Success = true, Message = $"Routine '{routineId}' executed successfully." };
+            }
+            else
+            {
+                return new CommandResult { Success = false, Error = record.Error ?? "Unknown routine execution error." };
+            }
+        }
+        catch (Exception ex)
+        {
+            return new CommandResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    public async Task<CommandResult> RestoreCheckpoint(string checkpointId)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(checkpointId))
+            {
+                return new CommandResult { Success = false, Error = "Checkpoint ID cannot be empty." };
+            }
+
+            if (!IsApprovalCapable(AppState.CurrentPermissionMode))
+            {
+                return new CommandResult { Success = false, Error = "Permission denied: Restore action requires an approval-capable permission mode." };
+            }
+
+            if (!Regex.IsMatch(checkpointId, @"^[a-zA-Z0-9\-_]+$"))
+            {
+                return new CommandResult { Success = false, Error = "Invalid Checkpoint ID format." };
+            }
+
+            string ws = GetWorkspaceRoot();
+            string sessionId = AppState.SessionId;
+            var checkpointStore = new CheckpointStore(ws, sessionId);
+
+            await checkpointStore.RestoreCheckpointAsync(checkpointId);
+
+            // Event Sourcing
+            var eventStore = new FileAgentEventStore(ws);
+            await eventStore.AppendEventAsync(AppState.SessionId, new DashboardCommandEvent
+            {
+                CommandName = "RestoreCheckpoint",
+                TargetId = checkpointId,
+                Success = true,
+                Message = $"Checkpoint '{checkpointId}' successfully restored."
+            });
+
+            return new CommandResult { Success = true, Message = $"Checkpoint '{checkpointId}' successfully restored." };
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                string ws = GetWorkspaceRoot();
+                var eventStore = new FileAgentEventStore(ws);
+                await eventStore.AppendEventAsync(AppState.SessionId, new DashboardCommandEvent
+                {
+                    CommandName = "RestoreCheckpoint",
+                    TargetId = checkpointId,
+                    Success = false,
+                    Error = ex.Message
+                });
+            }
+            catch {}
+
+            return new CommandResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    public async Task<CommandResult> ApproveSkillProposal(string proposalId)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(proposalId))
+            {
+                return new CommandResult { Success = false, Error = "Proposal ID cannot be empty." };
+            }
+
+            if (!IsApprovalCapable(AppState.CurrentPermissionMode))
+            {
+                return new CommandResult { Success = false, Error = "Permission denied: Approve action requires an approval-capable permission mode." };
+            }
+
+            if (!Regex.IsMatch(proposalId, @"^[a-zA-Z0-9\-_]+$"))
+            {
+                return new CommandResult { Success = false, Error = "Invalid Proposal ID format." };
+            }
+
+            string ws = GetWorkspaceRoot();
+            var registry = _serviceProvider?.GetService(typeof(SkillRegistryService)) as SkillRegistryService ?? new SkillRegistryService(ws);
+            var proposalService = _serviceProvider?.GetService(typeof(SkillProposalService)) as SkillProposalService ?? new SkillProposalService(registry);
+
+            await proposalService.ApproveProposalAsync(ws, proposalId);
+
+            // Event Sourcing
+            var eventStore = new FileAgentEventStore(ws);
+            await eventStore.AppendEventAsync(AppState.SessionId, new DashboardCommandEvent
+            {
+                CommandName = "ApproveSkillProposal",
+                TargetId = proposalId,
+                Success = true,
+                Message = $"Skill proposal '{proposalId}' approved."
+            });
+
+            return new CommandResult { Success = true, Message = $"Skill proposal '{proposalId}' approved successfully." };
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                string ws = GetWorkspaceRoot();
+                var eventStore = new FileAgentEventStore(ws);
+                await eventStore.AppendEventAsync(AppState.SessionId, new DashboardCommandEvent
+                {
+                    CommandName = "ApproveSkillProposal",
+                    TargetId = proposalId,
+                    Success = false,
+                    Error = ex.Message
+                });
+            }
+            catch {}
+
+            return new CommandResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    public async Task<CommandResult> RejectSkillProposal(string proposalId, string reason)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(proposalId))
+            {
+                return new CommandResult { Success = false, Error = "Proposal ID cannot be empty." };
+            }
+
+            if (!IsApprovalCapable(AppState.CurrentPermissionMode))
+            {
+                return new CommandResult { Success = false, Error = "Permission denied: Reject action requires an approval-capable permission mode." };
+            }
+
+            if (!Regex.IsMatch(proposalId, @"^[a-zA-Z0-9\-_]+$"))
+            {
+                return new CommandResult { Success = false, Error = "Invalid Proposal ID format." };
+            }
+
+            string ws = GetWorkspaceRoot();
+            var registry = _serviceProvider?.GetService(typeof(SkillRegistryService)) as SkillRegistryService ?? new SkillRegistryService(ws);
+            var proposalService = _serviceProvider?.GetService(typeof(SkillProposalService)) as SkillProposalService ?? new SkillProposalService(registry);
+
+            await proposalService.LoadAsync(ws);
+            var proposal = proposalService.GetProposal(proposalId);
+            if (proposal != null)
+            {
+                proposal.Metadata["RejectionReason"] = reason ?? string.Empty;
+                await proposalService.SaveAsync(ws);
+            }
+
+            await proposalService.RejectProposalAsync(ws, proposalId);
+
+            // Event Sourcing
+            var eventStore = new FileAgentEventStore(ws);
+            await eventStore.AppendEventAsync(AppState.SessionId, new DashboardCommandEvent
+            {
+                CommandName = "RejectSkillProposal",
+                TargetId = proposalId,
+                Success = true,
+                Message = $"Skill proposal '{proposalId}' rejected. Reason: {reason}"
+            });
+
+            return new CommandResult { Success = true, Message = $"Skill proposal '{proposalId}' rejected successfully." };
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                string ws = GetWorkspaceRoot();
+                var eventStore = new FileAgentEventStore(ws);
+                await eventStore.AppendEventAsync(AppState.SessionId, new DashboardCommandEvent
+                {
+                    CommandName = "RejectSkillProposal",
+                    TargetId = proposalId,
+                    Success = false,
+                    Error = ex.Message
+                });
+            }
+            catch {}
+
+            return new CommandResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    public async Task<CommandResult> ApplySkillProposal(string proposalId)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(proposalId))
+            {
+                return new CommandResult { Success = false, Error = "Proposal ID cannot be empty." };
+            }
+
+            if (!IsApprovalCapable(AppState.CurrentPermissionMode))
+            {
+                return new CommandResult { Success = false, Error = "Permission denied: Apply action requires an approval-capable permission mode." };
+            }
+
+            if (!Regex.IsMatch(proposalId, @"^[a-zA-Z0-9\-_]+$"))
+            {
+                return new CommandResult { Success = false, Error = "Invalid Proposal ID format." };
+            }
+
+            string ws = GetWorkspaceRoot();
+            var registry = _serviceProvider?.GetService(typeof(SkillRegistryService)) as SkillRegistryService ?? new SkillRegistryService(ws);
+            var proposalService = _serviceProvider?.GetService(typeof(SkillProposalService)) as SkillProposalService ?? new SkillProposalService(registry);
+            await registry.LoadAsync();
+            await proposalService.LoadAsync(ws);
+
+            var approvalHandler = _serviceProvider?.GetService(typeof(IRichApprovalHandler)) as IRichApprovalHandler;
+            var engine = new SkillApplyEngine(proposalService, registry, approvalHandler);
+
+            bool success = await engine.ApplyAsync(proposalId, ws);
+
+            // Event Sourcing
+            var eventStore = new FileAgentEventStore(ws);
+            await eventStore.AppendEventAsync(AppState.SessionId, new DashboardCommandEvent
+            {
+                CommandName = "ApplySkillProposal",
+                TargetId = proposalId,
+                Success = success,
+                Message = success ? "Skill proposal applied successfully." : "Skill proposal application failed post-apply verification and was rolled back."
+            });
+
+            if (success)
+            {
+                return new CommandResult { Success = true, Message = "Skill proposal applied and verified successfully." };
+            }
+            else
+            {
+                return new CommandResult { Success = false, Error = "Skill proposal application failed post-apply verification and was rolled back." };
+            }
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                string ws = GetWorkspaceRoot();
+                var eventStore = new FileAgentEventStore(ws);
+                await eventStore.AppendEventAsync(AppState.SessionId, new DashboardCommandEvent
+                {
+                    CommandName = "ApplySkillProposal",
+                    TargetId = proposalId,
+                    Success = false,
+                    Error = ex.Message
+                });
+            }
+            catch {}
+
+            return new CommandResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    public async Task<CommandResult> RunVerification(string sessionId)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(sessionId))
+            {
+                sessionId = AppState.SessionId;
+            }
+
+            if (sessionId.Contains("..") || sessionId.Contains("/") || sessionId.Contains("\\") || sessionId.Contains(":"))
+            {
+                return new CommandResult { Success = false, Error = "Invalid session ID." };
+            }
+
+            string ws = GetWorkspaceRoot();
+            var orchestrator = new VerificationOrchestrator(ws);
+            var session = orchestrator.CreateVerifierSession(sessionId);
+            var checks = new List<VerificationCheck>();
+
+            // Run build
+            var (buildOut, buildErr, buildExit) = await RunProcessAsync("dotnet build -p:UseAppHost=false", ws);
+            checks.Add(orchestrator.RunCheck("Standard Build", "dotnet build -p:UseAppHost=false", buildOut + "\n" + buildErr, buildExit));
+
+            // Run tests
+            var (testOut, testErr, testExit) = await RunProcessAsync("dotnet test --no-build", ws);
+            checks.Add(orchestrator.RunCheck("Unit Tests", "dotnet test --no-build", testOut + "\n" + testErr, testExit));
+
+            var verifResult = orchestrator.AggregateResult(session.VerifierSessionId, session.GeneratorSessionId, checks);
+            await orchestrator.WriteResultAsync(verifResult);
+
+            bool success = verifResult.Verdict == VerificationVerdict.Pass;
+
+            // Event Sourcing
+            var eventStore = new FileAgentEventStore(ws);
+            await eventStore.AppendEventAsync(AppState.SessionId, new DashboardCommandEvent
+            {
+                CommandName = "RunVerification",
+                TargetId = sessionId,
+                Success = success,
+                Message = $"Verification finished with verdict: {verifResult.Verdict}"
+            });
+
+            await eventStore.AppendEventAsync(AppState.SessionId, new VerificationCompletedEvent
+            {
+                VerifierSessionId = verifResult.VerifierSessionId,
+                GeneratorSessionId = verifResult.GeneratorSessionId,
+                Verdict = verifResult.Verdict.ToString(),
+                PassedChecks = checks.Count(c => c.Result == VerificationVerdict.Pass),
+                TotalChecks = checks.Count
+            });
+
+            if (success)
+            {
+                return new CommandResult { Success = true, Message = $"Verification passed. Verdict: {verifResult.Verdict}." };
+            }
+            else
+            {
+                return new CommandResult { Success = false, Error = $"Verification failed. Verdict: {verifResult.Verdict}." };
+            }
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                string ws = GetWorkspaceRoot();
+                var eventStore = new FileAgentEventStore(ws);
+                await eventStore.AppendEventAsync(AppState.SessionId, new DashboardCommandEvent
+                {
+                    CommandName = "RunVerification",
+                    TargetId = sessionId,
+                    Success = false,
+                    Error = ex.Message
+                });
+            }
+            catch {}
+
+            return new CommandResult { Success = false, Error = ex.Message };
         }
     }
 }
