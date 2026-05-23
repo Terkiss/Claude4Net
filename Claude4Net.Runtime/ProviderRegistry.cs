@@ -16,6 +16,9 @@ namespace Claude4Net.Runtime
     {
         private readonly ConcurrentDictionary<string, ProviderDescriptor> _descriptors = new(StringComparer.OrdinalIgnoreCase);
 
+        internal static Func<string> UserProvidersDirResolver { get; set; } = () =>
+            System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude4net", "providers");
+
         /// <summary>
         /// ?깅줉??紐⑤뱺 ?꾨줈諛붿씠???붿뒪?щ┰?곕? 諛섑솚?⑸땲??
         /// </summary>
@@ -170,8 +173,27 @@ namespace Claude4Net.Runtime
 
         public static ProviderRegistry CreateWithDefaults()
         {
+            return CreateWithDefaults(null);
+        }
+
+        public static ProviderRegistry CreateWithDefaults(string? workspaceDir)
+        {
             var registry = new ProviderRegistry();
             registry.RegisterBuiltInDefaults();
+
+            // System descriptors: {AppState.SystemBaseDir}/providers
+            string systemPath = System.IO.Path.Combine(AppState.SystemBaseDir, "providers");
+            registry.LoadFromDirectory(systemPath);
+
+            // User descriptors: %USERPROFILE%/.claude4net/providers
+            string userPath = UserProvidersDirResolver();
+            registry.LoadFromDirectory(userPath);
+
+            // Workspace descriptors: {workspace}/.claude4net/providers
+            string ws = workspaceDir ?? (AppState.CurrentCwd ?? AppState.OriginalCwd);
+            string workspacePath = System.IO.Path.Combine(ws, ".claude4net", "providers");
+            registry.LoadFromDirectory(workspacePath);
+
             return registry;
         }
 

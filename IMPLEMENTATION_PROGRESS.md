@@ -99,6 +99,8 @@
 | K082 | Dashboard UI Completion | Not Started | - |
 | K083 | Release Gate Expansion | Not Started | - |
 | K084 | Final Integration and Documentation | Not Started | - |
+| K085 | Slash Command Palette | Not Started | - |
+| K086 | CLI Startup Arguments Expansion | Not Started | - |
 
 
 ## Official Verification Commands
@@ -683,3 +685,21 @@
 - [x] Adjust existing K056 tests to match fail-closed expectations (assert throwing exceptions on invalid json).
 - [x] Add K071ProviderDescriptorV2Tests covering 8 test methods / 10 cases
 - [x] Official Release Gate passed (527/527 pass).
+
+### K085: Slash Command Palette
+- [ ] `PromptComposer`에 `/` 입력 감지 시 팔레트 모드 전환 로직 추가
+- [ ] `LumenState`에 `IsCommandPaletteVisible`, `PaletteFilterText`, `PaletteSelectedIndex` 상태 추가
+- [ ] 모달 입력 상태 기계 (ArrowUp/Down 리다이렉트) 구현
+- [ ] `LumenFrameBuilder`에서 명령어 팔레트 오버레이 패널 렌더링
+- [ ] Enter 자동완성, Escape 닫기, 최대 5행 제한 및 스크롤 래핑
+- [ ] `K085SlashCommandPaletteTests` 추가
+- [ ] Official Release Gate passed
+
+### K086: CLI Startup Arguments Expansion
+- [ ] `CliOptions.cs`에 `--yolo` 플래그 파싱 추가
+- [ ] `CliOptions.cs`에 `--setworkspace <경로>` 옵션 파싱 추가
+- [ ] `Program.cs`에서 `--setworkspace` 경로 유효성 검증 및 `AppState.CurrentCwd` 설정
+- [ ] `PermissionEnforcer.Evaluate()`에서 YOLO 모드 내부 Allow / 외부 RequireApproval 분기
+- [ ] `K086CliStartupArgsTests` 추가 (YOLO 권한 분기 검증)
+- [ ] `K086WorkspaceArgTests` 추가 (`--setworkspace` 경로 검증)
+- [ ] Official Release Gate passed

@@ -21,6 +21,10 @@ using System.Threading;
 
 var options = CliOptions.Parse(args);
 
+// Load configuration and resolve provider/model settings precedence
+var globalConfig = await SettingsManager.GetMergedSettingsAsync();
+SettingsManager.ApplyPrecedence(globalConfig, options.Provider, options.Model);
+
 // --- 1. Dependency Injection Configuration ---
 var services = new ServiceCollection();
 CliServiceRegistration.ConfigureServices(services);
