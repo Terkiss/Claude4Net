@@ -92,8 +92,8 @@
 | K075 | Routine Execution Integration | Completed | 559/559 pass |
 | K076 | Routine Scheduler Hardening | Completed | 567/567 pass |
 | K077 | Skill Proposal Lifecycle | Completed | 570/570 pass |
-| K078 | Skill Apply Engine | In Progress | - |
-| K079 | Skill Trajectory Mining | Not Started | - |
+| K078 | Skill Apply Engine | Completed | 574/574 pass |
+| K079 | Skill Trajectory Mining | In Progress | - |
 | K080 | Dashboard Read Models | Not Started | - |
 | K081 | Dashboard Typed Commands | Not Started | - |
 | K082 | Dashboard UI Completion | Not Started | - |
@@ -738,7 +738,22 @@
 - [x] Add K077SkillProposalLifecycleTests verifying state machine transitions and command handler outcomes.
 - [x] Official Release Gate passed (570/570 pass)
 
-### K085: Slash Command Palette
+### K078: Skill Apply Engine
+- [x] Implement the 9-step Skill Apply Engine pipeline (Status check, Path validation, Patch preview, Pre-apply checkpoint, User approval, Apply changes, Evidence record, Post-apply verification, Mutation & Rollback).
+- [x] Integrate `/skill apply <proposalId>` command.
+- [x] Fix test isolation by adding `[Collection("AppState")]` to `K050LumenTranscriptHygieneTests`.
+- [x] Add `K078SkillApplyEngineTests` verifying all pipeline branches and rollback safety.
+- [x] Official Release Gate passed (574/574 pass)
+
+### K079: Skill Trajectory Mining
+- [ ] Record skill usage success/failure and score.
+- [ ] Mine `agent_trajectories`, event store, and verification results.
+- [ ] Detect repeated failure classes by skill/tool/path/error.
+- [ ] Generate proposal candidates with metadata linking evidence.
+- [ ] Deduplicate similar proposal candidates.
+- [ ] Do not auto-approve or auto-apply generated proposals.
+- [ ] Add `K079SkillTrajectoryMiningIntegrationTests`
+- [ ] Official Release Gate passed
 - [ ] `PromptComposer`에 `/` 입력 감지 시 팔레트 모드 전환 로직 추가
 - [ ] `LumenState`에 `IsCommandPaletteVisible`, `PaletteFilterText`, `PaletteSelectedIndex` 상태 추가
 - [ ] 모달 입력 상태 기계 (ArrowUp/Down 리다이렉트) 구현

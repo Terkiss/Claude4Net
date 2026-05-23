@@ -1,8 +1,8 @@
 # Ralph Loop Queue State
 
 - **Queue Status**: `running`
-- **Active Card**: `K078`
-- **Current Target**: K078
+- **Active Card**: `K079`
+- **Current Target**: K079
 
 ## Milestone Queue Status
 
@@ -19,8 +19,8 @@
 | K075 | Routine Execution Integration | Completed | Verified by First Reviewer & Final Controller |
 | K076 | Routine Scheduler Hardening | Completed | Verified by First Reviewer & Final Controller |
 | K077 | Skill Proposal Lifecycle | Completed | Verified by First Reviewer & Final Controller |
-| K078 | Skill Apply Engine | In Progress | Current target |
-| K079 | Skill Trajectory Mining | Not Started | - |
+| K078 | Skill Apply Engine | Completed | Verified by First Reviewer & Final Controller |
+| K079 | Skill Trajectory Mining | In Progress | Current target |
 | K080 | Dashboard Read Models | Not Started | - |
 | K081 | Dashboard Typed Commands | Not Started | - |
 | K082 | Dashboard UI Completion | Not Started | - |
@@ -30,5 +30,5 @@
 | K086 | CLI Startup Arguments Expansion | Not Started | - |
 
 ## Execution Card
-- Active: K078 Skill Apply Engine
+- Active: K079 Skill Trajectory Mining
 

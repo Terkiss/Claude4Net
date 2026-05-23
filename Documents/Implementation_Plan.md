@@ -137,14 +137,14 @@ Parallelization rules:
 - K080 read models can begin after K071/K074/K077 are stable enough to expose state.
 - K081 must wait for K080; K082 must wait for K080 and K081.
 
-## 7. Active Execution Card: K078 Skill Apply Engine
+## 7. Active Execution Card: K079 Skill Trajectory Mining
 
-Goal: Apply approved skill proposals safely.
+Goal: Generate proposal candidates from repeated failures.
 
 Allowed files:
-- `Claude4Net.Runtime/SkillProposalService.cs`
-- `Claude4Net.Runtime/SkillApplyEngine.cs` (or similar)
-- `Claude4Net.Tests/K078SkillApplyEngineTests.cs` (or similar)
+- `Claude4Net.Runtime/SelfEvolvingSkills.cs` (or similar mining files)
+- `Claude4Net.Runtime/TrajectoryMiningService.cs` (or similar)
+- `Claude4Net.Tests/K079SkillTrajectoryMiningTests.cs` (or similar)
 - `IMPLEMENTATION_PROGRESS.md`
 - `Documents/Implementation_Plan.md`
 - `ralph-queue-state.md`
@@ -154,19 +154,16 @@ Forbidden files:
 - `.gemini/agents/`
 
 Required work:
-- Add patch preview or structured file change preview.
-- Require approval before write.
-- Create checkpoint before apply.
-- Reject direct `.agents/` mutation.
-- Permit only approved projection/safe paths.
-- Apply patch or generated file changes.
-- Record diff/evidence.
-- Run verification after apply.
-- Mark `Verified` on pass and `Failed` on fail.
+- Record skill usage success/failure and score.
+- Mine `agent_trajectories`, event store, and verification results.
+- Detect repeated failure classes by skill/tool/path/error.
+- Generate proposal candidates with metadata linking evidence.
+- Deduplicate similar proposal candidates.
+- Do not auto-approve or auto-apply generated proposals.
 
 Required tests:
-- `K061SkillProposalApplyTests`
-- New `K078SkillApplyEngineTests`
+- `K062SkillTrajectoryMiningTests`
+- New `K079SkillTrajectoryMiningIntegrationTests`
 
 Done when:
 - All required work implemented.
