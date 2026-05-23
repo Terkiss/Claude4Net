@@ -45,6 +45,11 @@ public sealed class CliOptions
     /// </summary>
     public bool UseLumen { get; set; }
 
+    /// <summary>
+    /// Directory path for workspace option.
+    /// </summary>
+    public string? WorkspaceDir { get; set; }
+
     public string? Provider { get; set; }
     public string? Model { get; set; }
 
@@ -80,6 +85,14 @@ public sealed class CliOptions
             else if (arg.Equals("--lumen", StringComparison.OrdinalIgnoreCase))
             {
                 options.UseLumen = true;
+            }
+            else if (arg.Equals("--yolo", StringComparison.OrdinalIgnoreCase))
+            {
+                options.PermissionModeArg = "yolo";
+            }
+            else if (arg.Equals("--setworkspace", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                options.WorkspaceDir = args[++i];
             }
             else if (arg.Equals("--permission-mode", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
             {

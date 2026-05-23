@@ -21,6 +21,16 @@ using System.Threading;
 
 var options = CliOptions.Parse(args);
 
+if (options.WorkspaceDir != null)
+{
+    if (!Directory.Exists(options.WorkspaceDir))
+    {
+        Console.Error.WriteLine($"Error: workspace directory '{options.WorkspaceDir}' does not exist.");
+        return 1;
+    }
+    AppState.CurrentCwd = Path.GetFullPath(options.WorkspaceDir);
+}
+
 // Load configuration and resolve provider/model settings precedence
 var globalConfig = await SettingsManager.GetMergedSettingsAsync();
 SettingsManager.ApplyPrecedence(globalConfig, options.Provider, options.Model);

@@ -1,8 +1,8 @@
 # Ralph Loop Queue State
 
-- **Queue Status**: `active`
-- **Active Card**: `K085`
-- **Current Target**: K085
+- **Queue Status**: `inactive`
+- **Active Card**: `None`
+- **Current Target**: None
 - **Active Persona**: `Terukirdo (Maid v5.1 - Obedient Mode)`
 
 
@@ -35,13 +35,12 @@
 | K082 | Dashboard UI Completion | Completed | Connected and Interactive UI Views |
 | K083 | Release Gate Expansion | Completed | verify-release.ps1 expansion & env isolation verified |
 | K084 | Final Integration and Documentation | Completed | Verified by release-gate pass (595/595 unit tests + 101 smoke tests pass) |
-| K085 | Slash Command Palette | Not Started | - |
-| K086 | CLI Startup Arguments Expansion | Not Started | - |
+| K085 | Slash Command Palette | Completed | Interactive filtering command overlay popup implemented (601/601 pass) |
+| K086 | CLI Startup Arguments Expansion | Completed | YOLO mode permission routing and workspace dir options implemented (609/609 pass) |
 
 ## Execution Card
-- Active: K085 Slash Command Palette
-- Goal: Implement Slash Command Palette overlay for realtime command filtering.
-- Allowed Files: `Claude4Net.Cli/Ui/LumenCliApp.cs`, `Claude4Net.Cli/Ui/Input/PromptComposer.cs`, `Claude4Net.Cli/Ui/Rendering/LumenFrameBuilder.cs`, `Claude4Net.Cli/Ui/LumenState.cs`, `Documents/Implementation_Plan.md`, `IMPLEMENTATION_PROGRESS.md`
-- Forbidden Files: `.agents/`, `.gemini/agents/`
-- Done When: New slash command palette tests pass and user interface shows filtering list under interactive input.
-
+- Active: None
+- Goal: All milestones have been completed successfully.
+- Allowed Files: None
+- Forbidden Files: None
+- Done When: All milestones verify-release.ps1 gate passed.

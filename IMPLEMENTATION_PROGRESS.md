@@ -101,7 +101,7 @@
 
 | K084 | Final Integration and Documentation | Completed | Full release-gate pass (595/595 unit tests + 101 smoke tests pass) |
 | K085 | Slash Command Palette | Completed | Interactive filtering command overlay popup implemented (601/601 pass) |
-| K086 | CLI Startup Arguments Expansion | Not Started | - |
+| K086 | CLI Startup Arguments Expansion | Completed | YOLO mode permission routing and workspace dir options implemented (609/609 pass) |
 
 
 ## Official Verification Commands
@@ -806,10 +806,10 @@
 - [x] Official Release Gate passed (601/601 unit tests + 101 smoke tests pass)
 
 ### K086: CLI Startup Arguments Expansion
-- [ ] `CliOptions.cs`에 `--yolo` 플래그 파싱 추가
-- [ ] `CliOptions.cs`에 `--setworkspace <경로>` 옵션 파싱 추가
-- [ ] `Program.cs`에서 `--setworkspace` 경로 유효성 검증 및 `AppState.CurrentCwd` 설정
-- [ ] `PermissionEnforcer.Evaluate()`에서 YOLO 모드 내부 Allow / 외부 RequireApproval 분기
-- [ ] `K086CliStartupArgsTests` 추가 (YOLO 권한 분기 검증)
-- [ ] `K086WorkspaceArgTests` 추가 (`--setworkspace` 경로 검증)
-- [ ] Official Release Gate passed
+- [x] `CliOptions.cs`에 `--yolo` 플래그 파싱 추가
+- [x] `CliOptions.cs`에 `--setworkspace <경로>` 옵션 파싱 추가
+- [x] `Program.cs`에서 `--setworkspace` 경로 유효성 검증 및 `AppState.CurrentCwd` 설정
+- [x] `PermissionEnforcer.Evaluate()`에서 YOLO 모드 내부 Allow / 외부 RequireApproval 분기
+- [x] `K086CliStartupArgsTests` 추가 (YOLO 권한 분기 검증)
+- [x] `K086WorkspaceArgTests` 추가 (`--setworkspace` 경로 검증)
+- [x] Official Release Gate passed (609/609 unit tests + 101 smoke tests pass)

@@ -7,8 +7,8 @@ Progress tracker: `IMPLEMENTATION_PROGRESS.md`
 Design source: `Documents/2026-05-21_Claude4Net-App_인사이트_기반_확장_설계.md`
 Backup before SSOT clean: `Documents/backups/2026-05-22/Implementation_Plan.pre-ssot-clean.2026-05-22.md`
 
-Current focus: K085 Slash Command Palette
-Next milestone: K086 CLI Startup Arguments Expansion
+Current focus: K086 CLI Startup Arguments Expansion
+Next milestone: None
 Queue status: active
 
 
@@ -99,8 +99,8 @@ The 2026-05-21 expansion design is complete only when all of the following are t
 | K082 | Dashboard UI Completion | Completed | functional pages for Providers, Skills, Routines, Checkpoints, Verification, State (595/595 pass) |
 | K083 | Release Gate Expansion | Completed | expansion smoke tests added to `verify-release.ps1` (595/595 pass) |
 | K084 | Final Integration and Documentation | Completed | full pass, docs/progress sync, final risk review (595/595 unit tests + 101 smoke tests pass) |
-| K085 | Slash Command Palette | Not Started | `/` 입력 시 실시간 필터링 가능한 명령어 팔레트 오버레이 표시 |
-| K086 | CLI Startup Arguments Expansion | Not Started | `--yolo`, `--setworkspace` 시작 인수 추가 및 YOLO 모드 권한 분기 |
+| K085 | Slash Command Palette | Completed | / 입력 시 실시간 필터링 가능한 명령어 팔레트 오버레이 표시 (601/601 pass) |
+| K086 | CLI Startup Arguments Expansion | Active | `--yolo`, `--setworkspace` 시작 인수 추가 및 YOLO 모드 권한 분기 |
 
 ## 6. Execution Order
 
@@ -137,37 +137,37 @@ Parallelization rules:
 - K080 read models can begin after K071/K074/K077 are stable enough to expose state.
 - K081 must wait for K080; K082 must wait for K080 and K081.
 
-## 7. Active Execution Card: K085 Slash Command Palette
+## 7. Active Execution Card: K086 CLI Startup Arguments Expansion
 
-Goal: `/` 입력 시 등록된 슬래시 명령어를 실시간 필터링 가능한 팝업 오버레이로 표시하여 명령어 검색성과 접근성을 개선한다.
+Goal: CLI 시작 시 `--yolo`, `--setworkspace <경로>` 등의 시작 인수를 추가하여 파이프라인 통합과 자동화 환경 설정을 간소화하고, YOLO 모드에서 워크스페이스 내외부의 차별화된 권한 처리를 구현한다.
 
 Allowed files:
-- `Claude4Net.Cli/Ui/LumenCliApp.cs`
-- `Claude4Net.Cli/Ui/Input/PromptComposer.cs`
-- `Claude4Net.Cli/Ui/Rendering/LumenFrameBuilder.cs`
-- `Claude4Net.Cli/Ui/LumenState.cs`
-- `Claude4Net.Cli/Ui/Events/`
-- `Claude4Net.Tests/`
+- `Claude4Net.Cli/Bootstrap/CliOptions.cs`
+- `Claude4Net.Cli/Program.cs`
+- `Claude4Net.Runtime/PermissionEnforcer.cs`
+- `Claude4Net.Tests/` (신규 테스트 파일 허용)
 - `Documents/Implementation_Plan.md`
 - `IMPLEMENTATION_PROGRESS.md`
+- `ralph-queue-state.md`
 
 Forbidden files:
 - `.agents/`
 - `.gemini/agents/`
 
 Required work:
-- `PromptComposer`에 `/` 입력 감지 시 팔레트 모드 전환 로직 추가.
-- `LumenState`에 `IsCommandPaletteVisible`, `PaletteFilterText`, `PaletteSelectedIndex` 상태 추가.
-- 팔레트 활성화 시 ArrowUp/ArrowDown을 메뉴 항목 선택으로 리다이렉트하는 모달 입력 상태 기계 구현.
-- `CommandRegistry.All`에서 동적 필터링된 명령 목록을 `LumenFrameBuilder`에서 프롬프트 영역 위에 오버레이 패널로 렌더링.
-- Enter 키로 선택된 명령어 자동완성, Escape로 팔레트 닫기.
-- 최대 표시 행 수 5개로 제한하고 스크롤 래핑 지원.
+- `CliOptions.cs`에 `--yolo` 플래그 파싱 추가 (내부적으로 `PermissionModeArg = "yolo"` 매핑)
+- `CliOptions.cs`에 `--setworkspace <경로>` 옵션 파싱 추가 (`WorkspaceDir` 프로퍼티)
+- `Program.cs`에서 `--setworkspace` 경로 유효성 검증 및 `AppState.CurrentCwd` 설정
+- `PermissionEnforcer.Evaluate()`에서 `DangerFullAccess` 모드일 때 워크스페이스 내부 동작은 즉시 `Allow` 반환 (승인 창 스킵)
+- `PermissionEnforcer.Evaluate()`에서 `DangerFullAccess` 모드라도 `PathSafetyResult.Outside`는 `RequireApproval` 유지
+- 일반 모드에서 Outside는 기존대로 `Deny`
 
 Required tests:
-- 신규 `K085SlashCommandPaletteTests` (팔레트 열기/닫기/필터링/선택 동작 검증)
+- 신규 `K086CliStartupArgsTests` (YOLO 모드 내부 Allow / 외부 RequireApproval 검증)
+- 신규 `K086WorkspaceArgTests` (`--setworkspace` 경로 검증)
 
 Done when:
-- New slash command palette tests pass and user interface shows filtering list under interactive input.
+- New CLI startup args tests pass and the PermissionEnforcer logic for YOLO (DangerFullAccess) inside workspace returns Allow and outside workspace returns RequireApproval.
 
 
 
@@ -647,7 +647,7 @@ Do not mark any item checked until implementation, tests, and release evidence e
 - [x] K082 Dashboard UI Completion
 - [x] K083 Release Gate Expansion
 - [x] K084 Final Integration and Documentation
-- [ ] K085 Slash Command Palette
+- [x] K085 Slash Command Palette
 - [ ] K086 CLI Startup Arguments Expansion
 
 The expansion roadmap is complete only when every item above is checked and K084 records a full test and release-gate pass.

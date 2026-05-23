@@ -22,11 +22,21 @@ namespace Claude4Net.Runtime
         {
             var normalizedMode = Normalize(mode);
 
+            if (normalizedMode == PermissionMode.DangerFullAccess)
+            {
+                if (pathSafety == PathSafetyResult.Outside)
+                {
+                    return new PermissionEnforcementResult(PermissionDecision.RequireApproval, "outside workspace access requires explicit approval");
+                }
+                else
+                {
+                    return new PermissionEnforcementResult(PermissionDecision.Allow, "allowed in DangerFullAccess mode inside workspace");
+                }
+            }
+
             if (pathSafety == PathSafetyResult.Outside)
             {
-                return normalizedMode == PermissionMode.DangerFullAccess
-                    ? new PermissionEnforcementResult(PermissionDecision.RequireApproval, "outside workspace access requires explicit approval")
-                    : new PermissionEnforcementResult(PermissionDecision.Deny, "outside workspace access is blocked");
+                return new PermissionEnforcementResult(PermissionDecision.Deny, "outside workspace access is blocked");
             }
 
             if (normalizedMode == PermissionMode.ReadOnly && IsWriteOrExecutionTool(toolName, isSensitiveTool))
