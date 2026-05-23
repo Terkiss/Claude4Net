@@ -7,9 +7,9 @@ Progress tracker: `IMPLEMENTATION_PROGRESS.md`
 Design source: `Documents/2026-05-21_Claude4Net-App_인사이트_기반_확장_설계.md`
 Backup before SSOT clean: `Documents/backups/2026-05-22/Implementation_Plan.pre-ssot-clean.2026-05-22.md`
 
-Current focus: K082 Dashboard UI Completion
-Next milestone: K083 Release Gate Expansion
-Queue status: paused
+Current focus: K084 Final Integration and Documentation
+Next milestone: K085 Slash Command Palette
+Queue status: active
 
 
 ## 0. SSOT Purpose
@@ -95,10 +95,10 @@ The 2026-05-21 expansion design is complete only when all of the following are t
 | K078 | Skill Apply Engine | Completed | Active Execution Card completed |
 | K079 | Skill Trajectory Mining | Completed | failure-pattern mining from trajectories/events/verification and proposal candidates (575/575 pass) |
 | K080 | Dashboard Read Models | Completed | typed provider/coordinate/skill/routine/checkpoint/verification/state read APIs (585/585 pass) |
-| K081 | Dashboard Typed Commands | In Progress | safe typed actions only; no arbitrary command execution |
-| K082 | Dashboard UI Completion | Not Started | functional pages for Providers, Skills, Routines, Checkpoints, Verification, State |
-| K083 | Release Gate Expansion | Not Started | expansion smoke tests added to `verify-release.ps1` |
-| K084 | Final Integration and Documentation | Not Started | full pass, docs/progress sync, final risk review |
+| K081 | Dashboard Typed Commands | Completed | safe typed actions only; no arbitrary command execution (593/593 pass) |
+| K082 | Dashboard UI Completion | Completed | functional pages for Providers, Skills, Routines, Checkpoints, Verification, State (595/595 pass) |
+| K083 | Release Gate Expansion | Completed | expansion smoke tests added to `verify-release.ps1` (595/595 pass) |
+| K084 | Final Integration and Documentation | In Progress | full pass, docs/progress sync, final risk review |
 | K085 | Slash Command Palette | Not Started | `/` 입력 시 실시간 필터링 가능한 명령어 팔레트 오버레이 표시 |
 | K086 | CLI Startup Arguments Expansion | Not Started | `--yolo`, `--setworkspace` 시작 인수 추가 및 YOLO 모드 권한 분기 |
 
@@ -137,14 +137,12 @@ Parallelization rules:
 - K080 read models can begin after K071/K074/K077 are stable enough to expose state.
 - K081 must wait for K080; K082 must wait for K080 and K081.
 
-## 7. Active Execution Card: K081 Dashboard Typed Commands
+## 7. Active Execution Card: K083 Release Gate Expansion
 
-Goal: Add safe control actions without restoring arbitrary remote command execution.
+Goal: Make release verification catch regressions in the new architecture.
 
 Allowed files:
-- `Claude4Net.Dashboard/Hubs/ControlPlaneHub.cs` (or similar hub/API files)
-- `Claude4Net.Dashboard.Client/`
-- `Claude4Net.Tests/K081DashboardTypedCommandTests.cs` (or similar)
+- `scripts/verify-release.ps1`
 - `IMPLEMENTATION_PROGRESS.md`
 - `Documents/Implementation_Plan.md`
 - `ralph-queue-state.md`
@@ -154,21 +152,15 @@ Forbidden files:
 - `.gemini/agents/`
 
 Required work:
-- Add safe control actions without restoring arbitrary remote command execution.
-- Allowed methods: RunRoutine, RestoreCheckpoint, ApproveSkillProposal, RejectSkillProposal, ApplySkillProposal, RunVerification.
-- Keep `ExecuteCommand(string)` denied.
-- Every write/control action evaluates permission and appends audit/event data.
-- Restore/apply actions require approval-capable permission mode.
-- Errors are structured and user-safe.
+- Add State Isolation Smoke, Spec Gate Smoke, Provider Descriptor Smoke, Routine Permission Smoke, Dashboard Control Plane Smoke to scripts/verify-release.ps1 using Run-Step.
+- Ensure the full unit/integration test step remains intact.
+- Do not make the release script depend on network/external API keys.
 
 Required tests:
-- `K066DashboardCommandPermissionTests`
-- New `K081DashboardTypedCommandTests`
+- Run verify-release.ps1 and ensure it passes successfully with all new steps.
 
 Done when:
-- All required work implemented.
-- Targeted tests pass.
-- Release gate passes.
+- verify-release.ps1 executes all steps and passes.
 
 
 
@@ -645,9 +637,9 @@ Do not mark any item checked until implementation, tests, and release evidence e
 - [x] K079 Skill Trajectory Mining
 - [x] K080 Dashboard Read Models
 - [x] K081 Dashboard Typed Commands
-- [ ] K082 Dashboard UI Completion
-- [ ] K083 Release Gate Expansion
-- [ ] K084 Final Integration and Documentation
+- [x] K082 Dashboard UI Completion
+- [x] K083 Release Gate Expansion
+- [/] K084 Final Integration and Documentation
 - [ ] K085 Slash Command Palette
 - [ ] K086 CLI Startup Arguments Expansion
 

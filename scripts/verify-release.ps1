@@ -3,6 +3,11 @@
 
 $ErrorActionPreference = "Stop"
 
+# Environment Isolation to prevent real external API calls during verification
+$env:GEMINI_API_KEY = "mock-gemini-key"
+$env:ANTHROPIC_API_KEY = "mock-anthropic-key"
+
+
 function Run-Step {
     param (
         [string]$Name,
@@ -28,6 +33,31 @@ Run-Step "Strict Nullable Build" {
 # 3. Unit & Integration Tests
 Run-Step "Unit & Integration Tests" { 
     dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false 
+}
+
+# 3.1 State Isolation Smoke
+Run-Step "State Isolation Smoke" {
+    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K063|FullyQualifiedName~K064"
+}
+
+# 3.2 Spec Gate Smoke
+Run-Step "Spec Gate Smoke" {
+    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K054|FullyQualifiedName~K055|FullyQualifiedName~K069|FullyQualifiedName~K070"
+}
+
+# 3.3 Provider Descriptor Smoke
+Run-Step "Provider Descriptor Smoke" {
+    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K056|FullyQualifiedName~K057|FullyQualifiedName~K071|FullyQualifiedName~K072"
+}
+
+# 3.4 Routine Permission Smoke
+Run-Step "Routine Permission Smoke" {
+    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K058|FullyQualifiedName~K059|FullyQualifiedName~K060|FullyQualifiedName~K074|FullyQualifiedName~K075|FullyQualifiedName~K076"
+}
+
+# 3.5 Dashboard Control Plane Smoke
+Run-Step "Dashboard Control Plane Smoke" {
+    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K065|FullyQualifiedName~K066|FullyQualifiedName~K080|FullyQualifiedName~K081"
 }
 
 # 4. CLI Smoke Test Verification

@@ -97,7 +97,8 @@
 | K080 | Dashboard Read Models | Completed | 585/585 pass |
 | K081 | Dashboard Typed Commands | Completed | 593/593 pass |
 | K082 | Dashboard UI Completion | Completed | 595/595 pass |
-| K083 | Release Gate Expansion | Not Started | - |
+| K083 | Release Gate Expansion | Completed | verify-release.ps1 expansion & env isolation verified (595/595 pass) |
+
 | K084 | Final Integration and Documentation | Not Started | - |
 | K085 | Slash Command Palette | Not Started | - |
 | K086 | CLI Startup Arguments Expansion | Not Started | - |

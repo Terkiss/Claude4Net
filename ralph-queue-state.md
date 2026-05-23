@@ -1,9 +1,13 @@
 # Ralph Loop Queue State
 
 - **Queue Status**: `active`
-- **Active Card**: `K083`
-- **Current Target**: K083
+- **Active Card**: `K084`
+- **Current Target**: K084
 - **Active Persona**: `Terukirdo (Maid v5.1 - Obedient Mode)`
+- **Push Constraint**: `FORBIDDEN (Do NOT run git push)`
+
+
+
 
 
 
@@ -27,11 +31,15 @@
 | K080 | Dashboard Read Models | Completed | Verified by First Reviewer & Final Controller |
 | K081 | Dashboard Typed Commands | Completed | Verified by Unit & Integration Tests and Release Gate |
 | K082 | Dashboard UI Completion | Completed | Connected and Interactive UI Views |
-| K083 | Release Gate Expansion | Not Started | - |
-| K084 | Final Integration and Documentation | Not Started | - |
+| K083 | Release Gate Expansion | Completed | verify-release.ps1 expansion & env isolation verified |
+| K084 | Final Integration and Documentation | In Progress | - |
 | K085 | Slash Command Palette | Not Started | - |
 | K086 | CLI Startup Arguments Expansion | Not Started | - |
 
 ## Execution Card
-- Active: K082 Dashboard UI Completion
+- Active: K084 Final Integration and Documentation
+- Goal: Close the roadmap with evidence and synchronized documentation.
+- Allowed Files: `scripts/verify-release.ps1`, `IMPLEMENTATION_PROGRESS.md`, `Documents/Implementation_Plan.md`, `ralph-queue-state.md`
+- Forbidden Files: `.agents/`, `.gemini/agents/`
+- Done When: K084 records a full test and release-gate pass.
 
