@@ -99,7 +99,7 @@
 | K082 | Dashboard UI Completion | Completed | 595/595 pass |
 | K083 | Release Gate Expansion | Completed | verify-release.ps1 expansion & env isolation verified (595/595 pass) |
 
-| K084 | Final Integration and Documentation | Not Started | - |
+| K084 | Final Integration and Documentation | Completed | Full release-gate pass (595/595 unit tests + 101 smoke tests pass) |
 | K085 | Slash Command Palette | Not Started | - |
 | K086 | CLI Startup Arguments Expansion | Not Started | - |
 
@@ -764,6 +764,37 @@
 - [x] Add path-traversal validation for session/workspace inputs.
 - [x] Implement `K080DashboardReadModelTests.cs` under Claude4Net.Tests project, covering 10 test scenarios.
 - [x] Official Release Gate passed (585/585 pass)
+
+### K081: Dashboard Typed Commands
+- [x] Keep `ExecuteCommand` interface denied and enforce strict command sanitization and evaluation.
+- [x] Implement safe control actions: `RunRoutine`, `RestoreCheckpoint`, `ApproveSkillProposal`, `RejectSkillProposal`, `ApplySkillProposal`, `RunVerification`.
+- [x] Integrate permission level checking in all writable control actions.
+- [x] Append detailed audit trail and event store logs for every control operation.
+- [x] Add comprehensive tests (`K081DashboardTypedCommandTests`) verifying authorization, validation, and rejection paths.
+- [x] Official Release Gate passed (593/593 pass).
+
+### K082: Dashboard UI Completion
+- [x] Replace UI placeholders in Blazor WASM with production-ready operational views.
+- [x] Implement UI pages: Providers routing category, Skills lifecycle control panel, Routines scheduler triggers and execution, Checkpoint history comparison, Verification session logging.
+- [x] Bind Blazor UI buttons directly to safe typed Hub methods rather than arbitrary CLI commands.
+- [x] Implement client-side permission-aware button enabling/disabling states.
+- [x] Add Blazor rendering tests and verification path integration coverage.
+- [x] Official Release Gate passed (595/595 pass).
+
+### K083: Release Gate Expansion
+- [x] Update `scripts/verify-release.ps1` to include focused integration smoke test groups.
+- [x] Add steps: "State Isolation Smoke", "Spec Gate Smoke", "Provider Descriptor Smoke", "Routine Permission Smoke", and "Dashboard Control Plane Smoke".
+- [x] Ensure that external system environment variable overrides are mock-isolated at the script level.
+- [x] Maintain full test coverage baseline of 595 tests along with the individual smoke filter checks.
+- [x] Verify CLI direct dll execution and exit checks in non-interactive mode.
+- [x] Official Release Gate passed (595/595 pass).
+
+### K084: Final Integration and Documentation
+- [x] Execute `verify-release.ps1` to verify clean build, nullable warnings compliance, and 595 tests pass.
+- [x] Update roadmap tables and status trackers in `IMPLEMENTATION_PROGRESS.md`, `Documents/Implementation_Plan.md`, and `ralph-queue-state.md` to Completed.
+- [x] Synchronize milestone queue and verify directory status.
+- [x] Confirm no modifications have occurred under `.agents/` or other forbidden paths.
+- [x] Official Release Gate passed (595/595 unit tests + 101 smoke tests pass).
 
 ### K085: Slash Command Palette
 - [ ] `PromptComposer`에 `/` 입력 감지 시 팔레트 모드 전환 로직 추가

@@ -7,8 +7,8 @@ Progress tracker: `IMPLEMENTATION_PROGRESS.md`
 Design source: `Documents/2026-05-21_Claude4Net-App_인사이트_기반_확장_설계.md`
 Backup before SSOT clean: `Documents/backups/2026-05-22/Implementation_Plan.pre-ssot-clean.2026-05-22.md`
 
-Current focus: K084 Final Integration and Documentation
-Next milestone: K085 Slash Command Palette
+Current focus: K085 Slash Command Palette
+Next milestone: K086 CLI Startup Arguments Expansion
 Queue status: active
 
 
@@ -98,7 +98,7 @@ The 2026-05-21 expansion design is complete only when all of the following are t
 | K081 | Dashboard Typed Commands | Completed | safe typed actions only; no arbitrary command execution (593/593 pass) |
 | K082 | Dashboard UI Completion | Completed | functional pages for Providers, Skills, Routines, Checkpoints, Verification, State (595/595 pass) |
 | K083 | Release Gate Expansion | Completed | expansion smoke tests added to `verify-release.ps1` (595/595 pass) |
-| K084 | Final Integration and Documentation | In Progress | full pass, docs/progress sync, final risk review |
+| K084 | Final Integration and Documentation | Completed | full pass, docs/progress sync, final risk review (595/595 unit tests + 101 smoke tests pass) |
 | K085 | Slash Command Palette | Not Started | `/` 입력 시 실시간 필터링 가능한 명령어 팔레트 오버레이 표시 |
 | K086 | CLI Startup Arguments Expansion | Not Started | `--yolo`, `--setworkspace` 시작 인수 추가 및 YOLO 모드 권한 분기 |
 
@@ -137,30 +137,37 @@ Parallelization rules:
 - K080 read models can begin after K071/K074/K077 are stable enough to expose state.
 - K081 must wait for K080; K082 must wait for K080 and K081.
 
-## 7. Active Execution Card: K083 Release Gate Expansion
+## 7. Active Execution Card: K085 Slash Command Palette
 
-Goal: Make release verification catch regressions in the new architecture.
+Goal: `/` 입력 시 등록된 슬래시 명령어를 실시간 필터링 가능한 팝업 오버레이로 표시하여 명령어 검색성과 접근성을 개선한다.
 
 Allowed files:
-- `scripts/verify-release.ps1`
-- `IMPLEMENTATION_PROGRESS.md`
+- `Claude4Net.Cli/Ui/LumenCliApp.cs`
+- `Claude4Net.Cli/Ui/Input/PromptComposer.cs`
+- `Claude4Net.Cli/Ui/Rendering/LumenFrameBuilder.cs`
+- `Claude4Net.Cli/Ui/LumenState.cs`
+- `Claude4Net.Cli/Ui/Events/`
+- `Claude4Net.Tests/`
 - `Documents/Implementation_Plan.md`
-- `ralph-queue-state.md`
+- `IMPLEMENTATION_PROGRESS.md`
 
 Forbidden files:
 - `.agents/`
 - `.gemini/agents/`
 
 Required work:
-- Add State Isolation Smoke, Spec Gate Smoke, Provider Descriptor Smoke, Routine Permission Smoke, Dashboard Control Plane Smoke to scripts/verify-release.ps1 using Run-Step.
-- Ensure the full unit/integration test step remains intact.
-- Do not make the release script depend on network/external API keys.
+- `PromptComposer`에 `/` 입력 감지 시 팔레트 모드 전환 로직 추가.
+- `LumenState`에 `IsCommandPaletteVisible`, `PaletteFilterText`, `PaletteSelectedIndex` 상태 추가.
+- 팔레트 활성화 시 ArrowUp/ArrowDown을 메뉴 항목 선택으로 리다이렉트하는 모달 입력 상태 기계 구현.
+- `CommandRegistry.All`에서 동적 필터링된 명령 목록을 `LumenFrameBuilder`에서 프롬프트 영역 위에 오버레이 패널로 렌더링.
+- Enter 키로 선택된 명령어 자동완성, Escape로 팔레트 닫기.
+- 최대 표시 행 수 5개로 제한하고 스크롤 래핑 지원.
 
 Required tests:
-- Run verify-release.ps1 and ensure it passes successfully with all new steps.
+- 신규 `K085SlashCommandPaletteTests` (팔레트 열기/닫기/필터링/선택 동작 검증)
 
 Done when:
-- verify-release.ps1 executes all steps and passes.
+- New slash command palette tests pass and user interface shows filtering list under interactive input.
 
 
 
@@ -639,7 +646,7 @@ Do not mark any item checked until implementation, tests, and release evidence e
 - [x] K081 Dashboard Typed Commands
 - [x] K082 Dashboard UI Completion
 - [x] K083 Release Gate Expansion
-- [/] K084 Final Integration and Documentation
+- [x] K084 Final Integration and Documentation
 - [ ] K085 Slash Command Palette
 - [ ] K086 CLI Startup Arguments Expansion
 

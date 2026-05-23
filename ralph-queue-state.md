@@ -1,9 +1,11 @@
 # Ralph Loop Queue State
 
 - **Queue Status**: `active`
-- **Active Card**: `K084`
-- **Current Target**: K084
+- **Active Card**: `K085`
+- **Current Target**: K085
 - **Active Persona**: `Terukirdo (Maid v5.1 - Obedient Mode)`
+
+
 - **Push Constraint**: `FORBIDDEN (Do NOT run git push)`
 
 
@@ -32,14 +34,14 @@
 | K081 | Dashboard Typed Commands | Completed | Verified by Unit & Integration Tests and Release Gate |
 | K082 | Dashboard UI Completion | Completed | Connected and Interactive UI Views |
 | K083 | Release Gate Expansion | Completed | verify-release.ps1 expansion & env isolation verified |
-| K084 | Final Integration and Documentation | In Progress | - |
+| K084 | Final Integration and Documentation | Completed | Verified by release-gate pass (595/595 unit tests + 101 smoke tests pass) |
 | K085 | Slash Command Palette | Not Started | - |
 | K086 | CLI Startup Arguments Expansion | Not Started | - |
 
 ## Execution Card
-- Active: K084 Final Integration and Documentation
-- Goal: Close the roadmap with evidence and synchronized documentation.
-- Allowed Files: `scripts/verify-release.ps1`, `IMPLEMENTATION_PROGRESS.md`, `Documents/Implementation_Plan.md`, `ralph-queue-state.md`
+- Active: K085 Slash Command Palette
+- Goal: Implement Slash Command Palette overlay for realtime command filtering.
+- Allowed Files: `Claude4Net.Cli/Ui/LumenCliApp.cs`, `Claude4Net.Cli/Ui/Input/PromptComposer.cs`, `Claude4Net.Cli/Ui/Rendering/LumenFrameBuilder.cs`, `Claude4Net.Cli/Ui/LumenState.cs`, `Documents/Implementation_Plan.md`, `IMPLEMENTATION_PROGRESS.md`
 - Forbidden Files: `.agents/`, `.gemini/agents/`
-- Done When: K084 records a full test and release-gate pass.
+- Done When: New slash command palette tests pass and user interface shows filtering list under interactive input.
 

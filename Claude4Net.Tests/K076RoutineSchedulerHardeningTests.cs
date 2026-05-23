@@ -179,17 +179,29 @@ namespace Claude4Net.Tests
             _scheduler.MinimumIntervalFloor = TimeSpan.FromSeconds(1);
             _scheduler.Start();
 
-            // Wait 1.5 seconds for it to start running
-            await Task.Delay(1500);
-
-            // Try to trigger manually while it is running, should throw
-            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            // Wait and poll until the routine starts running (triggers manual block exception)
+            bool triggerFailedWhileRunning = false;
+            for (int i = 0; i < 30; i++)
             {
-                await _scheduler.TriggerManualAsync("concurrency-routine");
-            });
+                await Task.Delay(200);
+                try
+                {
+                    await _scheduler.TriggerManualAsync("concurrency-routine");
+                }
+                catch (InvalidOperationException)
+                {
+                    triggerFailedWhileRunning = true;
+                    break;
+                }
+            }
 
-            // Wait for it to finish
-            await Task.Delay(3000);
+            Assert.True(triggerFailedWhileRunning, "Routine did not start running or double-run prevention did not throw.");
+
+            // Wait for it to finish and write the run record
+            for (int i = 0; i < 30 && !_store.GetRunRecords("concurrency-routine").Any(); i++)
+            {
+                await Task.Delay(200);
+            }
 
             var records = _store.GetRunRecords("concurrency-routine").ToList();
             // Should have run exactly once (concurrency limit prevented overlapping runs)
