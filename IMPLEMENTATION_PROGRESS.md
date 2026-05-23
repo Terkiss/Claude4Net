@@ -89,9 +89,9 @@
 | K072 | Provider Settings Precedence | Completed | 530/530 pass |
 | K073 | Provider Factory Preparation | Completed | 544/544 pass |
 | K074 | Routine Command MVP | Completed | 553/553 pass |
-| K075 | Routine Execution Integration | In Progress | - |
-| K076 | Routine Scheduler Hardening | Not Started | - |
-| K077 | Skill Proposal Lifecycle | Not Started | - |
+| K075 | Routine Execution Integration | Completed | 559/559 pass |
+| K076 | Routine Scheduler Hardening | Completed | 567/567 pass |
+| K077 | Skill Proposal Lifecycle | In Progress | - |
 | K078 | Skill Apply Engine | Not Started | - |
 | K079 | Skill Trajectory Mining | Not Started | - |
 | K080 | Dashboard Read Models | Not Started | - |

@@ -32,7 +32,7 @@ namespace Claude4Net.Runtime
             _serviceProvider = serviceProvider;
         }
 
-        public async Task<RoutineRunRecord> RunAsync(string routineId, string workspaceRoot, PermissionMode currentSessionMode)
+        public async Task<RoutineRunRecord> RunAsync(string routineId, string workspaceRoot, PermissionMode currentSessionMode, CancellationToken cancellationToken = default)
         {
             var record = new RoutineRunRecord
             {
@@ -196,7 +196,7 @@ namespace Claude4Net.Runtime
                     // 6. Execute Action
                     if (action.Kind == RoutineActionKind.Script)
                     {
-                        var (output, error, exitCode) = await RunProcessAsync(payload, actualWorkspaceRoot);
+                        var (output, error, exitCode) = await RunProcessAsync(payload, actualWorkspaceRoot, cancellationToken);
                         if (exitCode != 0)
                         {
                             throw new InvalidOperationException($"Script execution failed with exit code {exitCode}. Error: {error}");
@@ -237,18 +237,18 @@ namespace Claude4Net.Runtime
 
                         if (string.IsNullOrWhiteSpace(payload))
                         {
-                            var (buildOut, buildErr, buildExit) = await RunProcessAsync("dotnet build -p:UseAppHost=false", actualWorkspaceRoot);
+                            var (buildOut, buildErr, buildExit) = await RunProcessAsync("dotnet build -p:UseAppHost=false", actualWorkspaceRoot, cancellationToken);
                             checks.Add(orchestrator.RunCheck("Standard Build", "dotnet build -p:UseAppHost=false", buildOut + "\n" + buildErr, buildExit));
 
-                            var (strictOut, strictErr, strictExit) = await RunProcessAsync("dotnet build -p:UseAppHost=false -p:TreatWarningsAsErrors=true", actualWorkspaceRoot);
+                            var (strictOut, strictErr, strictExit) = await RunProcessAsync("dotnet build -p:UseAppHost=false -p:TreatWarningsAsErrors=true", actualWorkspaceRoot, cancellationToken);
                             checks.Add(orchestrator.RunCheck("Strict Nullable Build", "dotnet build -p:UseAppHost=false -p:TreatWarningsAsErrors=true", strictOut + "\n" + strictErr, strictExit));
 
-                            var (testOut, testErr, testExit) = await RunProcessAsync("dotnet test --no-build", actualWorkspaceRoot);
+                            var (testOut, testErr, testExit) = await RunProcessAsync("dotnet test --no-build", actualWorkspaceRoot, cancellationToken);
                             checks.Add(orchestrator.RunCheck("Unit Tests", "dotnet test --no-build", testOut + "\n" + testErr, testExit));
                         }
                         else
                         {
-                            var (outStr, errStr, exitCode) = await RunProcessAsync(payload, actualWorkspaceRoot);
+                            var (outStr, errStr, exitCode) = await RunProcessAsync(payload, actualWorkspaceRoot, cancellationToken);
                             checks.Add(orchestrator.RunCheck("Custom Verification", payload, outStr + "\n" + errStr, exitCode));
                         }
 
@@ -362,7 +362,7 @@ namespace Claude4Net.Runtime
             return await resultTask;
         }
 
-        private async Task<(string output, string error, int exitCode)> RunProcessAsync(string command, string workspaceRoot)
+        private async Task<(string output, string error, int exitCode)> RunProcessAsync(string command, string workspaceRoot, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -378,13 +378,32 @@ namespace Claude4Net.Runtime
                 };
                 using var process = Process.Start(psi);
                 if (process == null) return ("", "Could not start powershell process.", -1);
-                string output = await process.StandardOutput.ReadToEndAsync();
-                string error = await process.StandardError.ReadToEndAsync();
-                await process.WaitForExitAsync();
-                return (output, error, process.ExitCode);
+
+                try
+                {
+                    var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+                    var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+                    var waitTask = process.WaitForExitAsync(cancellationToken);
+
+                    await Task.WhenAll(outputTask, errorTask, waitTask);
+                    return (outputTask.Result, errorTask.Result, process.ExitCode);
+                }
+                catch (OperationCanceledException)
+                {
+                    try
+                    {
+                        process.Kill(true);
+                    }
+                    catch { }
+                    throw;
+                }
             }
             catch (Exception ex)
             {
+                if (ex is OperationCanceledException || ex.InnerException is OperationCanceledException)
+                {
+                    throw;
+                }
                 return ("", ex.Message, -1);
             }
         }

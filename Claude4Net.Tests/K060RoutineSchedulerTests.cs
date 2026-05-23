@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Threading.Tasks;
 using Claude4Net.Runtime;
@@ -24,6 +24,7 @@ namespace Claude4Net.Tests
             _runner = new RoutineRunner(_store, new PermissionEnforcer(), new PathSafetyEvaluator());
 
             _scheduler = new RoutineSchedulerService(_store, _runner, _workspace);
+            _scheduler.MinimumIntervalFloor = TimeSpan.FromSeconds(1);
         }
 
         public async ValueTask DisposeAsync()

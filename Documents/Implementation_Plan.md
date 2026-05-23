@@ -7,8 +7,8 @@ Progress tracker: `IMPLEMENTATION_PROGRESS.md`
 Design source: `Documents/2026-05-21_Claude4Net-App_인사이트_기반_확장_설계.md`
 Backup before SSOT clean: `Documents/backups/2026-05-22/Implementation_Plan.pre-ssot-clean.2026-05-22.md`
 
-Current focus: K076 Routine Scheduler Hardening
-Next milestone: K077 Skill Proposal Lifecycle
+Current focus: K077 Skill Proposal Lifecycle
+Next milestone: K078 Skill Apply Engine
 Queue status: running
 
 
@@ -90,8 +90,8 @@ The 2026-05-21 expansion design is complete only when all of the following are t
 | K073 | Provider Factory Preparation | Completed | `IProviderFactory` and default factory registration without breaking current provider creation (544/544 pass) |
 | K074 | Routine Command MVP | Completed | Expose routine definition management through slash commands; add path-safe ID checks (553/553 pass) |
 | K075 | Routine Execution Integration | Completed | Make routine runs pass through safety layers, validation, checkpoint, hooks, event logging, verification (559/559 pass) |
-| K076 | Routine Scheduler Hardening | In Progress | Safety features, concurrency limit, DailyTime/Interval logic, timeouts, persistence |
-| K077 | Skill Proposal Lifecycle | Not Started | Active execution card completed |
+| K076 | Routine Scheduler Hardening | Completed | Safety features, concurrency limit, DailyTime/Interval logic, timeouts, persistence (567/567 pass) |
+| K077 | Skill Proposal Lifecycle | In Progress | Active execution card completed |
 | K078 | Skill Apply Engine | Not Started | Active Execution Card completed |
 | K079 | Skill Trajectory Mining | Not Started | failure-pattern mining from trajectories/events/verification and proposal candidates |
 | K080 | Dashboard Read Models | Not Started | typed provider/coordinate/skill/routine/checkpoint/verification/state read APIs |

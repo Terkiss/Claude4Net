@@ -63,6 +63,8 @@ namespace Claude4Net.SDK
         }
 
         public DateTimeOffset? LastRun { get; set; }
+        public DateTimeOffset? NextRun { get; set; }
+        public TimeSpan? Timeout { get; set; }
 
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
         public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
