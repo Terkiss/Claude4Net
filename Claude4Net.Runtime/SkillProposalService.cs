@@ -108,8 +108,124 @@ namespace Claude4Net.Runtime
             var proposal = _root.Proposals.FirstOrDefault(p => p.Id == proposalId);
             if (proposal == null) throw new KeyNotFoundException($"Proposal '{proposalId}' not found.");
 
+            var current = proposal.Status;
+
+            // Validate transition
+            bool isValid = status switch
+            {
+                SkillProposalStatus.Proposed => current == SkillProposalStatus.Draft,
+                SkillProposalStatus.Approved => current == SkillProposalStatus.Draft || current == SkillProposalStatus.Proposed,
+                SkillProposalStatus.Rejected => current == SkillProposalStatus.Draft || current == SkillProposalStatus.Proposed,
+                SkillProposalStatus.Applied => current == SkillProposalStatus.Approved,
+                SkillProposalStatus.Verified => current == SkillProposalStatus.Applied,
+                SkillProposalStatus.Failed => current == SkillProposalStatus.Applied,
+                SkillProposalStatus.Superseded => current == SkillProposalStatus.Approved || current == SkillProposalStatus.Failed,
+                _ => false
+            };
+
+            if (!isValid)
+            {
+                throw new InvalidOperationException($"Invalid status transition from {current} to {status}.");
+            }
+
             proposal.Status = status;
             proposal.UpdatedAt = DateTime.UtcNow;
+        }
+
+        public async Task ApproveProposalAsync(string workspaceRoot, string proposalId)
+        {
+            await LoadAsync(workspaceRoot);
+            var proposal = GetProposal(proposalId);
+            if (proposal == null) throw new KeyNotFoundException($"Proposal '{proposalId}' not found.");
+
+            if (proposal.Status != SkillProposalStatus.Draft && proposal.Status != SkillProposalStatus.Proposed)
+            {
+                throw new InvalidOperationException($"Proposal must be in Draft or Proposed state to be approved. Current: {proposal.Status}");
+            }
+
+            var validation = ValidateProposal(proposal);
+            if (!validation.IsValid)
+            {
+                throw new InvalidOperationException($"Proposal validation failed: {string.Join(", ", validation.Errors)}");
+            }
+
+            UpdateStatus(proposalId, SkillProposalStatus.Approved);
+            await SaveAsync(workspaceRoot);
+        }
+
+        public async Task RejectProposalAsync(string workspaceRoot, string proposalId)
+        {
+            await LoadAsync(workspaceRoot);
+            var proposal = GetProposal(proposalId);
+            if (proposal == null) throw new KeyNotFoundException($"Proposal '{proposalId}' not found.");
+
+            if (proposal.Status != SkillProposalStatus.Draft && proposal.Status != SkillProposalStatus.Proposed)
+            {
+                throw new InvalidOperationException($"Proposal must be in Draft or Proposed state to be rejected. Current: {proposal.Status}");
+            }
+
+            UpdateStatus(proposalId, SkillProposalStatus.Rejected);
+            await SaveAsync(workspaceRoot);
+        }
+
+        public async Task ApplyProposalAsync(string workspaceRoot, string proposalId)
+        {
+            await LoadAsync(workspaceRoot);
+            var proposal = GetProposal(proposalId);
+            if (proposal == null) throw new KeyNotFoundException($"Proposal '{proposalId}' not found.");
+
+            if (proposal.Status != SkillProposalStatus.Approved)
+            {
+                throw new InvalidOperationException($"Proposal must be in Approved state to be applied. Current: {proposal.Status}");
+            }
+
+            UpdateStatus(proposalId, SkillProposalStatus.Applied);
+            await SaveAsync(workspaceRoot);
+        }
+
+        public async Task VerifyProposalAsync(string workspaceRoot, string proposalId)
+        {
+            await LoadAsync(workspaceRoot);
+            var proposal = GetProposal(proposalId);
+            if (proposal == null) throw new KeyNotFoundException($"Proposal '{proposalId}' not found.");
+
+            if (proposal.Status != SkillProposalStatus.Applied)
+            {
+                throw new InvalidOperationException($"Proposal must be in Applied state to be verified. Current: {proposal.Status}");
+            }
+
+            UpdateStatus(proposalId, SkillProposalStatus.Verified);
+            await SaveAsync(workspaceRoot);
+        }
+
+        public async Task FailProposalAsync(string workspaceRoot, string proposalId)
+        {
+            await LoadAsync(workspaceRoot);
+            var proposal = GetProposal(proposalId);
+            if (proposal == null) throw new KeyNotFoundException($"Proposal '{proposalId}' not found.");
+
+            if (proposal.Status != SkillProposalStatus.Applied)
+            {
+                throw new InvalidOperationException($"Proposal must be in Applied state to fail. Current: {proposal.Status}");
+            }
+
+            UpdateStatus(proposalId, SkillProposalStatus.Failed);
+            await SaveAsync(workspaceRoot);
+        }
+
+        public async Task SupersedeProposalAsync(string workspaceRoot, string proposalId)
+        {
+            await LoadAsync(workspaceRoot);
+            var proposal = GetProposal(proposalId);
+            if (proposal == null) throw new KeyNotFoundException($"Proposal '{proposalId}' not found.");
+
+            if (proposal.Status != SkillProposalStatus.Approved && proposal.Status != SkillProposalStatus.Failed)
+            {
+                throw new InvalidOperationException($"Proposal must be in Approved or Failed state to be superseded. Current: {proposal.Status}");
+            }
+
+            UpdateStatus(proposalId, SkillProposalStatus.Superseded);
+            await SaveAsync(workspaceRoot);
         }
 
         public SkillProposalRecord? GetProposal(string proposalId)

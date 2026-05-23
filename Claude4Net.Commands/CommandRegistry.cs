@@ -321,12 +321,213 @@ namespace Claude4Net.Commands
                 }
             }},
 
-            // --- [?�증 �?모델 관�? ---
+            new Command { Name = "skill", Description = "Manage skills and evolution proposals", Handler = async (a, sp) => {
+                var parts = a.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length == 0)
+                {
+                    return "Usage: /skill <analyze|proposals|propose|validate|approve|reject|apply>";
+                }
 
-            /// <summary> 로그?? ?�정 ?�로바이??Claude, Gemini ????API ?��? ?�정?�거???�성?�합?�다. </summary>
+                string sub = parts[0].ToLowerInvariant();
+                var proposalService = sp.GetService<SkillProposalService>();
+                if (proposalService == null) return "[red]Error:[/] SkillProposalService not available.";
+
+                string? ws = AppState.CurrentCwd;
+
+                switch (sub)
+                {
+                    case "analyze":
+                        {
+                            var registry = sp.GetService<SkillRegistryService>();
+                            if (registry == null) return "[red]Error:[/] SkillRegistryService not available.";
+
+                            await registry.LoadAsync();
+                            var skills = registry.ListSkills();
+
+                            var sb = new System.Text.StringBuilder();
+                            sb.AppendLine("[bold cyan]Skill Registry Diagnostic & Analysis Report[/]");
+                            sb.AppendLine(new string('=', 50));
+                            sb.AppendLine($"Total Registered Skills: {skills.Count}");
+                            if (skills.Any())
+                            {
+                                int healthy = skills.Count(s => s.Metrics.AverageScore >= 0.8);
+                                int needsImprovement = skills.Count(s => s.Metrics.AverageScore < 0.8);
+                                double avgScore = skills.Average(s => s.Metrics.AverageScore);
+
+                                sb.AppendLine($"Healthy Skills (Score >= 80%): {healthy}");
+                                sb.AppendLine($"Needs Improvement (Score < 80%): {needsImprovement}");
+                                sb.AppendLine($"Overall Average Quality Score: {avgScore:P1}");
+                            }
+                            else
+                            {
+                                sb.AppendLine("[grey]No skills discovered in the current registry.[/]");
+                            }
+                            return sb.ToString();
+                        }
+
+                    case "proposals":
+                        {
+                            if (string.IsNullOrEmpty(ws)) return "[red]Error:[/] Workspace is not set. Use /setworkspace <path> before managing proposals.";
+
+                            await proposalService.LoadAsync(ws);
+                            var proposals = proposalService.ListProposals();
+
+                            if (!proposals.Any()) return "[grey]No skill proposals found.[/]";
+
+                            var sb = new System.Text.StringBuilder();
+                            sb.AppendLine("[bold cyan]Skill Evolution Proposals:[/]");
+
+                            var table = new Table().Border(TableBorder.Rounded);
+                            table.AddColumn("[bold]ID[/]");
+                            table.AddColumn("[bold]Target[/]");
+                            table.AddColumn("[bold]Type[/]");
+                            table.AddColumn("[bold]Summary[/]");
+                            table.AddColumn("[bold]Status[/]");
+
+                            foreach (var p in proposals.OrderByDescending(x => x.CreatedAt))
+                            {
+                                string statusColor = p.Status switch {
+                                    SkillProposalStatus.Approved => "green",
+                                    SkillProposalStatus.Rejected => "red",
+                                    SkillProposalStatus.Proposed => "yellow",
+                                    _ => "grey"
+                                };
+                                string target = p.SkillId ?? (p.TargetPath != null ? Path.GetFileName(p.TargetPath) : "New");
+                                table.AddRow(
+                                    Markup.Escape(p.Id),
+                                    Markup.Escape(target),
+                                    Markup.Escape(p.Type.ToString()),
+                                    Markup.Escape(p.Title),
+                                    $"[{statusColor}]{p.Status}[/]"
+                                );
+                            }
+
+                            AnsiConsole.Write(table);
+                            return $"Total {proposals.Count} proposals listed. Approving a proposal does not apply file changes.";
+                        }
+
+                    case "propose":
+                        {
+                            if (string.IsNullOrEmpty(ws)) return "[red]Error:[/] Workspace is not set. Use /setworkspace <path> before managing proposals.";
+                            if (parts.Length < 3) return "Usage: /skill propose <skillId_or_path> <summary>";
+
+                            string target = parts[1];
+                            int targetIdx = a.IndexOf(target) + target.Length;
+                            string summary = a.Substring(targetIdx).Trim();
+                            if (string.IsNullOrEmpty(summary)) return "Usage: /skill propose <skillId_or_path> <summary>";
+
+                            var proposal = new SkillProposalRecord {
+                                Title = summary,
+                                Status = SkillProposalStatus.Proposed
+                            };
+
+                            if (target.Contains("/") || target.Contains("\\") || target.EndsWith(".md"))
+                                proposal.TargetPath = target;
+                            else
+                                proposal.SkillId = target;
+
+                            try {
+                                await proposalService.LoadAsync(ws);
+                                proposalService.CreateProposal(ws, proposal);
+                                await proposalService.SaveAsync(ws);
+                                return $"[green]Proposal '{proposal.Id}' created successfully.[/] Use !skill-proposals to view status.";
+                            } catch (Exception ex) {
+                                return $"[red]Error creating proposal:[/] {ex.Message}";
+                            }
+                        }
+
+                    case "validate":
+                        {
+                            if (string.IsNullOrEmpty(ws)) return "[red]Error:[/] Workspace is not set. Use /setworkspace <path> before managing proposals.";
+                            if (parts.Length < 2) return "Usage: /skill validate <proposalId>";
+                            string proposalId = parts[1];
+
+                            await proposalService.LoadAsync(ws);
+                            var proposal = proposalService.GetProposal(proposalId);
+                            if (proposal == null) return $"[red]Error:[/] Proposal '{proposalId}' not found.";
+
+                            var validation = proposalService.ValidateProposal(proposal);
+                            var sb = new System.Text.StringBuilder();
+                            sb.AppendLine($"[bold cyan]Proposal Validation Details for {proposalId}:[/]");
+                            sb.AppendLine($"  [bold]Title:[/] {proposal.Title}");
+                            sb.AppendLine($"  [bold]Validity:[/] {(validation.IsValid ? "[green]VALID[/]" : "[red]INVALID[/]")}");
+                            sb.AppendLine($"  [bold]Estimated Pass Rate:[/] {validation.EstimatedPassRate}%");
+                            if (validation.Errors.Any())
+                            {
+                                sb.AppendLine("  [bold red]Errors:[/]");
+                                foreach (var err in validation.Errors)
+                                {
+                                    sb.AppendLine($"    - {err}");
+                                }
+                            }
+                            else
+                            {
+                                sb.AppendLine("  [grey]No errors found.[/]");
+                            }
+                            return sb.ToString();
+                        }
+
+                    case "approve":
+                        {
+                            if (string.IsNullOrEmpty(ws)) return "[red]Error:[/] Workspace is not set. Use /setworkspace <path> before managing proposals.";
+                            if (parts.Length < 2) return "Usage: /skill approve <proposalId>";
+                            string proposalId = parts[1];
+
+                            try
+                            {
+                                await proposalService.ApproveProposalAsync(ws, proposalId);
+                                return $"[green]Proposal '{proposalId}' has been Approved successfully.[/]";
+                            }
+                            catch (Exception ex)
+                            {
+                                return $"[red]Error approving proposal:[/] {ex.Message}";
+                            }
+                        }
+
+                    case "reject":
+                        {
+                            if (string.IsNullOrEmpty(ws)) return "[red]Error:[/] Workspace is not set. Use /setworkspace <path> before managing proposals.";
+                            if (parts.Length < 2) return "Usage: /skill reject <proposalId>";
+                            string proposalId = parts[1];
+
+                            try
+                            {
+                                await proposalService.RejectProposalAsync(ws, proposalId);
+                                return $"[green]Proposal '{proposalId}' has been Rejected successfully.[/]";
+                            }
+                            catch (Exception ex)
+                            {
+                                return $"[red]Error rejecting proposal:[/] {ex.Message}";
+                            }
+                        }
+
+                    case "apply":
+                        {
+                            if (string.IsNullOrEmpty(ws)) return "[red]Error:[/] Workspace is not set. Use /setworkspace <path> before managing proposals.";
+                            if (parts.Length < 2) return "Usage: /skill apply <proposalId>";
+                            string proposalId = parts[1];
+
+                            try
+                            {
+                                await proposalService.ApplyProposalAsync(ws, proposalId);
+                                return $"[green]Proposal '{proposalId}' has been Applied successfully.[/]";
+                            }
+                            catch (Exception ex)
+                            {
+                                return $"[red]Error applying proposal:[/] {ex.Message}";
+                            }
+                        }
+
+                    default:
+                        return $"[red]Error:[/] Unknown subcommand '{sub}'.";
+                }
+            }},
+
+            // --- [?증 ?모델 관? ---
+
+            /// <summary> 로그?? ?정 ?로바이??Claude, Gemini ????API ?? ?정?거???성?합?다. </summary>
             new Command { Name = "login", Description = "Log in to a provider (gemini, claude, ollama, gemini-cli)", Handler = async (args, sp) => {
                 var parts = args.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length == 0) return "Usage: !login <provider> [key_or_uri]";
 
                 string provider = parts[0].ToLowerInvariant();
                 if (provider == "geminicli" || provider == "gemini-cli")
