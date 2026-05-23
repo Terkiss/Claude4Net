@@ -712,12 +712,22 @@
 - [x] Official Release Gate passed (553/553 pass)
 
 ### K075: Routine Execution Integration
-- [ ] Validate routine definition, workspace paths, and permission mode dynamically before running.
-- [ ] Implement pre-run checkpoint trigger for any routine action modifying files or memory.
-- [ ] Wire up HookPipeline execution (Before / After tool hooks).
-- [ ] Append RoutineRunRecord and Event Store events upon execution.
-- [ ] Implement and test read-only mode workspace protections for routine runner.
-- [ ] Add `K075RoutineExecutionIntegrationTests`
+- [x] Validate routine definition, workspace paths, and permission mode dynamically before running.
+- [x] Implement pre-run checkpoint trigger for any routine action modifying files or memory.
+- [x] Wire up HookPipeline execution (Before / After tool hooks).
+- [x] Append RoutineRunRecord and Event Store events upon execution.
+- [x] Implement and test read-only mode workspace protections for routine runner.
+- [x] Add `K075RoutineExecutionIntegrationTests`
+- [x] Official Release Gate passed (559/559 pass)
+
+### K076: Routine Scheduler Hardening
+- [ ] Implement manual, interval, and daily routine triggers using RoutineSchedulerService.
+- [ ] Calculate next-run timestamps based on configured triggers (DailyTime, Interval).
+- [ ] Enforce safety limits: maximum 1 concurrent execution per routine and minimum interval floors (e.g. 5 seconds).
+- [ ] Add execution run timeout constraints.
+- [ ] Persist routine scheduler execution state (last-run and next-run metadata).
+- [ ] Reject webhook/event triggers with warnings or exceptions.
+- [ ] Add `K076RoutineSchedulerTests`
 - [ ] Official Release Gate passed
 
 ### K085: Slash Command Palette

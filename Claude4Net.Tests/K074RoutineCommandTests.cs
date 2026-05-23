@@ -132,14 +132,20 @@ namespace Claude4Net.Tests
             var resultDisabled = await ExecuteRoutineCommandAsync("run r1");
             Assert.Contains("is disabled", resultDisabled);
 
-            // Enable and run
+            // Enable, add an action, and run
             await ExecuteRoutineCommandAsync("enable r1");
+
+            var store = new RoutineStore(_testWorkspace);
+            var routine = await store.LoadAsync("r1");
+            Assert.NotNull(routine);
+            routine.Actions.Add(new RoutineAction { Kind = RoutineActionKind.SlashCommand, Payload = "/help" });
+            await store.SaveAsync(routine);
+
             var resultRun = await ExecuteRoutineCommandAsync("run r1");
             Assert.Contains("executed successfully", resultRun);
 
             // Verify LastRun is updated in store
-            var store = new RoutineStore(_testWorkspace);
-            var routine = await store.LoadAsync("r1");
+            routine = await store.LoadAsync("r1");
             Assert.NotNull(routine);
             Assert.NotNull(routine.LastRun);
         }

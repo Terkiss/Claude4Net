@@ -46,7 +46,9 @@ namespace Claude4Net.Tests
         [Fact]
         public async Task RequiredPermissionHigherThanSession_ShouldFail()
         {
-            await _store.SaveAsync(new RoutineDefinition { Id = "r1", RequiredPermissionMode = PermissionMode.Prompt, Enabled = true });
+            var def = new RoutineDefinition { Id = "r1", RequiredPermissionMode = PermissionMode.Prompt, Enabled = true };
+            def.Actions.Add(new RoutineAction { Kind = RoutineActionKind.SlashCommand, Payload = "/help" });
+            await _store.SaveAsync(def);
 
             // Running in ReadOnly session while routine requires Prompt
             var result = await _runner.RunAsync("r1", _workspace, PermissionMode.ReadOnly);

@@ -1496,7 +1496,7 @@ namespace Claude4Net.Commands
                                 return $"[red]Error:[/] Routine '{id}' is disabled.";
                             }
 
-                            var runner = new RoutineRunner(store, new PermissionEnforcer(), new PathSafetyEvaluator());
+                            var runner = new RoutineRunner(store, new PermissionEnforcer(), new PathSafetyEvaluator(), sp);
                             var result = await runner.RunAsync(id, AppState.CurrentCwd, AppState.CurrentPermissionMode);
                             if (result.Success)
                             {

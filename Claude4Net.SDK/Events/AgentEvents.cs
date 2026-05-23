@@ -140,6 +140,19 @@ namespace Claude4Net.SDK.Events
     }
 
     /// <summary>
+    /// K075: Routine Run Event — routine run results recorded to event store.
+    /// </summary>
+    public class RoutineRunEvent : AgentEventBase
+    {
+        public override string EventType => "RoutineRun";
+        public string RoutineId { get; set; } = string.Empty;
+        public string RunId { get; set; } = string.Empty;
+        public bool Success { get; set; }
+        public string? Error { get; set; }
+    }
+
+
+    /// <summary>
     /// 에이전트 상태 스냅샷 (이벤트 소싱 재생 최적화용)
     /// </summary>
     public class AgentStateSnapshot

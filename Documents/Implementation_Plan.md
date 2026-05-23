@@ -7,8 +7,8 @@ Progress tracker: `IMPLEMENTATION_PROGRESS.md`
 Design source: `Documents/2026-05-21_Claude4Net-App_인사이트_기반_확장_설계.md`
 Backup before SSOT clean: `Documents/backups/2026-05-22/Implementation_Plan.pre-ssot-clean.2026-05-22.md`
 
-Current focus: K075 Routine Execution Integration
-Next milestone: K076 Routine Scheduler Hardening
+Current focus: K076 Routine Scheduler Hardening
+Next milestone: K077 Skill Proposal Lifecycle
 Queue status: running
 
 
@@ -89,8 +89,8 @@ The 2026-05-21 expansion design is complete only when all of the following are t
 | K072 | Provider Settings Precedence | Completed | Built-in < system < user < workspace < env < CLI (530/530 pass) |
 | K073 | Provider Factory Preparation | Completed | `IProviderFactory` and default factory registration without breaking current provider creation (544/544 pass) |
 | K074 | Routine Command MVP | Completed | Expose routine definition management through slash commands; add path-safe ID checks (553/553 pass) |
-| K075 | Routine Execution Integration | In Progress | Make routine runs pass through safety layers, validation, checkpoint, hooks, event logging, verification |
-| K076 | Routine Scheduler Hardening | Not Started | Safety features, concurrency limit, DailyTime/Interval logic, timeouts, persistence |
+| K075 | Routine Execution Integration | Completed | Make routine runs pass through safety layers, validation, checkpoint, hooks, event logging, verification (559/559 pass) |
+| K076 | Routine Scheduler Hardening | In Progress | Safety features, concurrency limit, DailyTime/Interval logic, timeouts, persistence |
 | K077 | Skill Proposal Lifecycle | Not Started | Active execution card completed |
 | K078 | Skill Apply Engine | Not Started | Active Execution Card completed |
 | K079 | Skill Trajectory Mining | Not Started | failure-pattern mining from trajectories/events/verification and proposal candidates |
@@ -137,14 +137,14 @@ Parallelization rules:
 - K080 read models can begin after K071/K074/K077 are stable enough to expose state.
 - K081 must wait for K080; K082 must wait for K080 and K081.
 
-## 7. Active Execution Card: K075 Routine Execution Integration
+## 7. Active Execution Card: K076 Routine Scheduler Hardening
 
-Goal: Make routine runs pass through the same safety layers as normal tool work.
+Goal: Make manual, interval, and daily routines safe for long-running use.
 
 Allowed files:
-- `Claude4Net.Runtime/RoutineRunner.cs`
-- `Claude4Net.Runtime/RoutineStore.cs`
-- `Claude4Net.Tests/K075RoutineExecutionTests.cs` (or similar)
+- `Claude4Net.Runtime/RoutineSchedulerService.cs` (or similar scheduler service files)
+- `Claude4Net.SDK/RoutineModels.cs`
+- `Claude4Net.Tests/K076RoutineSchedulerTests.cs` (or similar)
 - `IMPLEMENTATION_PROGRESS.md`
 - `Documents/Implementation_Plan.md`
 - `ralph-queue-state.md`
@@ -154,32 +154,25 @@ Forbidden files:
 - `.gemini/agents/`
 
 Required work:
-- Implement execution flow:
-  1. Validate routine definition.
-  2. Validate workspace path.
-  3. Evaluate permission mode.
-  4. Create checkpoint when action may modify files or state.
-  5. Execute HookPipeline before routine action.
-  6. Execute action.
-  7. Record `RoutineRunRecord`.
-  8. Append event store event.
-  9. Execute HookPipeline after routine action.
-  10. Run verification action when configured.
-- Enforce behavior:
-  - Script action is denied outside workspace.
-  - Read-only mode denies write/script actions.
-  - Slash command action only permits allowlisted commands initially.
-  - Prompt action creates a run request record, not an uncontrolled background agent loop.
-  - Verification action stores structured verification evidence.
+- Support triggers: `Manual`, `Interval`, and `DailyTime`.
+- Do not schedule disabled routines (`IsEnabled == false`).
+- Calculate and set next-run timestamp.
+- Limit concurrency: maximum 1 concurrent execution per routine.
+- Add minimum interval floor (e.g. 1 second or 5 seconds) to avoid CPU hot loops.
+- Implement timeout limits for routine tasks.
+- Persist last-run and next-run metadata updates in the routine definitions.
+- Reject webhook and event triggers with warnings/exceptions.
 
 Required tests:
-- `K059RoutineRunnerPermissionTests`
-- New `K075RoutineExecutionIntegrationTests`
+- `K060RoutineSchedulerTests`
+- New `K076RoutineSchedulerHardeningTests`
 
 Done when:
 - All required work implemented.
 - Targeted tests pass.
 - Release gate passes.
+
+
 
 ## 8. Backlog Cards
 
@@ -647,7 +640,7 @@ Do not mark any item checked until implementation, tests, and release evidence e
 - [x] K072 Provider Settings Precedence
 - [x] K073 Provider Factory Preparation
 - [x] K074 Routine Command MVP
-- [ ] K075 Routine Execution Integration
+- [x] K075 Routine Execution Integration
 - [ ] K076 Routine Scheduler Hardening
 - [ ] K077 Skill Proposal Lifecycle
 - [ ] K078 Skill Apply Engine

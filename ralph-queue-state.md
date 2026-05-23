@@ -16,8 +16,8 @@
 | K072 | Provider Settings Precedence | Completed | Verified by First Reviewer & Final Controller |
 | K073 | Provider Factory Preparation | Completed | Verified by First Reviewer & Final Controller |
 | K074 | Routine Command MVP | Completed | Verified by First Reviewer & Final Controller |
-| K075 | Routine Execution Integration | In Progress | Current target |
-| K076 | Routine Scheduler Hardening | Not Started | - |
+| K075 | Routine Execution Integration | Completed | Verified by First Reviewer & Final Controller |
+| K076 | Routine Scheduler Hardening | In Progress | Current target |
 | K077 | Skill Proposal Lifecycle | Not Started | - |
 | K078 | Skill Apply Engine | Not Started | - |
 | K079 | Skill Trajectory Mining | Not Started | - |
@@ -30,5 +30,5 @@
 | K086 | CLI Startup Arguments Expansion | Not Started | - |
 
 ## Execution Card
-- Active: K075 Routine Execution Integration
+- Active: K076 Routine Scheduler Hardening
 

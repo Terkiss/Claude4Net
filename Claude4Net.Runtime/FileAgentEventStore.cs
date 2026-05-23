@@ -70,6 +70,7 @@ namespace Claude4Net.Runtime
                     "TaskAttemptStarted" => JsonSerializer.Deserialize<TaskAttemptStartedEvent>(envelope.Payload.GetRawText()),
                     "TaskAttemptCompleted" => JsonSerializer.Deserialize<TaskAttemptCompletedEvent>(envelope.Payload.GetRawText()),
                     "VerificationCompleted" => JsonSerializer.Deserialize<VerificationCompletedEvent>(envelope.Payload.GetRawText()),
+                    "RoutineRun" => JsonSerializer.Deserialize<RoutineRunEvent>(envelope.Payload.GetRawText()),
                     _ => null
                 };
 
