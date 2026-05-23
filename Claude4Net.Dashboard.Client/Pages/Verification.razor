@@ -1,22 +1,343 @@
 @page "/verification"
 @using Microsoft.AspNetCore.SignalR.Client
+@using Claude4Net.Dashboard.Client.Models
 @inject NavigationManager NavigationManager
 @implements IAsyncDisposable
 
-<PageTitle>Verification</PageTitle>
+<PageTitle>Verification Session</PageTitle>
 
-<h1>Verification Gates</h1>
-<p>Review and approve command executions and spec coordinate gates.</p>
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3><i class="bi bi-shield-check"></i> Verification Gateway</h3>
+        <div class="d-flex gap-2 align-items-center">
+            <div class="input-group" style="max-width: 400px;">
+                <span class="input-group-text">Session ID</span>
+                <input type="text" class="form-control" @bind="sessionId" placeholder="Active Session" />
+            </div>
+            <button class="btn btn-primary" @onclick="LoadVerification" disabled="@(isLoading || isVerifying)">
+                @if (isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                }
+                else
+                {
+                    <i class="bi bi-arrow-clockwise"></i>
+                }
+                <span> Refresh</span>
+            </button>
+            <button class="btn btn-success" @onclick="RunVerification" disabled="@(isLoading || isVerifying)">
+                @if (isVerifying)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <span> Running...</span>
+                }
+                else
+                {
+                    <i class="bi bi-play-fill"></i>
+                    <span> Run Verification</span>
+                }
+            </button>
+        </div>
+    </div>
+    <p>Perform integration and release gate validation checks for the active workspace.</p>
 
-<div class="mt-3">
-    <pre class="bg-dark text-light p-3">@_output</pre>
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success" role="alert">
+            <i class="bi bi-check-circle-fill"></i> @successMessage
+        </div>
+    }
+
+    @if (isVerifying)
+    {
+        <div class="alert alert-warning" role="alert">
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            <span> Executing standard build and unit test suites on host... This may take up to a minute.</span>
+        </div>
+    }
+
+    @if (isLoading && verifResult == null)
+    {
+        <div class="d-flex justify-content-center my-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading verification...</span>
+            </div>
+        </div>
+    }
+    else if (verifResult == null)
+    {
+        <div class="alert alert-info">
+            No verification records found for this session. Run verification to perform the checks.
+        </div>
+    }
+    else
+    {
+        <!-- Overall Result Summary Card -->
+        <div class="card mb-4 border-2 @(verifResult.Verdict.Equals("Pass", StringComparison.OrdinalIgnoreCase) ? "border-success bg-light-success" : verifResult.Verdict.Equals("Partial", StringComparison.OrdinalIgnoreCase) ? "border-warning bg-light-warning" : "border-danger bg-light-danger")">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="card-title">
+                            Verdict:
+                            @if (verifResult.Verdict.Equals("Pass", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <span class="badge bg-success">PASS</span>
+                            }
+                            else if (verifResult.Verdict.Equals("Partial", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <span class="badge bg-warning text-dark">PARTIAL</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger">FAIL</span>
+                            }
+                        </h4>
+                        <p class="card-text mb-0">
+                            <strong>Verifier Session:</strong> <code>@verifResult.VerifierSessionId</code><br />
+                            @if (!string.IsNullOrEmpty(verifResult.GeneratorSessionId))
+                            {
+                                <span><strong>Generator Session:</strong> <code>@verifResult.GeneratorSessionId</code><br /></span>
+                            }
+                            <strong>Validated At:</strong> @verifResult.Timestamp.ToString("g")
+                        </p>
+                    </div>
+                    <div style="font-size: 3rem;">
+                        @if (verifResult.Verdict.Equals("Pass", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <i class="bi bi-shield-fill-check text-success"></i>
+                        }
+                        else if (verifResult.Verdict.Equals("Partial", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <i class="bi bi-shield-fill-exclamation text-warning"></i>
+                        }
+                        else
+                        {
+                            <i class="bi bi-shield-fill-x text-danger"></i>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Verification Checks Table -->
+        <h5>Verification Checks</h5>
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Check Name</th>
+                        <th>Command</th>
+                        <th>Output File</th>
+                        <th>Result</th>
+                        <th>Skipped</th>
+                        <th>Execution Time</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var check in verifResult.Checks)
+                    {
+                        <tr>
+                            <td><strong>@check.Name</strong></td>
+                            <td><code>@check.Command</code></td>
+                            <td><small class="text-muted">@(check.OutputFile ?? "-")</small></td>
+                            <td>
+                                @if (check.Result.Equals("Pass", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <span class="badge bg-success">Pass</span>
+                                }
+                                else if (check.Result.Equals("Skipped", StringComparison.OrdinalIgnoreCase) || check.Skipped)
+                                {
+                                    <span class="badge bg-warning text-dark">Skipped</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-danger">Fail</span>
+                                }
+                            </td>
+                            <td>@(check.Skipped ? "Yes" : "No")</td>
+                            <td>
+                                @if (check.StartedAt.HasValue && check.CompletedAt.HasValue)
+                                {
+                                    <span>@((check.CompletedAt.Value - check.StartedAt.Value).TotalSeconds.ToString("F1"))s</span>
+                                }
+                                else
+                                {
+                                    <span>N/A</span>
+                                }
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(check.Evidence) || !string.IsNullOrEmpty(check.Notes))
+                                {
+                                    <button class="btn btn-sm btn-outline-info" @onclick="() => ToggleDetails(check.Name)">
+                                        <i class="bi bi-info-circle"></i> View Details
+                                    </button>
+                                }
+                                else
+                                {
+                                    <span class="text-muted"><small>None</small></span>
+                                }
+                            </td>
+                        </tr>
+                        @if (expandedCheckNames.Contains(check.Name))
+                        {
+                            <tr>
+                                <td colspan="7" class="bg-light">
+                                    <div class="p-3">
+                                        @if (!string.IsNullOrEmpty(check.Notes))
+                                        {
+                                            <div class="mb-2">
+                                                <strong>Notes:</strong>
+                                                <p class="mb-0 text-secondary">@check.Notes</p>
+                                            </div>
+                                        }
+                                        @if (!string.IsNullOrEmpty(check.Evidence))
+                                        {
+                                            <div>
+                                                <strong>Evidence / Log Output:</strong>
+                                                <pre class="bg-dark text-light p-3 mt-1 rounded" style="font-size: 0.85rem; max-height: 300px; overflow-y: auto;"><code>@check.Evidence</code></pre>
+                                            </div>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
 </div>
 
 @code {
-    private string _output = "Verification gate management commands will be routed here.";
+    private HubConnection? hubConnection;
+    private VerificationResultDto? verifResult;
+    private bool isLoading = true;
+    private bool isVerifying = false;
+    private string sessionId = string.Empty;
+    private HashSet<string> expandedCheckNames = new();
+    private string? errorMessage;
+    private string? successMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            hubConnection = new HubConnectionBuilder()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/controlPlaneHub"))
+                .WithAutomaticReconnect()
+                .Build();
+
+            await hubConnection.StartAsync();
+
+            // Try to resolve current active session ID
+            var state = await hubConnection.InvokeAsync<StateControlPlaneState>("GetState", "");
+            if (state?.Session != null)
+            {
+                sessionId = state.Session.SessionId;
+            }
+
+            await LoadVerification();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to connect to SignalR control plane: {ex.Message}";
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadVerification()
+    {
+        isLoading = true;
+        errorMessage = null;
+        successMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            if (hubConnection is not null)
+            {
+                var state = await hubConnection.InvokeAsync<VerificationControlPlaneState>("GetVerification", sessionId);
+                verifResult = state?.Result;
+            }
+            else
+            {
+                errorMessage = "Hub connection is not established.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading verification: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ToggleDetails(string checkName)
+    {
+        if (expandedCheckNames.Contains(checkName))
+        {
+            expandedCheckNames.Remove(checkName);
+        }
+        else
+        {
+            expandedCheckNames.Add(checkName);
+        }
+    }
+
+    private async Task RunVerification()
+    {
+        isVerifying = true;
+        errorMessage = null;
+        successMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            if (hubConnection is not null)
+            {
+                var result = await hubConnection.InvokeAsync<CommandResult>("RunVerification", sessionId);
+                if (result.Success)
+                {
+                    successMessage = result.Message ?? "Verification completed successfully.";
+                }
+                else
+                {
+                    errorMessage = result.Error ?? "Verification failed.";
+                }
+            }
+            else
+            {
+                errorMessage = "Hub connection is not established.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error running verification: {ex.Message}";
+        }
+        finally
+        {
+            isVerifying = false;
+            StateHasChanged();
+            await LoadVerification();
+        }
+    }
 
     public async ValueTask DisposeAsync()
     {
-        await Task.CompletedTask;
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
     }
 }

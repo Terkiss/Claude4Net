@@ -1,55 +1,424 @@
 @page "/skills"
 @using Microsoft.AspNetCore.SignalR.Client
+@using Claude4Net.Dashboard.Client.Models
 @inject NavigationManager NavigationManager
 @implements IAsyncDisposable
 
-<PageTitle>Skills</PageTitle>
+<PageTitle>Skills Management</PageTitle>
 
-<h1>Self-Evolving Skills</h1>
-<p>Manage your agent's skills and proposals.</p>
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3><i class="bi bi-tools"></i> Skills & Proposals</h3>
+        <button class="btn btn-primary" @onclick="LoadSkills" disabled="@(isLoading || isProcessing)">
+            @if (isLoading)
+            {
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                <span> Loading...</span>
+            }
+            else
+            {
+                <i class="bi bi-arrow-clockwise"></i><span> Refresh</span>
+            }
+        </button>
+    </div>
 
-<div>
-    <button class="btn btn-primary" @onclick="AnalyzeSkills">Analyze Failure Patterns</button>
-</div>
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+        </div>
+    }
 
-<div class="mt-3">
-    <pre class="bg-dark text-light p-3">@_output</pre>
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success" role="alert">
+            <i class="bi bi-check-circle-fill"></i> @successMessage
+        </div>
+    }
+
+    @if (isProcessing)
+    {
+        <div class="alert alert-warning" role="alert">
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            <span> Processing skill proposal action... Please wait.</span>
+        </div>
+    }
+
+    <!-- Tabs Navigation -->
+    <ul class="nav nav-tabs mb-3" id="skillsTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(activeTab == "registered" ? "active" : "")" @onclick='() => SetActiveTab("registered")' type="button">
+                Registered Skills <span class="badge bg-secondary">@skills.Count</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(activeTab == "proposals" ? "active" : "")" @onclick='() => SetActiveTab("proposals")' type="button">
+                Skill Proposals <span class="badge bg-secondary">@proposals.Count</span>
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="skillsTabContent">
+        @if (activeTab == "registered")
+        {
+            @if (isLoading && skills.Count == 0)
+            {
+                <div class="d-flex justify-content-center my-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading registered skills...</span>
+                    </div>
+                </div>
+            }
+            else if (skills.Count == 0)
+            {
+                <div class="alert alert-info">
+                    No registered skills found.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover align-middle">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>ID</th>
+                                <th>Display Name</th>
+                                <th>Source Path</th>
+                                <th>Aliases</th>
+                                <th>Success Count</th>
+                                <th>Failure Count</th>
+                                <th>Average Score</th>
+                                <th>Last Used</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var skill in skills)
+                            {
+                                <tr>
+                                    <td><code>@skill.Id</code></td>
+                                    <td><strong>@skill.DisplayName</strong></td>
+                                    <td><small class="text-muted">@skill.SourcePath</small></td>
+                                    <td>
+                                        @if (skill.Aliases != null && skill.Aliases.Any())
+                                        {
+                                            @foreach (var alias in skill.Aliases)
+                                            {
+                                                <span class="badge bg-info text-dark me-1">@alias</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td><span class="text-success">@skill.Metrics.SuccessCount</span></td>
+                                    <td><span class="text-danger">@skill.Metrics.FailureCount</span></td>
+                                    <td>@skill.Metrics.AverageScore.ToString("F2")</td>
+                                    <td>@(skill.Metrics.LastUsed.HasValue ? skill.Metrics.LastUsed.Value.ToString("g") : "Never")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        }
+        else if (activeTab == "proposals")
+        {
+            @if (isLoading && proposals.Count == 0)
+            {
+                <div class="d-flex justify-content-center my-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading proposals...</span>
+                    </div>
+                </div>
+            }
+            else if (proposals.Count == 0)
+            {
+                <div class="alert alert-info">
+                    No skill proposals found.
+                </div>
+            }
+            else
+            {
+                <div class="row">
+                    @foreach (var prop in proposals)
+                    {
+                        var statusClass = prop.Status.ToLower() switch
+                        {
+                            "approved" => "border-success",
+                            "rejected" => "border-danger",
+                            "applied" => "border-primary",
+                            _ => "border-warning"
+                        };
+
+                        var statusBadge = prop.Status.ToLower() switch
+                        {
+                            "approved" => "bg-success",
+                            "rejected" => "bg-danger",
+                            "applied" => "bg-primary",
+                            _ => "bg-warning text-dark"
+                        };
+
+                        <div class="col-12 mb-3">
+                            <div class="card h-100 shadow-sm border-start border-4 @statusClass">
+                                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                                    <span class="fw-bold">@prop.Title <small class="text-muted">(ID: <code>@prop.Id</code>)</small></span>
+                                    <span class="badge @statusBadge">@prop.Status</span>
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>Description:</strong> @prop.Description</p>
+                                    <p><strong>Rationale:</strong> @prop.Rationale</p>
+                                    @if (!string.IsNullOrEmpty(prop.TargetPath))
+                                    {
+                                        <p><strong>Target Path:</strong> <code>@prop.TargetPath</code></p>
+                                    }
+                                    @if (!string.IsNullOrEmpty(prop.SkillId))
+                                    {
+                                        <p><strong>Skill ID:</strong> <code>@prop.SkillId</code></p>
+                                    }
+
+                                    @if (!string.IsNullOrEmpty(prop.ProposedChanges))
+                                    {
+                                        <div class="mb-3">
+                                            <strong>Proposed Changes:</strong>
+                                            <pre class="bg-light p-2 mt-1 rounded" style="font-size: 0.85rem; max-height: 200px; overflow-y: auto;"><code>@prop.ProposedChanges</code></pre>
+                                        </div>
+                                    }
+
+                                    <!-- Action Controls -->
+                                    <div class="d-flex flex-wrap align-items-center gap-3 mt-3 pt-3 border-top">
+                                        @if (prop.Status.Equals("Draft", StringComparison.OrdinalIgnoreCase) ||
+                                             prop.Status.Equals("Proposed", StringComparison.OrdinalIgnoreCase) ||
+                                             prop.Status.Equals("Pending", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <button class="btn btn-success" @onclick="() => Approve(prop.Id)" disabled="@isProcessing">
+                                                <i class="bi bi-check-lg"></i> Approve
+                                            </button>
+
+                                            <div class="d-flex align-items-center gap-1" style="max-width: 400px; flex-grow: 1;">
+                                                <input type="text" class="form-control" placeholder="Rejection reason..."
+                                                       value="@GetRejectionReason(prop.Id)"
+                                                       @onchange="@(e => rejectionReasons[prop.Id] = e.Value?.ToString() ?? string.Empty)"
+                                                       disabled="@isProcessing" />
+                                                <button class="btn btn-danger" @onclick="() => Reject(prop.Id)" disabled="@isProcessing">
+                                                    Reject
+                                                </button>
+                                            </div>
+                                        }
+                                        else if (prop.Status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <button class="btn btn-primary" @onclick="() => Apply(prop.Id)" disabled="@isProcessing">
+                                                <i class="bi bi-box-arrow-in-down"></i> Apply Proposal
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted"><small>No actions available for status: @prop.Status</small></span>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent text-muted">
+                                    <small>Created: @prop.CreatedAt.ToString("g") | Updated: @prop.UpdatedAt.ToString("g")</small>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </div>
 </div>
 
 @code {
-    private HubConnection? _hubConnection;
-    private string _output = "Ready.";
+    private HubConnection? hubConnection;
+    private List<SkillRegistryRecordDto> skills = new();
+    private List<SkillProposalRecordDto> proposals = new();
+    private Dictionary<string, string> rejectionReasons = new();
+    private bool isLoading = true;
+    private bool isProcessing = false;
+    private string activeTab = "registered";
+    private string? errorMessage;
+    private string? successMessage;
 
     protected override async Task OnInitializedAsync()
     {
-        _hubConnection = new HubConnectionBuilder()
-            .WithUrl(NavigationManager.ToAbsoluteUri("/controlPlaneHub"))
-            .Build();
+        try
+        {
+            hubConnection = new HubConnectionBuilder()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/controlPlaneHub"))
+                .WithAutomaticReconnect()
+                .Build();
 
-        await _hubConnection.StartAsync();
+            await hubConnection.StartAsync();
+            await LoadSkills();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to connect to SignalR control plane: {ex.Message}";
+            isLoading = false;
+        }
     }
 
-    private async Task AnalyzeSkills()
+    private async Task LoadSkills()
     {
-        if (_hubConnection is not null)
+        isLoading = true;
+        errorMessage = null;
+        successMessage = null;
+        StateHasChanged();
+
+        try
         {
-            try
+            if (hubConnection is not null)
             {
-                _output = "Analyzing...";
-                _output = await _hubConnection.InvokeAsync<string>("ExecuteCommand", "/skill analyze");
+                var state = await hubConnection.InvokeAsync<SkillControlPlaneState>("GetSkills");
+                skills = state?.Skills ?? new List<SkillRegistryRecordDto>();
+                proposals = state?.Proposals ?? new List<SkillProposalRecordDto>();
             }
-            catch (Exception ex)
+            else
             {
-                _output = $"Error: {ex.Message}";
+                errorMessage = "Hub connection is not established.";
             }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading skills and proposals: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void SetActiveTab(string tab)
+    {
+        activeTab = tab;
+        errorMessage = null;
+        successMessage = null;
+    }
+
+    private string GetRejectionReason(string proposalId)
+    {
+        if (!rejectionReasons.TryGetValue(proposalId, out var reason))
+        {
+            reason = string.Empty;
+            rejectionReasons[proposalId] = reason;
+        }
+        return reason;
+    }
+
+    private async Task Approve(string proposalId)
+    {
+        isProcessing = true;
+        errorMessage = null;
+        successMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            if (hubConnection is not null)
+            {
+                var result = await hubConnection.InvokeAsync<CommandResult>("ApproveSkillProposal", proposalId);
+                if (result.Success)
+                {
+                    successMessage = result.Message ?? $"Proposal '{proposalId}' approved.";
+                }
+                else
+                {
+                    errorMessage = result.Error ?? $"Failed to approve proposal '{proposalId}'.";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error approving proposal: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+            await LoadSkills();
+        }
+    }
+
+    private async Task Reject(string proposalId)
+    {
+        isProcessing = true;
+        errorMessage = null;
+        successMessage = null;
+        StateHasChanged();
+
+        string reason = GetRejectionReason(proposalId);
+
+        try
+        {
+            if (hubConnection is not null)
+            {
+                var result = await hubConnection.InvokeAsync<CommandResult>("RejectSkillProposal", proposalId, reason);
+                if (result.Success)
+                {
+                    successMessage = result.Message ?? $"Proposal '{proposalId}' rejected.";
+                    rejectionReasons.Remove(proposalId);
+                }
+                else
+                {
+                    errorMessage = result.Error ?? $"Failed to reject proposal '{proposalId}'.";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error rejecting proposal: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+            await LoadSkills();
+        }
+    }
+
+    private async Task Apply(string proposalId)
+    {
+        isProcessing = true;
+        errorMessage = null;
+        successMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            if (hubConnection is not null)
+            {
+                var result = await hubConnection.InvokeAsync<CommandResult>("ApplySkillProposal", proposalId);
+                if (result.Success)
+                {
+                    successMessage = result.Message ?? $"Proposal '{proposalId}' applied successfully.";
+                }
+                else
+                {
+                    // Failures in verification could be a warning/rollback
+                    errorMessage = result.Error ?? $"Proposal '{proposalId}' application failed (possibly rolled back).";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error applying proposal: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+            await LoadSkills();
         }
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_hubConnection is not null)
+        if (hubConnection is not null)
         {
-            await _hubConnection.DisposeAsync();
+            await hubConnection.DisposeAsync();
         }
     }
 }

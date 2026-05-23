@@ -1,22 +1,251 @@
 @page "/checkpoints"
 @using Microsoft.AspNetCore.SignalR.Client
+@using Claude4Net.Dashboard.Client.Models
 @inject NavigationManager NavigationManager
 @implements IAsyncDisposable
 
 <PageTitle>Checkpoints</PageTitle>
 
-<h1>State Checkpoints</h1>
-<p>Manage workspace memory and state isolation checkpoints.</p>
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3><i class="bi bi-bookmark-fill"></i> State Checkpoints</h3>
+        <div class="d-flex gap-2 align-items-center">
+            <div class="input-group" style="max-width: 400px;">
+                <span class="input-group-text">Session ID</span>
+                <input type="text" class="form-control" @bind="sessionId" placeholder="Active Session" />
+            </div>
+            <button class="btn btn-primary" @onclick="LoadCheckpoints" disabled="@(isLoading || isRestoring)">
+                @if (isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                }
+                else
+                {
+                    <i class="bi bi-arrow-clockwise"></i>
+                }
+                <span> Refresh</span>
+            </button>
+        </div>
+    </div>
+    <p>Manage workspace memory and state isolation checkpoints.</p>
 
-<div class="mt-3">
-    <pre class="bg-dark text-light p-3">@_output</pre>
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success" role="alert">
+            <i class="bi bi-check-circle-fill"></i> @successMessage
+        </div>
+    }
+
+    @if (isRestoring)
+    {
+        <div class="alert alert-warning" role="alert">
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            <span> Restoring checkpoint: <strong>@restoringCheckpointId</strong>... Please wait.</span>
+        </div>
+    }
+
+    @if (isLoading && checkpoints.Count == 0)
+    {
+        <div class="d-flex justify-content-center my-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading checkpoints...</span>
+            </div>
+        </div>
+    }
+    else if (checkpoints.Count == 0)
+    {
+        <div class="alert alert-info">
+            No checkpoints found for this session.
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            @foreach (var cp in checkpoints)
+            {
+                <div class="col-12 mb-3">
+                    <div class="card h-100 shadow-sm border-start border-4 border-info">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h5 class="card-title text-primary">
+                                        <code>@cp.Id</code>
+                                        @if (!string.IsNullOrEmpty(cp.ToolName))
+                                        {
+                                            <span class="badge bg-secondary ms-2">@cp.ToolName</span>
+                                        }
+                                        @if (cp.IncludesMemoryState)
+                                        {
+                                            <span class="badge bg-success ms-1"><i class="bi bi-cpu"></i> Memory Included</span>
+                                        }
+                                    </h5>
+                                    <h6 class="card-subtitle mb-2 text-muted">
+                                        <i class="bi bi-clock"></i> @cp.CreatedAt.ToString("g")
+                                        @if (!string.IsNullOrEmpty(cp.Provider))
+                                        {
+                                            <span> | Provider: <code>@cp.Provider</code></span>
+                                        }
+                                        @if (!string.IsNullOrEmpty(cp.Model))
+                                        {
+                                            <span> | Model: <code>@cp.Model</code></span>
+                                        }
+                                    </h6>
+                                </div>
+                                <button class="btn btn-warning" @onclick="() => Restore(cp.Id)" disabled="@(isLoading || isRestoring)">
+                                    <i class="bi bi-arrow-counterclockwise"></i> Restore
+                                </button>
+                            </div>
+
+                            <p class="card-text mt-2"><strong>Description:</strong> @(cp.Description ?? "No description provided.")</p>
+
+                            @if (!string.IsNullOrEmpty(cp.ToolCallId))
+                            {
+                                <p class="card-text"><small class="text-muted">Tool Call ID: <code>@cp.ToolCallId</code></small></p>
+                            }
+                            @if (!string.IsNullOrEmpty(cp.StateSnapshotId))
+                            {
+                                <p class="card-text"><small class="text-muted">Snapshot ID: <code>@cp.StateSnapshotId</code></small></p>
+                            }
+
+                            @if (cp.ChangedFiles != null && cp.ChangedFiles.Any())
+                            {
+                                <div class="mt-2">
+                                    <strong>Changed Files (@cp.ChangedFiles.Count):</strong>
+                                    <ul class="list-unstyled ms-3 mt-1">
+                                        @foreach (var file in cp.ChangedFiles)
+                                        {
+                                            <li><i class="bi bi-file-earmark-diff text-warning"></i> <code>@file</code></li>
+                                        }
+                                    </ul>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
 </div>
 
 @code {
-    private string _output = "Checkpoint management commands will be routed here.";
+    private HubConnection? hubConnection;
+    private List<CheckpointManifestDto> checkpoints = new();
+    private bool isLoading = true;
+    private bool isRestoring = false;
+    private string? restoringCheckpointId;
+    private string sessionId = string.Empty;
+    private string? errorMessage;
+    private string? successMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            hubConnection = new HubConnectionBuilder()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/controlPlaneHub"))
+                .WithAutomaticReconnect()
+                .Build();
+
+            await hubConnection.StartAsync();
+
+            // Try to resolve current active session ID
+            var state = await hubConnection.InvokeAsync<StateControlPlaneState>("GetState", "");
+            if (state?.Session != null)
+            {
+                sessionId = state.Session.SessionId;
+            }
+
+            await LoadCheckpoints();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to connect to SignalR control plane: {ex.Message}";
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadCheckpoints()
+    {
+        isLoading = true;
+        errorMessage = null;
+        successMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            if (hubConnection is not null)
+            {
+                var state = await hubConnection.InvokeAsync<CheckpointControlPlaneState>("GetCheckpoints", sessionId);
+                checkpoints = state?.Checkpoints ?? new List<CheckpointManifestDto>();
+            }
+            else
+            {
+                errorMessage = "Hub connection is not established.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading checkpoints: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Restore(string checkpointId)
+    {
+        isRestoring = true;
+        restoringCheckpointId = checkpointId;
+        errorMessage = null;
+        successMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            if (hubConnection is not null)
+            {
+                var result = await hubConnection.InvokeAsync<CommandResult>("RestoreCheckpoint", checkpointId);
+                if (result.Success)
+                {
+                    successMessage = result.Message ?? $"Checkpoint '{checkpointId}' restored successfully.";
+                }
+                else
+                {
+                    errorMessage = result.Error ?? $"Failed to restore checkpoint '{checkpointId}'.";
+                }
+            }
+            else
+            {
+                errorMessage = "Hub connection is not established.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error during checkpoint restore: {ex.Message}";
+        }
+        finally
+        {
+            isRestoring = false;
+            restoringCheckpointId = null;
+            StateHasChanged();
+            await LoadCheckpoints();
+        }
+    }
 
     public async ValueTask DisposeAsync()
     {
-        await Task.CompletedTask;
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
     }
 }

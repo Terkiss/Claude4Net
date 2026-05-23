@@ -1,55 +1,323 @@
 @page "/routines"
 @using Microsoft.AspNetCore.SignalR.Client
+@using Claude4Net.Dashboard.Client.Models
 @inject NavigationManager NavigationManager
 @implements IAsyncDisposable
 
 <PageTitle>Routines</PageTitle>
 
-<h1>Automated Routines</h1>
-<p>Manage and view your automated routines.</p>
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3><i class="bi bi-play-circle-fill"></i> Routine Workflows</h3>
+        <button class="btn btn-primary" @onclick="LoadRoutines" disabled="@isLoading">
+            @if (isLoading)
+            {
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                <span> Loading...</span>
+            }
+            else
+            {
+                <i class="bi bi-arrow-clockwise"></i><span> Refresh</span>
+            }
+        </button>
+    </div>
+    <p>View, configure, and execute scheduled routine tasks.</p>
 
-<div>
-    <button class="btn btn-primary" @onclick="LoadRoutines">Refresh Routines</button>
-</div>
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+        </div>
+    }
 
-<div class="mt-3">
-    <pre class="bg-dark text-light p-3">@_output</pre>
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success" role="alert">
+            <i class="bi bi-check-circle-fill"></i> @successMessage
+        </div>
+    }
+
+    @if (isLoading && routines.Count == 0)
+    {
+        <div class="d-flex justify-content-center my-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading routines...</span>
+            </div>
+        </div>
+    }
+    else if (routines.Count == 0)
+    {
+        <div class="alert alert-info">
+            No routines found.
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            @foreach (var routine in routines)
+            {
+                var isExpanded = expandedRoutines.Contains(routine.Id);
+                var isRunningThis = runningRoutineId == routine.Id;
+
+                <div class="col-12 mb-3">
+                    <div class="card shadow-sm border-start border-4 @(routine.Enabled ? "border-success" : "border-secondary")">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center gap-2">
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleExpand(routine.Id)">
+                                        <i class="bi @(isExpanded ? "bi-chevron-down" : "bi-chevron-right")"></i>
+                                    </button>
+                                    <div>
+                                        <h5 class="card-title mb-0">
+                                            @routine.Name
+                                            <span class="badge bg-secondary ms-2"><code>@routine.Id</code></span>
+                                            @if (routine.Enabled)
+                                            {
+                                                <span class="badge bg-success ms-1">Enabled</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary ms-1">Disabled</span>
+                                            }
+                                        </h5>
+                                        <span class="text-muted"><small>Permission Mode: <code>@routine.RequiredPermissionMode</code></small></span>
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-success d-flex align-items-center gap-1" @onclick="() => Run(routine.Id)" disabled="@(isLoading || runningRoutineId != null)">
+                                        @if (isRunningThis)
+                                        {
+                                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                            <span> Running...</span>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-play-fill"></i>
+                                            <span> Run Routine</span>
+                                        }
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="row mt-3 text-muted">
+                                <div class="col-md-3">
+                                    <strong>Trigger:</strong> @routine.TriggerKind @(string.IsNullOrEmpty(routine.TriggerExpression) ? "" : $"({routine.TriggerExpression})")
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Last Run:</strong> @(routine.LastRun.HasValue ? routine.LastRun.Value.ToString("g") : "Never")
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Next Run:</strong> @(routine.NextRun.HasValue ? routine.NextRun.Value.ToString("g") : "N/A")
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Last Run Status:</strong>
+                                    @if (string.IsNullOrEmpty(routine.LastRunStatus))
+                                    {
+                                        <span class="badge bg-secondary">None</span>
+                                    }
+                                    else if (routine.LastRunStatus.Equals("Success", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="badge bg-success">Success</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">Failed</span>
+                                    }
+                                </div>
+                            </div>
+
+                            @if (isExpanded)
+                            {
+                                <hr />
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <h6><i class="bi bi-list-task"></i> Actions List (@routine.Actions.Count)</h6>
+                                        @if (routine.Actions.Count == 0)
+                                        {
+                                            <p class="text-muted"><small>No actions defined for this routine.</small></p>
+                                        }
+                                        else
+                                        {
+                                            <ul class="list-group list-group-flush">
+                                                @foreach (var action in routine.Actions)
+                                                {
+                                                    <li class="list-group-item bg-transparent px-0 py-2">
+                                                        <div class="d-flex justify-content-between">
+                                                            <strong>@action.Type</strong>
+                                                        </div>
+                                                        <pre class="bg-light p-2 mt-1 rounded" style="font-size: 0.8rem; max-height: 150px; overflow-y: auto;"><code>@action.ParametersJson</code></pre>
+                                                    </li>
+                                                }
+                                            </ul>
+                                        }
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <h6><i class="bi bi-clock-history"></i> Execution History (@routine.History.Count)</h6>
+                                        @if (routine.History.Count == 0)
+                                        {
+                                            <p class="text-muted"><small>No execution history available.</small></p>
+                                        }
+                                        else
+                                        {
+                                            <div style="max-height: 300px; overflow-y: auto;">
+                                                <ul class="list-group list-group-flush">
+                                                    @foreach (var run in routine.History)
+                                                    {
+                                                        <li class="list-group-item bg-transparent px-0 py-2">
+                                                            <div class="d-flex justify-content-between align-items-center">
+                                                                <div>
+                                                                    <strong>Run ID:</strong> <code>@run.RunId.Substring(Math.Min(8, run.RunId.Length))</code>
+                                                                    <div class="text-muted" style="font-size: 0.8rem;">
+                                                                        Start: @run.StartedAt.ToString("g")
+                                                                        @(run.CompletedAt.HasValue ? $" | End: {run.CompletedAt.Value.ToString("g")}" : "")
+                                                                    </div>
+                                                                </div>
+                                                                <div>
+                                                                    @if (run.Status.Equals("Success", StringComparison.OrdinalIgnoreCase))
+                                                                    {
+                                                                        <span class="badge bg-success">Success</span>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        <span class="badge bg-danger" title="@run.Error">Failed</span>
+                                                                    }
+                                                                </div>
+                                                            </div>
+                                                            @if (!string.IsNullOrEmpty(run.Error))
+                                                            {
+                                                                <div class="text-danger mt-1" style="font-size: 0.8rem;">
+                                                                    <strong>Error:</strong> @run.Error
+                                                                </div>
+                                                            }
+                                                        </li>
+                                                    }
+                                                </ul>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
 </div>
 
 @code {
-    private HubConnection? _hubConnection;
-    private string _output = "Click 'Refresh Routines' to load.";
+    private HubConnection? hubConnection;
+    private List<RoutineDefinitionDto> routines = new();
+    private bool isLoading = true;
+    private string? runningRoutineId;
+    private HashSet<string> expandedRoutines = new();
+    private string? errorMessage;
+    private string? successMessage;
 
     protected override async Task OnInitializedAsync()
     {
-        _hubConnection = new HubConnectionBuilder()
-            .WithUrl(NavigationManager.ToAbsoluteUri("/controlPlaneHub"))
-            .Build();
+        try
+        {
+            hubConnection = new HubConnectionBuilder()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/controlPlaneHub"))
+                .WithAutomaticReconnect()
+                .Build();
 
-        await _hubConnection.StartAsync();
-        await LoadRoutines();
+            await hubConnection.StartAsync();
+            await LoadRoutines();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to connect to SignalR control plane: {ex.Message}";
+            isLoading = false;
+        }
     }
 
     private async Task LoadRoutines()
     {
-        if (_hubConnection is not null)
+        isLoading = true;
+        errorMessage = null;
+        successMessage = null;
+        StateHasChanged();
+
+        try
         {
-            try
+            if (hubConnection is not null)
             {
-                _output = await _hubConnection.InvokeAsync<string>("ExecuteCommand", "/routine list");
+                var state = await hubConnection.InvokeAsync<RoutineControlPlaneState>("GetRoutines");
+                routines = state?.Routines ?? new List<RoutineDefinitionDto>();
             }
-            catch (Exception ex)
+            else
             {
-                _output = $"Error: {ex.Message}";
+                errorMessage = "Hub connection is not established.";
             }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading routines: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ToggleExpand(string routineId)
+    {
+        if (expandedRoutines.Contains(routineId))
+        {
+            expandedRoutines.Remove(routineId);
+        }
+        else
+        {
+            expandedRoutines.Add(routineId);
+        }
+    }
+
+    private async Task Run(string routineId)
+    {
+        runningRoutineId = routineId;
+        errorMessage = null;
+        successMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            if (hubConnection is not null)
+            {
+                var result = await hubConnection.InvokeAsync<CommandResult>("RunRoutine", routineId);
+                if (result.Success)
+                {
+                    successMessage = result.Message ?? $"Routine '{routineId}' executed successfully.";
+                }
+                else
+                {
+                    errorMessage = result.Error ?? $"Routine '{routineId}' execution failed.";
+                }
+            }
+            else
+            {
+                errorMessage = "Hub connection is not established.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error executing routine: {ex.Message}";
+        }
+        finally
+        {
+            runningRoutineId = null;
+            StateHasChanged();
+            await LoadRoutines();
         }
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_hubConnection is not null)
+        if (hubConnection is not null)
         {
-            await _hubConnection.DisposeAsync();
+            await hubConnection.DisposeAsync();
         }
     }
 }

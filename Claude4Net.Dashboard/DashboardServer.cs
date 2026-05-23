@@ -64,6 +64,7 @@ public class DashboardServer
                 .AddAdditionalAssemblies(typeof(Claude4Net.Dashboard.Client._Imports).Assembly);
 
             app.MapHub<AgentHub>("/agentHub");
+            app.MapHub<ControlPlaneHub>("/controlPlaneHub");
 
             _host = app;
             await app.StartAsync();
