@@ -56,7 +56,7 @@ namespace Claude4Net.Tests
         {
             var composer = new PromptComposer();
             composer.ProcessKey(new ConsoleKeyInfo('/', ConsoleKey.Divide, false, false, false));
-            
+
             // Filter to doctor
             composer.ProcessKey(new ConsoleKeyInfo('d', ConsoleKey.D, false, false, false));
             composer.ProcessKey(new ConsoleKeyInfo('o', ConsoleKey.O, false, false, false));

@@ -147,7 +147,7 @@ namespace Claude4Net.Tests
             var proposalService = new SkillProposalService(registry);
 
             Directory.CreateDirectory(Path.Combine(_tempWorkspace, ".claude4net"));
-            
+
             var proposal = new SkillProposalRecord
             {
                 Id = "PROP-001",
@@ -271,7 +271,7 @@ namespace Claude4Net.Tests
             AppState.CurrentPermissionMode = PermissionMode.WorkspaceWrite;
 
             var hub = new ControlPlaneHub();
-            
+
             // Note: verification runs build & tests, which might fail or pass depending on the workspace.
             // But we should check that it executes and outputs a structured CommandResult.
             var result = await hub.RunVerification(_testSessionId);

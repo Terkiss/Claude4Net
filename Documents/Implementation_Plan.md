@@ -7,9 +7,9 @@ Progress tracker: `IMPLEMENTATION_PROGRESS.md`
 Design source: `Documents/2026-05-21_Claude4Net-App_인사이트_기반_확장_설계.md`
 Backup before SSOT clean: `Documents/backups/2026-05-22/Implementation_Plan.pre-ssot-clean.2026-05-22.md`
 
-Current focus: K086 CLI Startup Arguments Expansion
-Next milestone: None
-Queue status: active
+Current focus: None
+Next milestone: Awaiting user/final-controller decision
+Queue status: inactive
 
 
 ## 0. SSOT Purpose
@@ -100,7 +100,7 @@ The 2026-05-21 expansion design is complete only when all of the following are t
 | K083 | Release Gate Expansion | Completed | expansion smoke tests added to `verify-release.ps1` (595/595 pass) |
 | K084 | Final Integration and Documentation | Completed | full pass, docs/progress sync, final risk review (595/595 unit tests + 101 smoke tests pass) |
 | K085 | Slash Command Palette | Completed | / 입력 시 실시간 필터링 가능한 명령어 팔레트 오버레이 표시 (601/601 pass) |
-| K086 | CLI Startup Arguments Expansion | Active | `--yolo`, `--setworkspace` 시작 인수 추가 및 YOLO 모드 권한 분기 |
+| K086 | CLI Startup Arguments Expansion | Completed | YOLO mode permission routing and workspace dir options implemented (609/609 pass) |
 
 ## 6. Execution Order
 
@@ -137,38 +137,9 @@ Parallelization rules:
 - K080 read models can begin after K071/K074/K077 are stable enough to expose state.
 - K081 must wait for K080; K082 must wait for K080 and K081.
 
-## 7. Active Execution Card: K086 CLI Startup Arguments Expansion
+## 7. Active Execution Card: None
 
-Goal: CLI 시작 시 `--yolo`, `--setworkspace <경로>` 등의 시작 인수를 추가하여 파이프라인 통합과 자동화 환경 설정을 간소화하고, YOLO 모드에서 워크스페이스 내외부의 차별화된 권한 처리를 구현한다.
-
-Allowed files:
-- `Claude4Net.Cli/Bootstrap/CliOptions.cs`
-- `Claude4Net.Cli/Program.cs`
-- `Claude4Net.Runtime/PermissionEnforcer.cs`
-- `Claude4Net.Tests/` (신규 테스트 파일 허용)
-- `Documents/Implementation_Plan.md`
-- `IMPLEMENTATION_PROGRESS.md`
-- `ralph-queue-state.md`
-
-Forbidden files:
-- `.agents/`
-- `.gemini/agents/`
-
-Required work:
-- `CliOptions.cs`에 `--yolo` 플래그 파싱 추가 (내부적으로 `PermissionModeArg = "yolo"` 매핑)
-- `CliOptions.cs`에 `--setworkspace <경로>` 옵션 파싱 추가 (`WorkspaceDir` 프로퍼티)
-- `Program.cs`에서 `--setworkspace` 경로 유효성 검증 및 `AppState.CurrentCwd` 설정
-- `PermissionEnforcer.Evaluate()`에서 `DangerFullAccess` 모드일 때 워크스페이스 내부 동작은 즉시 `Allow` 반환 (승인 창 스킵)
-- `PermissionEnforcer.Evaluate()`에서 `DangerFullAccess` 모드라도 `PathSafetyResult.Outside`는 `RequireApproval` 유지
-- 일반 모드에서 Outside는 기존대로 `Deny`
-
-Required tests:
-- 신규 `K086CliStartupArgsTests` (YOLO 모드 내부 Allow / 외부 RequireApproval 검증)
-- 신규 `K086WorkspaceArgTests` (`--setworkspace` 경로 검증)
-
-Done when:
-- New CLI startup args tests pass and the PermissionEnforcer logic for YOLO (DangerFullAccess) inside workspace returns Allow and outside workspace returns RequireApproval.
-
+No active card. K086 is completed and the workspace is awaiting final verification.
 
 
 ## 8. Backlog Cards
@@ -648,6 +619,6 @@ Do not mark any item checked until implementation, tests, and release evidence e
 - [x] K083 Release Gate Expansion
 - [x] K084 Final Integration and Documentation
 - [x] K085 Slash Command Palette
-- [ ] K086 CLI Startup Arguments Expansion
+- [x] K086 CLI Startup Arguments Expansion
 
 The expansion roadmap is complete only when every item above is checked and K084 records a full test and release-gate pass.

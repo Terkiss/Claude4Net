@@ -42,7 +42,7 @@ namespace Claude4Net.Tests
             };
 
             var baseTime = DateTimeOffset.UtcNow;
-            
+
             // Floor is 5 seconds by default
             var next1 = _scheduler.CalculateNextRun(routine, baseTime);
             Assert.Equal(baseTime + TimeSpan.FromSeconds(5), next1);
@@ -152,7 +152,7 @@ namespace Claude4Net.Tests
 
             var records = _store.GetRunRecords("webhook-routine").ToList();
             Assert.Empty(records);
-            
+
             // Manual trigger of webhook should also throw
             await Assert.ThrowsAsync<InvalidOperationException>(async () =>
             {
@@ -174,7 +174,7 @@ namespace Claude4Net.Tests
             };
 
             await _store.SaveAsync(routine);
-            
+
             // Set floor to 1 second
             _scheduler.MinimumIntervalFloor = TimeSpan.FromSeconds(1);
             _scheduler.Start();
