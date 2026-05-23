@@ -169,5 +169,71 @@ namespace Claude4Net.Tests
             var updatedProp = _proposalService.GetProposal("PROP-105");
             Assert.Equal(SkillProposalStatus.Failed, updatedProp?.Status);
         }
+
+        [Fact]
+        public async Task Apply_NewSkill_DefaultsToLocalWorkspaceSkillsDirectory()
+        {
+            await _proposalService.LoadAsync(_workspace);
+            var prop = new SkillProposalRecord
+            {
+                Id = "PROP-106",
+                SkillId = "new-local-skill",
+                Status = SkillProposalStatus.Approved,
+                ProposedChanges = "public class NewLocalSkill {}"
+            };
+            _proposalService.CreateProposal(_workspace, prop);
+            await _proposalService.SaveAsync(_workspace);
+
+            var engine = new SkillApplyEngine(_proposalService, _skillRegistry);
+            engine.Verifier = (ws, id) => Task.FromResult(true);
+
+            bool result = await engine.ApplyAsync("PROP-106", _workspace);
+            Assert.True(result);
+
+            // Verify it was saved to .claude4net/skills/new-local-skill.cs
+            string expectedPath = Path.Combine(_workspace, ".claude4net", "skills", "new-local-skill.cs");
+            Assert.True(File.Exists(expectedPath));
+            Assert.Equal("public class NewLocalSkill {}", await File.ReadAllTextAsync(expectedPath));
+        }
+
+        [Fact]
+        public async Task Apply_GlobalSkill_AllowsMutationUnderSystemBaseDir()
+        {
+            string originalSystemBaseDir = AppState.SystemBaseDir;
+            string tempSystemBase = Path.Combine(Path.GetTempPath(), "Claude4Net_SystemBase_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempSystemBase);
+            AppState.SystemBaseDir = tempSystemBase;
+
+            try
+            {
+                await _proposalService.LoadAsync(_workspace);
+                var prop = new SkillProposalRecord
+                {
+                    Id = "PROP-107",
+                    SkillId = "new-global-skill",
+                    Status = SkillProposalStatus.Approved,
+                    ProposedChanges = "public class NewGlobalSkill {}"
+                };
+                prop.Metadata["IsGlobal"] = "true";
+                _proposalService.CreateProposal(_workspace, prop);
+                await _proposalService.SaveAsync(_workspace);
+
+                var engine = new SkillApplyEngine(_proposalService, _skillRegistry);
+                engine.Verifier = (ws, id) => Task.FromResult(true);
+
+                bool result = await engine.ApplyAsync("PROP-107", _workspace);
+                Assert.True(result);
+
+                // Verify it was saved under AppState.SystemBaseDir/skills/new-global-skill.cs
+                string expectedPath = Path.Combine(tempSystemBase, "skills", "new-global-skill.cs");
+                Assert.True(File.Exists(expectedPath));
+                Assert.Equal("public class NewGlobalSkill {}", await File.ReadAllTextAsync(expectedPath));
+            }
+            finally
+            {
+                AppState.SystemBaseDir = originalSystemBaseDir;
+                try { Directory.Delete(tempSystemBase, true); } catch { }
+            }
+        }
     }
 }

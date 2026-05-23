@@ -448,6 +448,8 @@ namespace Claude4Net.Runtime
                 UpdatedAt = DateTime.UtcNow
             };
 
+            proposal.Metadata["IsGlobal"] = "true";
+
             if (!string.IsNullOrEmpty(actionPath) && actionPath != "unknown")
             {
                 proposal.TargetPath = actionPath;

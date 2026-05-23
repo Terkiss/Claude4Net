@@ -15,10 +15,13 @@ namespace Claude4Net.Runtime
     public class SkillRegistryService
     {
         private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
-        private readonly string _registryPath;
+        private readonly string _localRegistryPath;
+        private readonly string _globalRegistryPath;
         private readonly string _workspaceRoot;
         private readonly string _workspaceRootWithSeparator;
-        private SkillRegistryRoot _root = new();
+        private readonly List<SkillRegistryRecord> _globalSkills = new();
+        private readonly List<SkillRegistryRecord> _localSkills = new();
+        private readonly SkillRegistryRoot _root = new();
 
         public SkillRegistryService(string workspaceRoot)
         {
@@ -33,7 +36,15 @@ namespace Claude4Net.Runtime
             string baseDir = Path.Combine(_workspaceRoot, ".claude4net");
             if (!Directory.Exists(baseDir)) Directory.CreateDirectory(baseDir);
 
-            _registryPath = Path.Combine(baseDir, "skill-registry.json");
+            _localRegistryPath = Path.Combine(baseDir, "skill-registry.json");
+
+            string systemBaseDirFull = ResolveFinalPath(AppState.SystemBaseDir);
+            string globalDir = Path.Combine(systemBaseDirFull, "skills");
+            if (!Directory.Exists(globalDir))
+            {
+                try { Directory.CreateDirectory(globalDir); } catch { }
+            }
+            _globalRegistryPath = Path.Combine(systemBaseDirFull, "skill-registry.json");
         }
 
         /// <summary>
@@ -41,22 +52,64 @@ namespace Claude4Net.Runtime
         /// </summary>
         public async Task LoadAsync()
         {
-            if (File.Exists(_registryPath))
+            _globalSkills.Clear();
+            _localSkills.Clear();
+
+            // Load Global Registry
+            if (File.Exists(_globalRegistryPath))
             {
                 try
                 {
-                    string json = await File.ReadAllTextAsync(_registryPath);
-                    _root = JsonSerializer.Deserialize<SkillRegistryRoot>(json) ?? new SkillRegistryRoot();
+                    string json = await File.ReadAllTextAsync(_globalRegistryPath);
+                    var globalRoot = JsonSerializer.Deserialize<SkillRegistryRoot>(json);
+                    if (globalRoot != null && globalRoot.Skills != null)
+                    {
+                        foreach (var skill in globalRoot.Skills)
+                        {
+                            skill.Metadata["IsGlobal"] = "true";
+                            _globalSkills.Add(skill);
+                        }
+                    }
                 }
-                catch
-                {
-                    _root = new SkillRegistryRoot();
-                }
+                catch { }
             }
-            else
+
+            // Load Local Registry
+            if (File.Exists(_localRegistryPath))
             {
-                _root = new SkillRegistryRoot();
+                try
+                {
+                    string json = await File.ReadAllTextAsync(_localRegistryPath);
+                    var localRoot = JsonSerializer.Deserialize<SkillRegistryRoot>(json);
+                    if (localRoot != null && localRoot.Skills != null)
+                    {
+                        _localSkills.AddRange(localRoot.Skills);
+                    }
+                }
+                catch { }
             }
+
+            RebuildRootSkills();
+        }
+
+        private void RebuildRootSkills()
+        {
+            _root.Skills.Clear();
+
+            // Local skills override global skills in case of duplicate IDs
+            var merged = new Dictionary<string, SkillRegistryRecord>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var skill in _globalSkills)
+            {
+                merged[skill.Id] = skill;
+            }
+
+            foreach (var skill in _localSkills)
+            {
+                merged[skill.Id] = skill;
+            }
+
+            _root.Skills.AddRange(merged.Values);
         }
 
         /// <summary>
@@ -65,8 +118,30 @@ namespace Claude4Net.Runtime
         public async Task SaveAsync()
         {
             _root.LastUpdatedAt = DateTime.UtcNow;
-            string json = JsonSerializer.Serialize(_root, _jsonOptions);
-            await File.WriteAllTextAsync(_registryPath, json);
+
+            // Save Local Registry
+            var localRoot = new SkillRegistryRoot
+            {
+                Skills = _localSkills,
+                SchemaVersion = _root.SchemaVersion,
+                LastUpdatedAt = _root.LastUpdatedAt
+            };
+            string localJson = JsonSerializer.Serialize(localRoot, _jsonOptions);
+            await File.WriteAllTextAsync(_localRegistryPath, localJson);
+
+            // Save Global Registry (best effort in case base directory is read-only)
+            try
+            {
+                var globalRoot = new SkillRegistryRoot
+                {
+                    Skills = _globalSkills,
+                    SchemaVersion = _root.SchemaVersion,
+                    LastUpdatedAt = _root.LastUpdatedAt
+                };
+                string globalJson = JsonSerializer.Serialize(globalRoot, _jsonOptions);
+                await File.WriteAllTextAsync(_globalRegistryPath, globalJson);
+            }
+            catch { }
         }
 
         /// <summary>
@@ -81,12 +156,45 @@ namespace Claude4Net.Runtime
                 ValidatePath(record.SourcePath);
             }
 
-            var existing = _root.Skills.FirstOrDefault(s => s.Id == record.Id);
-            if (existing != null)
+            // Determine if global or local
+            bool isGlobal = false;
+            if (record.Metadata.TryGetValue("IsGlobal", out var val) && val.Equals("true", StringComparison.OrdinalIgnoreCase))
             {
-                _root.Skills.Remove(existing);
+                isGlobal = true;
             }
-            _root.Skills.Add(record);
+            else if (!string.IsNullOrEmpty(record.SourcePath))
+            {
+                string fullSourcePath = ResolveFinalPath(Path.IsPathRooted(record.SourcePath) ? record.SourcePath : Path.Combine(_workspaceRoot, record.SourcePath));
+                string globalSkillsDir = Path.GetFullPath(Path.Combine(AppState.SystemBaseDir, "skills"));
+                string globalSkillsDirWithSep = globalSkillsDir.EndsWith(Path.DirectorySeparatorChar) ? globalSkillsDir : globalSkillsDir + Path.DirectorySeparatorChar;
+
+                if (fullSourcePath.StartsWith(globalSkillsDirWithSep, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                {
+                    isGlobal = true;
+                }
+            }
+
+            if (isGlobal)
+            {
+                record.Metadata["IsGlobal"] = "true";
+                var existing = _globalSkills.FirstOrDefault(s => s.Id.Equals(record.Id, StringComparison.OrdinalIgnoreCase));
+                if (existing != null)
+                {
+                    _globalSkills.Remove(existing);
+                }
+                _globalSkills.Add(record);
+            }
+            else
+            {
+                var existing = _localSkills.FirstOrDefault(s => s.Id.Equals(record.Id, StringComparison.OrdinalIgnoreCase));
+                if (existing != null)
+                {
+                    _localSkills.Remove(existing);
+                }
+                _localSkills.Add(record);
+            }
+
+            RebuildRootSkills();
         }
 
         /// <summary>
@@ -105,7 +213,7 @@ namespace Claude4Net.Runtime
         /// </summary>
         public void UpdateMetrics(string skillId, bool success, double score = 0)
         {
-            var skill = _root.Skills.FirstOrDefault(s => s.Id == skillId);
+            var skill = _root.Skills.FirstOrDefault(s => s.Id.Equals(skillId, StringComparison.OrdinalIgnoreCase));
             if (skill == null) return;
 
             if (success) skill.Metrics.SuccessCount++;
@@ -118,6 +226,17 @@ namespace Claude4Net.Runtime
             }
 
             skill.Metrics.LastUsed = DateTime.UtcNow;
+
+            var localSkill = _localSkills.FirstOrDefault(s => s.Id.Equals(skillId, StringComparison.OrdinalIgnoreCase));
+            if (localSkill != null)
+            {
+                localSkill.Metrics = skill.Metrics;
+            }
+            var globalSkill = _globalSkills.FirstOrDefault(s => s.Id.Equals(skillId, StringComparison.OrdinalIgnoreCase));
+            if (globalSkill != null)
+            {
+                globalSkill.Metrics = skill.Metrics;
+            }
         }
 
         /// <summary>
@@ -161,7 +280,16 @@ namespace Claude4Net.Runtime
             bool isAtRoot = fullPath.Equals(_workspaceRoot, comparison);
             bool isInside = fullPath.StartsWith(_workspaceRootWithSeparator, comparison);
 
-            if (!isAtRoot && !isInside)
+            string systemBaseDirFull = ResolveFinalPath(AppState.SystemBaseDir);
+            string systemSkillsDir = Path.Combine(systemBaseDirFull, "skills");
+            string systemSkillsDirWithSeparator = systemSkillsDir.EndsWith(Path.DirectorySeparatorChar)
+                ? systemSkillsDir
+                : systemSkillsDir + Path.DirectorySeparatorChar;
+
+            bool isUnderSystemSkills = fullPath.Equals(systemSkillsDir, comparison) ||
+                                       fullPath.StartsWith(systemSkillsDirWithSeparator, comparison);
+
+            if (!isAtRoot && !isInside && !isUnderSystemSkills)
                 throw new UnauthorizedAccessException($"Path '{path}' is outside safe boundaries.");
         }
 

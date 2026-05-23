@@ -296,5 +296,109 @@ namespace Claude4Net.Tests
             // Assert
             Assert.Equal(Path.GetFullPath(filePath), resolved);
         }
+
+        [Fact]
+        public async Task SkillRegistryService_LoadsGlobalAndLocalRegistries_LocalOverridesGlobal()
+        {
+            // Arrange
+            string originalSystemBaseDir = AppState.SystemBaseDir;
+            string tempSystemBase = Path.Combine(Path.GetTempPath(), "Claude4Net_SystemBase_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempSystemBase);
+            AppState.SystemBaseDir = tempSystemBase;
+
+            try
+            {
+                // Create global registry file and skill source
+                string globalSkillsDir = Path.Combine(tempSystemBase, "skills");
+                Directory.CreateDirectory(globalSkillsDir);
+                string globalSkillPath = Path.Combine(globalSkillsDir, "test-skill.cs");
+                File.WriteAllText(globalSkillPath, "public class GlobalSkill {}");
+
+                var globalRoot = new SkillRegistryRoot();
+                globalRoot.Skills.Add(new SkillRegistryRecord
+                {
+                    Id = "skill-001",
+                    DisplayName = "Global Skill",
+                    SourcePath = globalSkillPath,
+                    Description = "Global description"
+                });
+                string globalJson = System.Text.Json.JsonSerializer.Serialize(globalRoot);
+                File.WriteAllText(Path.Combine(tempSystemBase, "skill-registry.json"), globalJson);
+
+                // Create local registry file and skill source
+                string localSkillsDir = Path.Combine(_tempWorkspace, ".claude4net", "skills");
+                Directory.CreateDirectory(localSkillsDir);
+                string localSkillPath = Path.Combine(localSkillsDir, "test-skill.cs");
+                File.WriteAllText(localSkillPath, "public class LocalSkill {}");
+
+                var localRoot = new SkillRegistryRoot();
+                localRoot.Skills.Add(new SkillRegistryRecord
+                {
+                    Id = "skill-001", // duplicate ID
+                    DisplayName = "Local Skill Override",
+                    SourcePath = localSkillPath,
+                    Description = "Local description override"
+                });
+                string localJson = System.Text.Json.JsonSerializer.Serialize(localRoot);
+                string localBaseDir = Path.Combine(_tempWorkspace, ".claude4net");
+                Directory.CreateDirectory(localBaseDir);
+                File.WriteAllText(Path.Combine(localBaseDir, "skill-registry.json"), localJson);
+
+                // Load service
+                var service = new SkillRegistryService(_tempWorkspace);
+                await service.LoadAsync();
+
+                // Act & Assert
+                var resolved = service.ResolveSkill("skill-001");
+                Assert.NotNull(resolved);
+                Assert.Equal("Local Skill Override", resolved.DisplayName);
+                Assert.Equal("Local description override", resolved.Description);
+
+                var list = service.ListSkills();
+                Assert.Single(list); // Duplicates should merge/override
+            }
+            finally
+            {
+                AppState.SystemBaseDir = originalSystemBaseDir;
+                try { Directory.Delete(tempSystemBase, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void SkillRegistryService_AllowsGlobalSkillsPathInValidation()
+        {
+            // Arrange
+            string originalSystemBaseDir = AppState.SystemBaseDir;
+            string tempSystemBase = Path.Combine(Path.GetTempPath(), "Claude4Net_SystemBase_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempSystemBase);
+            AppState.SystemBaseDir = tempSystemBase;
+
+            try
+            {
+                string globalSkillsDir = Path.Combine(tempSystemBase, "skills");
+                Directory.CreateDirectory(globalSkillsDir);
+                string globalSkillPath = Path.Combine(globalSkillsDir, "test-skill.cs");
+
+                var service = new SkillRegistryService(_tempWorkspace);
+
+                // Act & Assert (Should not throw UnauthorizedAccessException)
+                service.RegisterSkill(new SkillRegistryRecord
+                {
+                    Id = "global-skill",
+                    SourcePath = globalSkillPath,
+                    Metadata = new Dictionary<string, string> { { "IsGlobal", "true" } }
+                });
+
+                var skill = service.ResolveSkill("global-skill");
+                Assert.NotNull(skill);
+                Assert.True(skill.Metadata.ContainsKey("IsGlobal"));
+                Assert.Equal("true", skill.Metadata["IsGlobal"]);
+            }
+            finally
+            {
+                AppState.SystemBaseDir = originalSystemBaseDir;
+                try { Directory.Delete(tempSystemBase, true); } catch { }
+            }
+        }
     }
 }

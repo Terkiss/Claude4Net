@@ -50,16 +50,29 @@ namespace Claude4Net.Runtime
 
             // Resolve target path
             string? targetPath = proposal.TargetPath;
-            if (string.IsNullOrEmpty(targetPath) && !string.IsNullOrEmpty(proposal.SkillId))
+            if (string.IsNullOrEmpty(targetPath))
             {
-                var skill = _skillRegistry.ResolveSkill(proposal.SkillId);
-                if (skill != null)
+                if (!string.IsNullOrEmpty(proposal.SkillId))
                 {
-                    targetPath = skill.SourcePath;
+                    var skill = _skillRegistry.ResolveSkill(proposal.SkillId);
+                    if (skill != null)
+                    {
+                        targetPath = skill.SourcePath;
+                    }
                 }
-                else
+
+                if (string.IsNullOrEmpty(targetPath))
                 {
-                    targetPath = Path.Combine("skills", proposal.SkillId + ".cs");
+                    bool isGlobal = proposal.Metadata.TryGetValue("IsGlobal", out var val) && val.Equals("true", StringComparison.OrdinalIgnoreCase);
+                    string skillFileName = (proposal.SkillId ?? proposal.Id) + ".cs";
+                    if (isGlobal)
+                    {
+                        targetPath = Path.Combine(AppState.SystemBaseDir, "skills", skillFileName);
+                    }
+                    else
+                    {
+                        targetPath = Path.Combine(".claude4net", "skills", skillFileName);
+                    }
                 }
             }
 
@@ -85,9 +98,18 @@ namespace Claude4Net.Runtime
             bool isAtRoot = fullPath.Equals(workspaceRootFull, comparison);
             bool isInside = fullPath.StartsWith(workspaceRootWithSeparator, comparison);
 
-            if (!isAtRoot && !isInside)
+            string systemBaseDirFull = _skillRegistry.ResolveFinalPath(AppState.SystemBaseDir);
+            string systemSkillsDir = Path.Combine(systemBaseDirFull, "skills");
+            string systemSkillsDirWithSeparator = systemSkillsDir.EndsWith(Path.DirectorySeparatorChar)
+                ? systemSkillsDir
+                : systemSkillsDir + Path.DirectorySeparatorChar;
+
+            bool isUnderSystemSkills = fullPath.Equals(systemSkillsDir, comparison) ||
+                                       fullPath.StartsWith(systemSkillsDirWithSeparator, comparison);
+
+            if (!isAtRoot && !isInside && !isUnderSystemSkills)
             {
-                throw new UnauthorizedAccessException($"Path '{targetPath}' is outside safe boundaries of current workspace.");
+                throw new UnauthorizedAccessException($"Path '{targetPath}' is outside safe boundaries.");
             }
 
             var segments = fullPath.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
@@ -109,16 +131,22 @@ namespace Claude4Net.Runtime
 
             // 4. Pre-apply Checkpoint
             string sessionId = AppState.SessionId ?? Guid.NewGuid().ToString();
-            var checkpointStore = new CheckpointStore(workspaceRoot, sessionId);
-            string checkpointId = await checkpointStore.CreateCheckpointAsync(
-                toolCallId: "skill-apply",
-                toolName: "apply",
-                files: new List<string> { targetPath },
-                description: $"Pre-apply checkpoint for proposal {proposalId}",
-                includeMemoryState: false
-            );
+            CheckpointStore? checkpointStore = null;
+            string? checkpointId = null;
 
-            await checkpointStore.SaveDiffAsync(checkpointId, diffPreview.DiffContent);
+            if (isAtRoot || isInside)
+            {
+                checkpointStore = new CheckpointStore(workspaceRoot, sessionId);
+                checkpointId = await checkpointStore.CreateCheckpointAsync(
+                    toolCallId: "skill-apply",
+                    toolName: "apply",
+                    files: new List<string> { targetPath },
+                    description: $"Pre-apply checkpoint for proposal {proposalId}",
+                    includeMemoryState: false
+                );
+
+                await checkpointStore.SaveDiffAsync(checkpointId, diffPreview.DiffContent);
+            }
 
             // 5. User Approval
             if (_approvalHandler != null)
@@ -200,7 +228,10 @@ namespace Claude4Net.Runtime
             else
             {
                 // Revert files using checkpoint
-                await checkpointStore.RestoreCheckpointAsync(checkpointId);
+                if (checkpointId != null && checkpointStore != null)
+                {
+                    await checkpointStore.RestoreCheckpointAsync(checkpointId);
+                }
                 _proposalService.UpdateStatus(proposalId, SkillProposalStatus.Failed);
                 await _proposalService.SaveAsync(workspaceRoot);
                 return false;
