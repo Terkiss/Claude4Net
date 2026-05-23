@@ -93,8 +93,8 @@
 | K076 | Routine Scheduler Hardening | Completed | 567/567 pass |
 | K077 | Skill Proposal Lifecycle | Completed | 570/570 pass |
 | K078 | Skill Apply Engine | Completed | 574/574 pass |
-| K079 | Skill Trajectory Mining | In Progress | - |
-| K080 | Dashboard Read Models | Not Started | - |
+| K079 | Skill Trajectory Mining | Completed | 575/575 pass |
+| K080 | Dashboard Read Models | Completed | 585/585 pass |
 | K081 | Dashboard Typed Commands | Not Started | - |
 | K082 | Dashboard UI Completion | Not Started | - |
 | K083 | Release Gate Expansion | Not Started | - |
@@ -746,14 +746,25 @@
 - [x] Official Release Gate passed (574/574 pass)
 
 ### K079: Skill Trajectory Mining
-- [ ] Record skill usage success/failure and score.
-- [ ] Mine `agent_trajectories`, event store, and verification results.
-- [ ] Detect repeated failure classes by skill/tool/path/error.
-- [ ] Generate proposal candidates with metadata linking evidence.
-- [ ] Deduplicate similar proposal candidates.
-- [ ] Do not auto-approve or auto-apply generated proposals.
-- [ ] Add `K079SkillTrajectoryMiningIntegrationTests`
-- [ ] Official Release Gate passed
+- [x] Record skill usage success/failure and score.
+- [x] Mine `agent_trajectories`, event store, and verification results.
+- [x] Detect repeated failure classes by skill/tool/path/error.
+- [x] Generate proposal candidates with metadata linking evidence.
+- [x] Deduplicate similar proposal candidates.
+- [x] Do not auto-approve or auto-apply generated proposals.
+- [x] Add `K079SkillTrajectoryMiningIntegrationTests`
+- [x] Official Release Gate passed (575/575 pass)
+
+### K080: Dashboard Read Models
+- [x] Fix nullable warnings in `ControlPlaneHub.cs` (e.g. `manifest.Provider ?? string.Empty`, `manifest.Model ?? string.Empty`, `prop.SkillId ?? string.Empty`, `prop.TargetPath ?? string.Empty`).
+- [x] Implement the 7 typed read APIs for providers, coordinate tasks, checkpoints, verification, skills, routines, and state.
+- [x] Read state from event store, projections, registry services, and store services.
+- [x] Ensure only serializable DTOs are returned and no arbitrary commands are executed.
+- [x] Add path-traversal validation for session/workspace inputs.
+- [x] Implement `K080DashboardReadModelTests.cs` under Claude4Net.Tests project, covering 10 test scenarios.
+- [x] Official Release Gate passed (585/585 pass)
+
+### K085: Slash Command Palette
 - [ ] `PromptComposer`에 `/` 입력 감지 시 팔레트 모드 전환 로직 추가
 - [ ] `LumenState`에 `IsCommandPaletteVisible`, `PaletteFilterText`, `PaletteSelectedIndex` 상태 추가
 - [ ] 모달 입력 상태 기계 (ArrowUp/Down 리다이렉트) 구현

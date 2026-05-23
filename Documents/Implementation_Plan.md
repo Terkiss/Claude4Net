@@ -7,8 +7,8 @@ Progress tracker: `IMPLEMENTATION_PROGRESS.md`
 Design source: `Documents/2026-05-21_Claude4Net-App_인사이트_기반_확장_설계.md`
 Backup before SSOT clean: `Documents/backups/2026-05-22/Implementation_Plan.pre-ssot-clean.2026-05-22.md`
 
-Current focus: K078 Skill Apply Engine
-Next milestone: K079 Skill Trajectory Mining
+Current focus: K081 Dashboard Typed Commands
+Next milestone: K082 Dashboard UI Completion
 Queue status: running
 
 
@@ -92,10 +92,10 @@ The 2026-05-21 expansion design is complete only when all of the following are t
 | K075 | Routine Execution Integration | Completed | Make routine runs pass through safety layers, validation, checkpoint, hooks, event logging, verification (559/559 pass) |
 | K076 | Routine Scheduler Hardening | Completed | Safety features, concurrency limit, DailyTime/Interval logic, timeouts, persistence (567/567 pass) |
 | K077 | Skill Proposal Lifecycle | Completed | Active execution card completed |
-| K078 | Skill Apply Engine | In Progress | Active Execution Card completed |
-| K079 | Skill Trajectory Mining | Not Started | failure-pattern mining from trajectories/events/verification and proposal candidates |
-| K080 | Dashboard Read Models | Not Started | typed provider/coordinate/skill/routine/checkpoint/verification/state read APIs |
-| K081 | Dashboard Typed Commands | Not Started | safe typed actions only; no arbitrary command execution |
+| K078 | Skill Apply Engine | Completed | Active Execution Card completed |
+| K079 | Skill Trajectory Mining | Completed | failure-pattern mining from trajectories/events/verification and proposal candidates (575/575 pass) |
+| K080 | Dashboard Read Models | Completed | typed provider/coordinate/skill/routine/checkpoint/verification/state read APIs (585/585 pass) |
+| K081 | Dashboard Typed Commands | In Progress | safe typed actions only; no arbitrary command execution |
 | K082 | Dashboard UI Completion | Not Started | functional pages for Providers, Skills, Routines, Checkpoints, Verification, State |
 | K083 | Release Gate Expansion | Not Started | expansion smoke tests added to `verify-release.ps1` |
 | K084 | Final Integration and Documentation | Not Started | full pass, docs/progress sync, final risk review |
@@ -137,14 +137,14 @@ Parallelization rules:
 - K080 read models can begin after K071/K074/K077 are stable enough to expose state.
 - K081 must wait for K080; K082 must wait for K080 and K081.
 
-## 7. Active Execution Card: K079 Skill Trajectory Mining
+## 7. Active Execution Card: K081 Dashboard Typed Commands
 
-Goal: Generate proposal candidates from repeated failures.
+Goal: Add safe control actions without restoring arbitrary remote command execution.
 
 Allowed files:
-- `Claude4Net.Runtime/SelfEvolvingSkills.cs` (or similar mining files)
-- `Claude4Net.Runtime/TrajectoryMiningService.cs` (or similar)
-- `Claude4Net.Tests/K079SkillTrajectoryMiningTests.cs` (or similar)
+- `Claude4Net.Dashboard/Hubs/ControlPlaneHub.cs` (or similar hub/API files)
+- `Claude4Net.Dashboard.Client/`
+- `Claude4Net.Tests/K081DashboardTypedCommandTests.cs` (or similar)
 - `IMPLEMENTATION_PROGRESS.md`
 - `Documents/Implementation_Plan.md`
 - `ralph-queue-state.md`
@@ -154,16 +154,16 @@ Forbidden files:
 - `.gemini/agents/`
 
 Required work:
-- Record skill usage success/failure and score.
-- Mine `agent_trajectories`, event store, and verification results.
-- Detect repeated failure classes by skill/tool/path/error.
-- Generate proposal candidates with metadata linking evidence.
-- Deduplicate similar proposal candidates.
-- Do not auto-approve or auto-apply generated proposals.
+- Add safe control actions without restoring arbitrary remote command execution.
+- Allowed methods: RunRoutine, RestoreCheckpoint, ApproveSkillProposal, RejectSkillProposal, ApplySkillProposal, RunVerification.
+- Keep `ExecuteCommand(string)` denied.
+- Every write/control action evaluates permission and appends audit/event data.
+- Restore/apply actions require approval-capable permission mode.
+- Errors are structured and user-safe.
 
 Required tests:
-- `K062SkillTrajectoryMiningTests`
-- New `K079SkillTrajectoryMiningIntegrationTests`
+- `K066DashboardCommandPermissionTests`
+- New `K081DashboardTypedCommandTests`
 
 Done when:
 - All required work implemented.
@@ -639,11 +639,11 @@ Do not mark any item checked until implementation, tests, and release evidence e
 - [x] K073 Provider Factory Preparation
 - [x] K074 Routine Command MVP
 - [x] K075 Routine Execution Integration
-- [ ] K076 Routine Scheduler Hardening
-- [ ] K077 Skill Proposal Lifecycle
-- [ ] K078 Skill Apply Engine
-- [ ] K079 Skill Trajectory Mining
-- [ ] K080 Dashboard Read Models
+- [x] K076 Routine Scheduler Hardening
+- [x] K077 Skill Proposal Lifecycle
+- [x] K078 Skill Apply Engine
+- [x] K079 Skill Trajectory Mining
+- [x] K080 Dashboard Read Models
 - [ ] K081 Dashboard Typed Commands
 - [ ] K082 Dashboard UI Completion
 - [ ] K083 Release Gate Expansion
