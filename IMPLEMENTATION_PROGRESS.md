@@ -88,8 +88,8 @@
 | K071 | Provider Descriptor V2 Model | Completed | 527/527 pass |
 | K072 | Provider Settings Precedence | Completed | 530/530 pass |
 | K073 | Provider Factory Preparation | Completed | 544/544 pass |
-| K074 | Routine Command MVP | In Progress | - |
-| K075 | Routine Execution Integration | Not Started | - |
+| K074 | Routine Command MVP | Completed | 553/553 pass |
+| K075 | Routine Execution Integration | In Progress | - |
 | K076 | Routine Scheduler Hardening | Not Started | - |
 | K077 | Skill Proposal Lifecycle | Not Started | - |
 | K078 | Skill Apply Engine | Not Started | - |
@@ -703,12 +703,21 @@
 - [x] Official Release Gate passed (544/544 pass).
 
 ### K074: Routine Command MVP
-- [ ] Register `/routine` slash command group and operations (`list`, `show <id>`, `add <id> <name>`, `enable <id>`, `disable <id>`, `delete <id>`, `run <id>`).
-- [ ] New routines default to disabled unless explicitly enabled.
-- [ ] Validate IDs to be path-safe (no directory traversal or illegal characters).
-- [ ] `/routine show` displays trigger, actions, permission mode, workspace, last run, and enabled state.
-- [ ] Delete removes definition only, not historical run records.
-- [ ] Add `K074RoutineCommandTests`
+- [x] Register `/routine` slash command group and operations (`list`, `show <id>`, `add <id> <name>`, `enable <id>`, `disable <id>`, `delete <id>`, `run <id>`).
+- [x] New routines default to disabled unless explicitly enabled.
+- [x] Validate IDs to be path-safe (no directory traversal or illegal characters).
+- [x] `/routine show` displays trigger, actions, permission mode, workspace, last run, and enabled state.
+- [x] Delete removes definition only, not historical run records.
+- [x] Add `K074RoutineCommandTests`
+- [x] Official Release Gate passed (553/553 pass)
+
+### K075: Routine Execution Integration
+- [ ] Validate routine definition, workspace paths, and permission mode dynamically before running.
+- [ ] Implement pre-run checkpoint trigger for any routine action modifying files or memory.
+- [ ] Wire up HookPipeline execution (Before / After tool hooks).
+- [ ] Append RoutineRunRecord and Event Store events upon execution.
+- [ ] Implement and test read-only mode workspace protections for routine runner.
+- [ ] Add `K075RoutineExecutionIntegrationTests`
 - [ ] Official Release Gate passed
 
 ### K085: Slash Command Palette

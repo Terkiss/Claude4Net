@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using Claude4Net.SDK;
 
@@ -31,6 +31,9 @@ namespace Claude4Net.Runtime
                 var routine = await _store.LoadAsync(routineId);
                 if (routine == null) throw new InvalidOperationException($"Routine {routineId} not found.");
                 if (!routine.Enabled) throw new InvalidOperationException($"Routine {routineId} is disabled.");
+
+                routine.LastRun = record.StartedAt;
+                await _store.SaveAsync(routine);
 
                 if (PermissionEnforcer.Normalize(currentSessionMode) == PermissionMode.ReadOnly &&
                     PermissionEnforcer.Normalize(routine.RequiredPermissionMode) != PermissionMode.ReadOnly)

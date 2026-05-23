@@ -37,11 +37,33 @@ namespace Claude4Net.SDK
     {
         public string Id { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
-        public bool Enabled { get; set; } = true;
+
+        public bool IsEnabled { get; set; } = false;
+        public bool Enabled
+        {
+            get => IsEnabled;
+            set => IsEnabled = value;
+        }
+
         public RoutineTrigger Trigger { get; set; } = new();
         public List<RoutineAction> Actions { get; set; } = new();
-        public PermissionMode RequiredPermissionMode { get; set; } = PermissionMode.Prompt;
-        public string? WorkspaceRoot { get; set; }
+
+        public PermissionMode PermissionMode { get; set; } = PermissionMode.Prompt;
+        public PermissionMode RequiredPermissionMode
+        {
+            get => PermissionMode;
+            set => PermissionMode = value;
+        }
+
+        public string? WorkspaceDir { get; set; }
+        public string? WorkspaceRoot
+        {
+            get => WorkspaceDir;
+            set => WorkspaceDir = value;
+        }
+
+        public DateTimeOffset? LastRun { get; set; }
+
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
         public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
     }

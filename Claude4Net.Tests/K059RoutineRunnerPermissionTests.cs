@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Threading.Tasks;
 using Claude4Net.Runtime;
@@ -46,7 +46,7 @@ namespace Claude4Net.Tests
         [Fact]
         public async Task RequiredPermissionHigherThanSession_ShouldFail()
         {
-            await _store.SaveAsync(new RoutineDefinition { Id = "r1", RequiredPermissionMode = PermissionMode.Prompt });
+            await _store.SaveAsync(new RoutineDefinition { Id = "r1", RequiredPermissionMode = PermissionMode.Prompt, Enabled = true });
 
             // Running in ReadOnly session while routine requires Prompt
             var result = await _runner.RunAsync("r1", _workspace, PermissionMode.ReadOnly);
@@ -57,7 +57,7 @@ namespace Claude4Net.Tests
         [Fact]
         public async Task OutsideWorkspaceScript_ShouldBeDenied()
         {
-            var def = new RoutineDefinition { Id = "r1", RequiredPermissionMode = PermissionMode.Prompt };
+            var def = new RoutineDefinition { Id = "r1", RequiredPermissionMode = PermissionMode.Prompt, Enabled = true };
             def.Actions.Add(new RoutineAction { Kind = RoutineActionKind.Script, Payload = "/etc/passwd" });
             await _store.SaveAsync(def);
 

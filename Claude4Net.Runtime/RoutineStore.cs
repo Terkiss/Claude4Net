@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Claude4Net.SDK;
@@ -18,11 +19,23 @@ namespace Claude4Net.Runtime
 
         private string GetRoutineFilePath(string routineId)
         {
+            if (string.IsNullOrWhiteSpace(routineId) ||
+                routineId.Contains("..") || routineId.Contains('/') || routineId.Contains('\\') || routineId.Contains(':') ||
+                routineId.Any(c => Path.GetInvalidFileNameChars().Contains(c)))
+            {
+                throw new ArgumentException("Invalid routine ID: path traversal or illegal characters detected.", nameof(routineId));
+            }
             return Path.Combine(_workspaceRoot, ".claude4net", "routines", $"{routineId}.json");
         }
 
         private string GetRoutineRunDir(string routineId)
         {
+            if (string.IsNullOrWhiteSpace(routineId) ||
+                routineId.Contains("..") || routineId.Contains('/') || routineId.Contains('\\') || routineId.Contains(':') ||
+                routineId.Any(c => Path.GetInvalidFileNameChars().Contains(c)))
+            {
+                throw new ArgumentException("Invalid routine ID: path traversal or illegal characters detected.", nameof(routineId));
+            }
             return Path.Combine(_workspaceRoot, ".claude4net", "routine-runs", routineId);
         }
 
