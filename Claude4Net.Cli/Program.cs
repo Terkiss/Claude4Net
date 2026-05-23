@@ -142,13 +142,22 @@ if (Console.IsInputRedirected)
 
         var router = serviceProvider.GetRequiredService<ISmartRouter>();
         var decision = router.Route(input);
-        ILLMProvider provider = decision.SelectedProvider switch
+        var providerRegistry = serviceProvider.GetRequiredService<ProviderRegistry>();
+        ILLMProvider provider;
+        try
         {
-            "gemini" => serviceProvider.GetRequiredService<GeminiProvider>(),
-            "gemini-cli" => serviceProvider.GetRequiredService<GeminiCliProvider>(),
-            "ollama" => serviceProvider.GetRequiredService<OllamaProvider>(),
-            _ => serviceProvider.GetRequiredService<ClaudeService>()
-        };
+            provider = providerRegistry.CreateProvider(decision.SelectedProvider, serviceProvider);
+        }
+        catch
+        {
+            provider = decision.SelectedProvider switch
+            {
+                "gemini" => serviceProvider.GetRequiredService<GeminiProvider>(),
+                "gemini-cli" => serviceProvider.GetRequiredService<GeminiCliProvider>(),
+                "ollama" => serviceProvider.GetRequiredService<OllamaProvider>(),
+                _ => serviceProvider.GetRequiredService<ClaudeService>()
+            };
+        }
 
         var broadcaster = DashboardServer.Services?.GetService<IAgentEventBroadcaster>();
         var agent = new AgentLoop(

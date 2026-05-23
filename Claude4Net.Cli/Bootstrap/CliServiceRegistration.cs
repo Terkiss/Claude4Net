@@ -98,5 +98,12 @@ public static class CliServiceRegistration
             httpClient.Timeout = TimeSpan.FromSeconds(300);
             return new OllamaProvider(httpClient, sp.GetRequiredService<IToolRegistry>());
         });
+
+        // Provider Factories
+        services.AddSingleton<IProviderFactory, AnthropicProviderFactory>();
+        services.AddSingleton<IProviderFactory, GeminiProviderFactory>();
+        services.AddSingleton<IProviderFactory, OllamaProviderFactory>();
+        services.AddSingleton<IProviderFactory, GeminiCliProviderFactory>();
+        services.AddSingleton<IProviderFactory, OpenAiCompatProviderFactory>();
     }
 }

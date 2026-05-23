@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.Linq;
 using Claude4Net.SDK;
 using Claude4Net.Api;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Claude4Net.Runtime
 {
@@ -331,8 +332,62 @@ namespace Claude4Net.Runtime
         }
 
         /// <summary>
-        /// ?깅줉???꾨줈諛붿씠???섎? 諛섑솚?⑸땲??
+        /// 등록된 프로바이더 개수를 반환합니다.
         /// </summary>
         public int Count => _descriptors.Count;
+
+        private readonly List<IProviderFactory> _factories = new();
+
+        /// <summary>
+        /// 프로바이더 팩토리를 직접 등록합니다.
+        /// </summary>
+        public void RegisterFactory(IProviderFactory factory)
+        {
+            if (factory == null) throw new ArgumentNullException(nameof(factory));
+            _factories.Add(factory);
+        }
+
+        /// <summary>
+        /// 프로바이더 ID와 서비스 프로바이더를 이용하여 팩토리를 통해 적절한 ILLMProvider를 생성합니다.
+        /// 등록된 팩토리가 없거나 생성이 안되는 경우 레거시 분기로 fallback합니다.
+        /// </summary>
+        public ILLMProvider CreateProvider(string providerId, IServiceProvider serviceProvider)
+        {
+            var descriptor = Get(providerId);
+            if (descriptor != null)
+            {
+                // 1. DI에 등록된 IProviderFactory 목록에서 확인
+                var diFactories = serviceProvider.GetService<IEnumerable<IProviderFactory>>();
+                if (diFactories != null)
+                {
+                    var factory = diFactories.FirstOrDefault(f => f.CanCreate(descriptor));
+                    if (factory != null)
+                    {
+                        return factory.Create(descriptor, serviceProvider);
+                    }
+                }
+
+                // 2. 직접 등록된 팩토리 목록에서 확인
+                var localFactory = _factories.FirstOrDefault(f => f.CanCreate(descriptor));
+                if (localFactory != null)
+                {
+                    return localFactory.Create(descriptor, serviceProvider);
+                }
+            }
+
+            // 3. Fallback: 기존 레거시 생성 로직
+            return CreateProviderLegacy(providerId, serviceProvider);
+        }
+
+        private ILLMProvider CreateProviderLegacy(string providerId, IServiceProvider serviceProvider)
+        {
+            return providerId.ToLower() switch
+            {
+                "gemini" => (ILLMProvider)serviceProvider.GetRequiredService<Claude4Net.Api.GeminiProvider>(),
+                "gemini-cli" => (ILLMProvider)serviceProvider.GetRequiredService<Claude4Net.Api.GeminiCliProvider>(),
+                "ollama" => (ILLMProvider)serviceProvider.GetRequiredService<Claude4Net.Api.OllamaProvider>(),
+                _ => (ILLMProvider)serviceProvider.GetRequiredService<Claude4Net.Api.ClaudeService>()
+            };
+        }
     }
 }

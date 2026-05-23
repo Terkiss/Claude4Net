@@ -86,9 +86,9 @@
 | K069 | SeedSpec Command Surface | Completed | 512/512 pass |
 | K070 | Coordinate Spec Enforcement | Completed | 517/517 pass |
 | K071 | Provider Descriptor V2 Model | Completed | 527/527 pass |
-| K072 | Provider Settings Precedence | Not Started | - |
-| K073 | Provider Factory Preparation | Not Started | - |
-| K074 | Routine Command MVP | Not Started | - |
+| K072 | Provider Settings Precedence | Completed | 530/530 pass |
+| K073 | Provider Factory Preparation | Completed | 544/544 pass |
+| K074 | Routine Command MVP | In Progress | - |
 | K075 | Routine Execution Integration | Not Started | - |
 | K076 | Routine Scheduler Hardening | Not Started | - |
 | K077 | Skill Proposal Lifecycle | Not Started | - |
@@ -685,6 +685,31 @@
 - [x] Adjust existing K056 tests to match fail-closed expectations (assert throwing exceptions on invalid json).
 - [x] Add K071ProviderDescriptorV2Tests covering 8 test methods / 10 cases
 - [x] Official Release Gate passed (527/527 pass).
+
+### K072: Provider Settings Precedence
+- [x] Extend `ProviderRegistry` to load descriptors in precedence order: Built-in defaults < System < User < Workspace.
+- [x] Implement config and setting merge precedence in `SettingsManager` (Config < Environment variables < CLI overrides).
+- [x] Fix JSON merging default property overwrite bug using JsonDocument parsing.
+- [x] Integrate precedence resolution logic at the application entry point (`Program.cs`).
+- [x] Create comprehensive `K072ProviderPrecedenceTests` verifying all load levels and variable resolution precedence.
+- [x] Official Release Gate passed (530/530 pass).
+
+### K073: Provider Factory Preparation
+- [x] Define `IProviderFactory` and specialized implementations for Anthropic, Gemini, Ollama, Gemini CLI, and OpenAI Compatible providers.
+- [x] Register all provider factories in Dependency Injection (`CliServiceRegistration.cs`).
+- [x] Update `ProviderRegistry` to resolve provider instances via registered provider factories with a legacy fallback mechanism.
+- [x] Integrate factory resolution into `AgentLoop.cs` and `Program.cs` execution paths.
+- [x] Add comprehensive suite of unit and integration tests (`K073ProviderFactoryTests.cs`) covering endpoint parsing, authorization validations, registry resolution, and fallbacks.
+- [x] Official Release Gate passed (544/544 pass).
+
+### K074: Routine Command MVP
+- [ ] Register `/routine` slash command group and operations (`list`, `show <id>`, `add <id> <name>`, `enable <id>`, `disable <id>`, `delete <id>`, `run <id>`).
+- [ ] New routines default to disabled unless explicitly enabled.
+- [ ] Validate IDs to be path-safe (no directory traversal or illegal characters).
+- [ ] `/routine show` displays trigger, actions, permission mode, workspace, last run, and enabled state.
+- [ ] Delete removes definition only, not historical run records.
+- [ ] Add `K074RoutineCommandTests`
+- [ ] Official Release Gate passed
 
 ### K085: Slash Command Palette
 - [ ] `PromptComposer`에 `/` 입력 감지 시 팔레트 모드 전환 로직 추가

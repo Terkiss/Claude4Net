@@ -182,13 +182,22 @@ namespace Claude4Net.Runtime
 
                     // 5. Smart Routing: 입력의 복잡도, 비용, 성공률을 고려하여 최적의 LLM 선정
                     var decision = _router.Route(finalPrompt);
-                    ILLMProvider provider = decision.SelectedProvider switch
+                    var providerRegistry = _serviceProvider.GetRequiredService<ProviderRegistry>();
+                    ILLMProvider provider;
+                    try
                     {
-                        "gemini" => _serviceProvider.GetRequiredService<GeminiProvider>(),
-                        "gemini-cli" => _serviceProvider.GetRequiredService<GeminiCliProvider>(),
-                        "ollama" => _serviceProvider.GetRequiredService<OllamaProvider>(),
-                        _ => _serviceProvider.GetRequiredService<ClaudeService>()
-                    };
+                        provider = providerRegistry.CreateProvider(decision.SelectedProvider, _serviceProvider);
+                    }
+                    catch
+                    {
+                        provider = decision.SelectedProvider switch
+                        {
+                            "gemini" => _serviceProvider.GetRequiredService<GeminiProvider>(),
+                            "gemini-cli" => _serviceProvider.GetRequiredService<GeminiCliProvider>(),
+                            "ollama" => _serviceProvider.GetRequiredService<OllamaProvider>(),
+                            _ => _serviceProvider.GetRequiredService<ClaudeService>()
+                        };
+                    }
 
                     if (_observer is NullAgentRunObserver)
                         AnsiConsole.MarkupLine($"[grey]Routing:[/] [bold cyan]{decision.SelectedProvider}[/] ([italic]{decision.SelectedModel}[/]) - [grey]{decision.Reason ?? "Auto"}[/]");
@@ -503,13 +512,29 @@ namespace Claude4Net.Runtime
                         }
                     }
 
-                    ILLMProvider resumeProvider = sessionRecord.Provider switch
+                    ILLMProvider resumeProvider;
+                    try
                     {
-                        "gemini" => _serviceProvider.GetRequiredService<GeminiProvider>(),
-                        "gemini-cli" => _serviceProvider.GetRequiredService<GeminiCliProvider>(),
-                        "ollama" => _serviceProvider.GetRequiredService<OllamaProvider>(),
-                        _ => _serviceProvider.GetRequiredService<ClaudeService>()
-                    };
+                        resumeProvider = providerRegistry != null
+                            ? providerRegistry.CreateProvider(sessionRecord.Provider, _serviceProvider)
+                            : sessionRecord.Provider switch
+                            {
+                                "gemini" => _serviceProvider.GetRequiredService<GeminiProvider>(),
+                                "gemini-cli" => _serviceProvider.GetRequiredService<GeminiCliProvider>(),
+                                "ollama" => _serviceProvider.GetRequiredService<OllamaProvider>(),
+                                _ => _serviceProvider.GetRequiredService<ClaudeService>()
+                            };
+                    }
+                    catch
+                    {
+                        resumeProvider = sessionRecord.Provider switch
+                        {
+                            "gemini" => _serviceProvider.GetRequiredService<GeminiProvider>(),
+                            "gemini-cli" => _serviceProvider.GetRequiredService<GeminiCliProvider>(),
+                            "ollama" => _serviceProvider.GetRequiredService<OllamaProvider>(),
+                            _ => _serviceProvider.GetRequiredService<ClaudeService>()
+                        };
+                    }
 
                     resumeProvider.SetHistory(state.History);
                     _currentVersion = state.LastVersion;
@@ -657,9 +682,17 @@ namespace Claude4Net.Runtime
                         }
 
                         ILLMProvider provider;
-                        if (AppState.ActiveProvider == "gemini") provider = _serviceProvider.GetRequiredService<GeminiProvider>();
-                        else if (AppState.ActiveProvider == "ollama") provider = _serviceProvider.GetRequiredService<OllamaProvider>();
-                        else provider = _serviceProvider.GetRequiredService<ClaudeService>();
+                        try
+                        {
+                            var registry = _serviceProvider.GetRequiredService<ProviderRegistry>();
+                            provider = registry.CreateProvider(AppState.ActiveProvider, _serviceProvider);
+                        }
+                        catch
+                        {
+                            if (AppState.ActiveProvider == "gemini") provider = _serviceProvider.GetRequiredService<GeminiProvider>();
+                            else if (AppState.ActiveProvider == "ollama") provider = _serviceProvider.GetRequiredService<OllamaProvider>();
+                            else provider = _serviceProvider.GetRequiredService<ClaudeService>();
+                        }
 
                         var history = provider.GetHistory();
                         string dateStr = DateTime.Now.ToString("yyyyMMdd");
