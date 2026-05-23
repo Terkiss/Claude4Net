@@ -149,6 +149,20 @@ public sealed class LumenFrameBuilder : ILumenFrameBuilder
             lines.Insert(0, new DisplayLine(string.Empty, DisplayLineKind.Transcript));
         }
 
+        if (state.IsCommandPaletteVisible)
+        {
+            var paletteLines = BuildPaletteLines(state, width);
+            int P = paletteLines.Count;
+            int idx = lines.Count - (visibleInputLines.Count + 1) - P;
+            if (idx >= 0)
+            {
+                for (int i = 0; i < P; i++)
+                {
+                    lines[idx + i] = paletteLines[i];
+                }
+            }
+        }
+
         // 7. Final Cursor
         int cursorTop = transcriptHeight + dialogHeight + (absCursorLineOffset - inputStartLine);
         int cursorMin = transcriptHeight + dialogHeight;
@@ -377,5 +391,65 @@ public sealed class LumenFrameBuilder : ILumenFrameBuilder
             left = 0;
             lineOffset++;
         }
+    }
+
+    private List<DisplayLine> BuildPaletteLines(LumenState state, int width)
+    {
+        var filtered = Claude4Net.Commands.CommandRegistry.GetCommands()
+            .OrderBy(c => c.Name)
+            .ToList();
+
+        if (!string.IsNullOrEmpty(state.PaletteFilterText))
+        {
+            filtered = filtered
+                .Where(c => c.Name.StartsWith(state.PaletteFilterText, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        int N = filtered.Count;
+        if (N == 0)
+        {
+            var noMatchLines = new List<DisplayLine>();
+            string top = FormatDialogBorder("Commands", '─', '┌', '┐', width);
+            string middle = FormatDialogRow("No matching commands", width);
+            string bottom = FormatDialogBorder(null, '─', '└', '┘', width);
+            noMatchLines.Add(new DisplayLine(top, DisplayLineKind.Dialog));
+            noMatchLines.Add(new DisplayLine(middle, DisplayLineKind.Dialog));
+            noMatchLines.Add(new DisplayLine(bottom, DisplayLineKind.Dialog));
+            return noMatchLines;
+        }
+
+        int K = Math.Min(5, N);
+
+        int startIndex = state.PaletteSelectedIndex - 2;
+        if (startIndex < 0) startIndex = 0;
+        if (startIndex > N - K) startIndex = N - K;
+        if (startIndex < 0) startIndex = 0;
+
+        var paletteLines = new List<DisplayLine>();
+        string topBorder = FormatDialogBorder("Commands", '─', '┌', '┐', width);
+        paletteLines.Add(new DisplayLine(topBorder, DisplayLineKind.Dialog));
+
+        for (int i = 0; i < K; i++)
+        {
+            int itemIndex = startIndex + i;
+            var cmd = filtered[itemIndex];
+            bool isSelected = itemIndex == state.PaletteSelectedIndex;
+
+            string prefix = isSelected ? "> " : "  ";
+            string cmdString = $"{prefix}/{cmd.Name}";
+            if (!string.IsNullOrEmpty(cmd.Description))
+            {
+                cmdString += $" - {cmd.Description}";
+            }
+
+            string middle = FormatDialogRow(cmdString, width);
+            paletteLines.Add(new DisplayLine(middle, DisplayLineKind.Dialog));
+        }
+
+        string bottomBorder = FormatDialogBorder(null, '─', '└', '┘', width);
+        paletteLines.Add(new DisplayLine(bottomBorder, DisplayLineKind.Dialog));
+
+        return paletteLines;
     }
 }

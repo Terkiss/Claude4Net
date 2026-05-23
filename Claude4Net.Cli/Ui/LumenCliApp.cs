@@ -159,6 +159,10 @@ namespace Claude4Net.Cli.Ui
             // Normal composer processing
             var result = _composer.ProcessKey(keyInfo);
 
+            _observer.State.IsCommandPaletteVisible = _composer.IsCommandPaletteVisible;
+            _observer.State.PaletteFilterText = _composer.PaletteFilterText;
+            _observer.State.PaletteSelectedIndex = _composer.PaletteSelectedIndex;
+
             switch (result.Status)
             {
                 case PromptComposerStatus.Submitted:

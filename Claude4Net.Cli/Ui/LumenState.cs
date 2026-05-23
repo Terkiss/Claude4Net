@@ -18,4 +18,8 @@ public record LumenState
     public ApprovalDialogState ApprovalDialog { get; init; } = ApprovalDialogState.Hidden;
 
     public ViewportScrollState Scroll { get; init; } = new(0, true);
+
+    public bool IsCommandPaletteVisible { get; set; }
+    public string PaletteFilterText { get; set; } = string.Empty;
+    public int PaletteSelectedIndex { get; set; }
 }

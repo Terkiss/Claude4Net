@@ -100,7 +100,7 @@
 | K083 | Release Gate Expansion | Completed | verify-release.ps1 expansion & env isolation verified (595/595 pass) |
 
 | K084 | Final Integration and Documentation | Completed | Full release-gate pass (595/595 unit tests + 101 smoke tests pass) |
-| K085 | Slash Command Palette | Not Started | - |
+| K085 | Slash Command Palette | Completed | Interactive filtering command overlay popup implemented (601/601 pass) |
 | K086 | CLI Startup Arguments Expansion | Not Started | - |
 
 
@@ -797,13 +797,13 @@
 - [x] Official Release Gate passed (595/595 unit tests + 101 smoke tests pass).
 
 ### K085: Slash Command Palette
-- [ ] `PromptComposer`에 `/` 입력 감지 시 팔레트 모드 전환 로직 추가
-- [ ] `LumenState`에 `IsCommandPaletteVisible`, `PaletteFilterText`, `PaletteSelectedIndex` 상태 추가
-- [ ] 모달 입력 상태 기계 (ArrowUp/Down 리다이렉트) 구현
-- [ ] `LumenFrameBuilder`에서 명령어 팔레트 오버레이 패널 렌더링
-- [ ] Enter 자동완성, Escape 닫기, 최대 5행 제한 및 스크롤 래핑
-- [ ] `K085SlashCommandPaletteTests` 추가
-- [ ] Official Release Gate passed
+- [x] `PromptComposer`에 `/` 입력 감지 시 팔레트 모드 전환 로직 추가
+- [x] `LumenState`에 `IsCommandPaletteVisible`, `PaletteFilterText`, `PaletteSelectedIndex` 상태 추가
+- [x] 모달 입력 상태 기계 (ArrowUp/Down 리다이렉트) 구현
+- [x] `LumenFrameBuilder`에서 명령어 팔레트 오버레이 패널 렌더링
+- [x] Enter 자동완성, Escape 닫기, 최대 5행 제한 및 스크롤 래핑
+- [x] `K085SlashCommandPaletteTests` 추가 (Sequential execution guaranteed with `[Collection("AppState")]` collection integration)
+- [x] Official Release Gate passed (601/601 unit tests + 101 smoke tests pass)
 
 ### K086: CLI Startup Arguments Expansion
 - [ ] `CliOptions.cs`에 `--yolo` 플래그 파싱 추가
