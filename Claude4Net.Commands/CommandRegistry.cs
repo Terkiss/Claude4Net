@@ -362,6 +362,35 @@ namespace Claude4Net.Commands
                             {
                                 sb.AppendLine("[grey]No skills discovered in the current registry.[/]");
                             }
+
+                            string root = ws ?? Directory.GetCurrentDirectory();
+                            var miner = new TrajectoryMiner(root);
+                            var patterns = miner.MineFailurePatterns();
+                            var newProposals = await miner.MineAndGenerateProposalsAsync(proposalService);
+
+                            sb.AppendLine();
+                            sb.AppendLine("[bold cyan]Trajectory Mining & Failure Analysis[/]");
+                            sb.AppendLine(new string('=', 50));
+                            sb.AppendLine($"Discovered Failure Patterns: {patterns.Count}");
+                            foreach (var pattern in patterns)
+                            {
+                                sb.AppendLine($"  - {Markup.Escape(pattern)}");
+                            }
+
+                            sb.AppendLine();
+                            sb.AppendLine($"Auto-generated Skill Proposals: {newProposals.Count}");
+                            if (newProposals.Any())
+                            {
+                                foreach (var prop in newProposals)
+                                {
+                                    sb.AppendLine($"  - [green]{Markup.Escape(prop.Id)}[/]: {Markup.Escape(prop.Title)} (Status: {prop.Status})");
+                                }
+                            }
+                            else
+                            {
+                                sb.AppendLine("  - [grey]No new proposals generated (either no failures found or all patterns already have proposals).[/]");
+                            }
+
                             return sb.ToString();
                         }
 

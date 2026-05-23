@@ -6,6 +6,7 @@ using Claude4Net.SDK;
 
 namespace Claude4Net.Tests
 {
+    [Collection("AppState")]
     public class D05SmartRouterTests
     {
         [Fact]

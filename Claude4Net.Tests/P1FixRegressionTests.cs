@@ -182,7 +182,6 @@ namespace Claude4Net.Tests
                 Assert.NotNull(cmd);
 
                 string result = await cmd.Handler!("", services);
-
                 Assert.Contains("Session Projection (CQRS Read Model)", result);
                 Assert.Contains("Total Events: 0", result);
             }

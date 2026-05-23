@@ -18,8 +18,27 @@ using Claude4Net.Commands;
 
 namespace Claude4Net.Tests
 {
-    public class K046CommandOutputNormalizationTests
+    [Collection("AppState")]
+    public class K046CommandOutputNormalizationTests : IDisposable
     {
+        private readonly string? _originalCwd;
+        private readonly string _originalSessionId;
+
+        public K046CommandOutputNormalizationTests()
+        {
+            _originalCwd = AppState.CurrentCwd;
+            _originalSessionId = AppState.SessionId;
+
+            AppState.CurrentCwd = null;
+            AppState.SessionId = Guid.NewGuid().ToString();
+        }
+
+        public void Dispose()
+        {
+            AppState.CurrentCwd = _originalCwd;
+            AppState.SessionId = _originalSessionId;
+        }
+
         private IServiceProvider CreateMockServiceProvider(out Mock<IInputBroker> brokerMock)
         {
             var services = new ServiceCollection();

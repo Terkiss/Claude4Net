@@ -15,6 +15,7 @@ using System.Text;
 
 namespace Claude4Net.Tests
 {
+    [Collection("AppState")]
     public class GeminiProviderTests : IDisposable
     {
         public GeminiProviderTests()

@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Claude4Net.Tests
 {
+    [Collection("AppState")]
     public class K029K030SecurityTests : IDisposable
     {
         private readonly string _testDir;

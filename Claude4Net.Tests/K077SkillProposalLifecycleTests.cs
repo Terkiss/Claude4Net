@@ -50,6 +50,7 @@ namespace Claude4Net.Tests
 
         private async Task<string> ExecuteSkillCommandAsync(string arguments)
         {
+            AppState.CurrentCwd = _testWorkspace;
             var cmd = CommandRegistry.FindCommand("skill");
             Assert.NotNull(cmd);
             var result = await cmd.Handler!(arguments, _serviceProvider);
@@ -248,7 +249,7 @@ namespace Claude4Net.Tests
 
             // 8. /skill reject should succeed
             var rejectResult = await ExecuteSkillCommandAsync($"reject {prop2Id}");
-            Assert.Contains("Rejected successfully", rejectResult);
+            Assert.True(rejectResult.Contains("Rejected successfully"), $"Reject failed with message: {rejectResult}");
 
             // Check status is Rejected
             await _proposalService.LoadAsync(_testWorkspace);
