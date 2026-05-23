@@ -102,6 +102,7 @@
 | K084 | Final Integration and Documentation | Completed | Full release-gate pass (595/595 unit tests + 101 smoke tests pass) |
 | K085 | Slash Command Palette | Completed | Interactive filtering command overlay popup implemented (601/601 pass) |
 | K086 | CLI Startup Arguments Expansion | Completed | YOLO mode permission routing and workspace dir options implemented (609/609 pass) |
+| K087 | Skill Store Scope Separation | Completed | Global/local skill store separation implemented and verified (613/613 pass) |
 
 
 ## Official Verification Commands
@@ -813,3 +814,10 @@
 - [x] `K086CliStartupArgsTests` 추가 (YOLO 권한 분기 검증)
 - [x] `K086WorkspaceArgTests` 추가 (`--setworkspace` 경로 검증)
 - [x] Official Release Gate passed (609/609 unit tests + 101 smoke tests pass)
+
+### K087: Skill Store Scope Separation
+- [x] 글로벌 및 로컬 스킬 저장소 구조 분리 구현 (Global: App execution path `skills/`, Local: workspace `.claude4net/skills/`)
+- [x] `SkillRegistryService` 저장소 경로 및 discovery 동작 확장
+- [x] `SkillApplyEngine`의 대상 경로/저장소 처리 보강 (글로벌과 로컬 타겟 경로 안전 처리 및 CheckpointStore 우회 추가)
+- [x] 관련 `K018SkillRegistryTests` 및 `K078SkillApplyEngineTests` 테스트 보강
+- [x] Official Release Gate passed (613/613 unit tests + 101 smoke tests pass)

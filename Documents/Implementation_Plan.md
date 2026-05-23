@@ -101,6 +101,7 @@ The 2026-05-21 expansion design is complete only when all of the following are t
 | K084 | Final Integration and Documentation | Completed | full pass, docs/progress sync, final risk review (595/595 unit tests + 101 smoke tests pass) |
 | K085 | Slash Command Palette | Completed | / 입력 시 실시간 필터링 가능한 명령어 팔레트 오버레이 표시 (601/601 pass) |
 | K086 | CLI Startup Arguments Expansion | Completed | YOLO mode permission routing and workspace dir options implemented (609/609 pass) |
+| K087 | Skill Store Scope Separation | Completed | 글로벌 및 로컬 스킬 저장소 구조 분리 구현 및 검증 완료 (613/613 pass) |
 
 ## 6. Execution Order
 
@@ -126,6 +127,7 @@ Required order:
 18. K084 Final Integration and Documentation
 19. K085 Slash Command Palette
 20. K086 CLI Startup Arguments Expansion
+21. K087 Skill Store Scope Separation
 
 Parallelization rules:
 
@@ -551,6 +553,33 @@ Required tests:
 - 신규 `K086CliStartupArgsTests` (YOLO 모드 내부 Allow / 외부 RequireApproval 검증)
 - 신규 `K086WorkspaceArgTests` (`--setworkspace` 경로 검증)
 
+### K087 Skill Store Scope Separation
+
+Goal: 글로벌 스킬 저장소(실행 파일 경로의 `skills/`) 및 로컬 스킬 저장소(워크스페이스 `.claude4net/skills/`) 구조를 명확히 분리하고, 기술 검증 및 SSOT 연동을 완료한다.
+
+Dependency: K018, K078 (Completed)
+
+Allowed files:
+
+- `Claude4Net.Runtime/SelfEvolvingSkills.cs`
+- `Claude4Net.Runtime/SkillApplyEngine.cs`
+- `Claude4Net.Runtime/SkillRegistryService.cs`
+- `Claude4Net.Tests/K018SkillRegistryTests.cs`
+- `Claude4Net.Tests/K078SkillApplyEngineTests.cs`
+- `Documents/Implementation_Plan.md`
+- `IMPLEMENTATION_PROGRESS.md`
+
+Required work:
+
+- `SkillRegistryService` 저장소 경로 및 discovery 동작 확장
+- `SkillApplyEngine`에서 글로벌/로컬 스킬 대상 경로 처리 보강 및 CheckpointStore 우회 추가
+- `SelfEvolvingSkills`에서 구조 분리에 따른 자가 진화 경로 적용
+
+Required tests:
+
+- `K018SkillRegistryTests` 글로벌 및 로컬 구조 분리 동작 검증 추가
+- `K078SkillApplyEngineTests` 글로벌 및 로컬 대상 경로 적용 동작 검증 추가
+
 ## 9. Verification Standard
 
 Standard commands:
@@ -620,5 +649,6 @@ Do not mark any item checked until implementation, tests, and release evidence e
 - [x] K084 Final Integration and Documentation
 - [x] K085 Slash Command Palette
 - [x] K086 CLI Startup Arguments Expansion
+- [x] K087 Skill Store Scope Separation
 
 The expansion roadmap is complete only when every item above is checked and K084 records a full test and release-gate pass.
