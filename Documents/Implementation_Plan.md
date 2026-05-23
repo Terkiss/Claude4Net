@@ -7,8 +7,8 @@ Progress tracker: `IMPLEMENTATION_PROGRESS.md`
 Design source: `Documents/2026-05-21_Claude4Net-App_인사이트_기반_확장_설계.md`
 Backup before SSOT clean: `Documents/backups/2026-05-22/Implementation_Plan.pre-ssot-clean.2026-05-22.md`
 
-Current focus: K077 Skill Proposal Lifecycle
-Next milestone: K078 Skill Apply Engine
+Current focus: K078 Skill Apply Engine
+Next milestone: K079 Skill Trajectory Mining
 Queue status: running
 
 
@@ -91,8 +91,8 @@ The 2026-05-21 expansion design is complete only when all of the following are t
 | K074 | Routine Command MVP | Completed | Expose routine definition management through slash commands; add path-safe ID checks (553/553 pass) |
 | K075 | Routine Execution Integration | Completed | Make routine runs pass through safety layers, validation, checkpoint, hooks, event logging, verification (559/559 pass) |
 | K076 | Routine Scheduler Hardening | Completed | Safety features, concurrency limit, DailyTime/Interval logic, timeouts, persistence (567/567 pass) |
-| K077 | Skill Proposal Lifecycle | In Progress | Active execution card completed |
-| K078 | Skill Apply Engine | Not Started | Active Execution Card completed |
+| K077 | Skill Proposal Lifecycle | Completed | Active execution card completed |
+| K078 | Skill Apply Engine | In Progress | Active Execution Card completed |
 | K079 | Skill Trajectory Mining | Not Started | failure-pattern mining from trajectories/events/verification and proposal candidates |
 | K080 | Dashboard Read Models | Not Started | typed provider/coordinate/skill/routine/checkpoint/verification/state read APIs |
 | K081 | Dashboard Typed Commands | Not Started | safe typed actions only; no arbitrary command execution |
@@ -137,14 +137,14 @@ Parallelization rules:
 - K080 read models can begin after K071/K074/K077 are stable enough to expose state.
 - K081 must wait for K080; K082 must wait for K080 and K081.
 
-## 7. Active Execution Card: K076 Routine Scheduler Hardening
+## 7. Active Execution Card: K078 Skill Apply Engine
 
-Goal: Make manual, interval, and daily routines safe for long-running use.
+Goal: Apply approved skill proposals safely.
 
 Allowed files:
-- `Claude4Net.Runtime/RoutineSchedulerService.cs` (or similar scheduler service files)
-- `Claude4Net.SDK/RoutineModels.cs`
-- `Claude4Net.Tests/K076RoutineSchedulerTests.cs` (or similar)
+- `Claude4Net.Runtime/SkillProposalService.cs`
+- `Claude4Net.Runtime/SkillApplyEngine.cs` (or similar)
+- `Claude4Net.Tests/K078SkillApplyEngineTests.cs` (or similar)
 - `IMPLEMENTATION_PROGRESS.md`
 - `Documents/Implementation_Plan.md`
 - `ralph-queue-state.md`
@@ -154,18 +154,19 @@ Forbidden files:
 - `.gemini/agents/`
 
 Required work:
-- Support triggers: `Manual`, `Interval`, and `DailyTime`.
-- Do not schedule disabled routines (`IsEnabled == false`).
-- Calculate and set next-run timestamp.
-- Limit concurrency: maximum 1 concurrent execution per routine.
-- Add minimum interval floor (e.g. 1 second or 5 seconds) to avoid CPU hot loops.
-- Implement timeout limits for routine tasks.
-- Persist last-run and next-run metadata updates in the routine definitions.
-- Reject webhook and event triggers with warnings/exceptions.
+- Add patch preview or structured file change preview.
+- Require approval before write.
+- Create checkpoint before apply.
+- Reject direct `.agents/` mutation.
+- Permit only approved projection/safe paths.
+- Apply patch or generated file changes.
+- Record diff/evidence.
+- Run verification after apply.
+- Mark `Verified` on pass and `Failed` on fail.
 
 Required tests:
-- `K060RoutineSchedulerTests`
-- New `K076RoutineSchedulerHardeningTests`
+- `K061SkillProposalApplyTests`
+- New `K078SkillApplyEngineTests`
 
 Done when:
 - All required work implemented.

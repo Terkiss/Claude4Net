@@ -509,8 +509,19 @@ namespace Claude4Net.Commands
 
                             try
                             {
-                                await proposalService.ApplyProposalAsync(ws, proposalId);
-                                return $"[green]Proposal '{proposalId}' has been Applied successfully.[/]";
+                                var registry = sp.GetService<SkillRegistryService>();
+                                if (registry == null) return "[red]Error:[/] SkillRegistryService not available.";
+                                var approvalHandler = sp.GetService<IUserApprovalHandler>() as IRichApprovalHandler;
+                                var engine = new SkillApplyEngine(proposalService, registry, approvalHandler);
+                                bool success = await engine.ApplyAsync(proposalId, ws);
+                                if (success)
+                                {
+                                    return $"[green]Proposal '{proposalId}' has been Applied successfully.[/]";
+                                }
+                                else
+                                {
+                                    return $"[red]Proposal '{proposalId}' application failed during verification and was reverted.[/]";
+                                }
                             }
                             catch (Exception ex)
                             {

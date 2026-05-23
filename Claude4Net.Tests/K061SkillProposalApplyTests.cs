@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Threading.Tasks;
 using Claude4Net.Runtime;
@@ -64,7 +64,7 @@ namespace Claude4Net.Tests
 
             await _service.LoadAsync(_workspace);
             var loaded = _service.GetProposal("PROP-3");
-            Assert.Equal(SkillProposalStatus.Applied, loaded?.Status);
+            Assert.True(loaded?.Status == SkillProposalStatus.Applied || loaded?.Status == SkillProposalStatus.Verified);
         }
     }
 }

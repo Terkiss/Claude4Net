@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Claude4Net.SDK;
@@ -46,23 +46,9 @@ namespace Claude4Net.Runtime
 
         public async Task<bool> ApplyAsync(string proposalId, string workspaceRoot)
         {
-            await _proposalService.LoadAsync(workspaceRoot);
-            var proposal = _proposalService.GetProposal(proposalId);
-            if (proposal == null) throw new InvalidOperationException("Proposal not found.");
-
-            if (proposal.Status != SkillProposalStatus.Approved)
-            {
-                throw new InvalidOperationException("Only approved proposals can be applied.");
-            }
-
-            if (proposal.SkillId != null && proposal.SkillId.StartsWith(".agents/"))
-            {
-                throw new UnauthorizedAccessException("Cannot mutate .agents/ directly.");
-            }
-
-            _proposalService.UpdateStatus(proposalId, SkillProposalStatus.Applied);
-            await _proposalService.SaveAsync(workspaceRoot);
-            return true;
+            var registry = _proposalService.SkillRegistry;
+            var engine = new SkillApplyEngine(_proposalService, registry);
+            return await engine.ApplyAsync(proposalId, workspaceRoot);
         }
     }
 }

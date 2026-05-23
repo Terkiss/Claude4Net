@@ -91,8 +91,8 @@
 | K074 | Routine Command MVP | Completed | 553/553 pass |
 | K075 | Routine Execution Integration | Completed | 559/559 pass |
 | K076 | Routine Scheduler Hardening | Completed | 567/567 pass |
-| K077 | Skill Proposal Lifecycle | In Progress | - |
-| K078 | Skill Apply Engine | Not Started | - |
+| K077 | Skill Proposal Lifecycle | Completed | 570/570 pass |
+| K078 | Skill Apply Engine | In Progress | - |
 | K079 | Skill Trajectory Mining | Not Started | - |
 | K080 | Dashboard Read Models | Not Started | - |
 | K081 | Dashboard Typed Commands | Not Started | - |
@@ -721,14 +721,22 @@
 - [x] Official Release Gate passed (559/559 pass)
 
 ### K076: Routine Scheduler Hardening
-- [ ] Implement manual, interval, and daily routine triggers using RoutineSchedulerService.
-- [ ] Calculate next-run timestamps based on configured triggers (DailyTime, Interval).
-- [ ] Enforce safety limits: maximum 1 concurrent execution per routine and minimum interval floors (e.g. 5 seconds).
-- [ ] Add execution run timeout constraints.
-- [ ] Persist routine scheduler execution state (last-run and next-run metadata).
-- [ ] Reject webhook/event triggers with warnings or exceptions.
-- [ ] Add `K076RoutineSchedulerTests`
-- [ ] Official Release Gate passed
+- [x] Implement manual, interval, and daily routine triggers using RoutineSchedulerService.
+- [x] Calculate next-run timestamps based on configured triggers (DailyTime, Interval).
+- [x] Enforce safety limits: maximum 1 concurrent execution per routine and minimum interval floors (e.g. 5 seconds).
+- [x] Add execution run timeout constraints.
+- [x] Persist routine scheduler execution state (last-run and next-run metadata).
+- [x] Reject webhook/event triggers with warnings or exceptions.
+- [x] Add `K076RoutineSchedulerTests`
+- [x] Official Release Gate passed (567/567 pass)
+
+### K077: Skill Proposal Lifecycle
+- [x] Extend SkillProposalStatus enum with Failed and Verified states.
+- [x] Implement state machine rules in SkillProposalService to restrict state transitions.
+- [x] Add Status Mutation helpers (Approve, Reject, Apply, Verify, Fail, Supersede) throwing InvalidOperationException on failure.
+- [x] Register /skill slash commands (analyze, proposals, propose, validate, approve, reject, apply) with backward compatible aliases.
+- [x] Add K077SkillProposalLifecycleTests verifying state machine transitions and command handler outcomes.
+- [x] Official Release Gate passed (570/570 pass)
 
 ### K085: Slash Command Palette
 - [ ] `PromptComposer`에 `/` 입력 감지 시 팔레트 모드 전환 로직 추가

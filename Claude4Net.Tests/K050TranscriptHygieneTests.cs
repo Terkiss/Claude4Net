@@ -18,6 +18,7 @@ using System.Threading;
 
 namespace Claude4Net.Tests
 {
+    [Collection("AppState")]
     public class K050LumenTranscriptHygieneTests
     {
         [Fact]

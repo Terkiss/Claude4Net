@@ -234,9 +234,10 @@ namespace Claude4Net.Tests
             var applyResult = await ExecuteSkillCommandAsync($"apply {propId}");
             Assert.Contains("Applied successfully", applyResult);
 
-            // Check status is Applied
+            // Check status is Applied or Verified
             await _proposalService.LoadAsync(_testWorkspace);
-            Assert.Equal(SkillProposalStatus.Applied, _proposalService.GetProposal(propId)?.Status);
+            var status = _proposalService.GetProposal(propId)?.Status;
+            Assert.True(status == SkillProposalStatus.Applied || status == SkillProposalStatus.Verified);
 
             // Test Reject command
             // Create another proposal

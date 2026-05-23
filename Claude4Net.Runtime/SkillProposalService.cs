@@ -19,6 +19,8 @@ namespace Claude4Net.Runtime
         private readonly SkillRegistryService _skillRegistry;
         private SkillProposalRoot _root = new();
 
+        public SkillRegistryService SkillRegistry => _skillRegistry;
+
         public SkillProposalService(SkillRegistryService skillRegistry)
         {
             _skillRegistry = skillRegistry ?? throw new ArgumentNullException(nameof(skillRegistry));
