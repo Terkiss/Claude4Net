@@ -1,85 +1,245 @@
-# 🤖 Claude4Net (v1.2.0 Stable)
+# Claude4Net
 
-[![Release Gate](https://img.shields.io/badge/Release%20Gate-Passed-green)](./scripts/verify-release.ps1)
-[![Tests](https://img.shields.io/badge/Tests-180%2F180%20Passed-brightgreen)](./Claude4Net.Tests/)
-[![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
-[![Framework](https://img.shields.io/badge/.NET-10.0-purple)](https://dotnet.microsoft.com/download)
+[![.NET](https://img.shields.io/badge/.NET-10.0-purple)](https://dotnet.microsoft.com/)
+[![Release Gate](https://img.shields.io/badge/release%20gate-613%2F613%20passing-brightgreen)](./scripts/verify-release.ps1)
+[![Branch](https://img.shields.io/badge/branch-claude4net__Rpa-blue)](#)
 
-> **Claude Code의 강력함을 .NET 10 환경으로 완벽하게 포팅하고 확장한 차세대 AI 시스템 에이전트**
+Claude4Net is a .NET 10 local agent runtime for coding, workspace automation, tool execution, verification, and multi-agent orchestration.
 
-`Claude4Net`은 사용자의 로컬 환경을 완벽하게 이해하고, 파일 시스템을 조작하며, 터미널 명령을 자율적으로 수행하는 **실행형 AI 시스템 에이전트**입니다. v1.2.0에서는 이벤트 소싱 기반의 상태 관리, 실시간 웹 관제 대시보드, 그리고 강화된 보안 체계를 통해 더욱 강력한 개발 협업 경험을 제공합니다.
+It combines a CLI agent loop, Lumen terminal UI, provider routing, local tools, memory/RAG, checkpointing, routines, skills, a Blazor dashboard, Discord integration, and an Antigravity/Ralph agent workflow.
 
----
+Current verified baseline:
 
-## ✨ 핵심 기능 (Key Features)
+- Latest tracked release-gate evidence: 613/613 unit and integration tests passing
+- Latest warning cleanup commit on the base experiment line: `185db17`
+- Current RPA/orchestration branch: `claude4net_Rpa`
+- Active implementation SSOT: `Documents/Implementation_Plan.md`
 
-### 1. 📊 실시간 웹 관제 대시보드 (Web Dashboard)
-- **실시간 사고 흐름**: 에이전트의 사고 과정(Thinking Stream)과 도구 호출 과정을 웹 브라우저에서 실시간으로 모니터링합니다. (`--dashboard`)
-- **이력 리플레이 (Replay)**: 이벤트 소싱(Event-Sourcing) 아키텍처를 통해 과거 세션의 모든 사고 궤적을 완벽하게 재구성하고 시각화합니다.
-- **통합 작업 관리**: 다중 에이전트 협업 상태와 승인 대기열을 한눈에 파악하고 즉각적인 피드백을 제공합니다.
+## What It Does
 
-### 2. 🧩 다중 에이전트 조정 (Multi-Agent Coordination)
-- **공유 작업 보드 (Shared Task Board)**: 오케스트레이터와 여러 작업 에이전트가 하나의 작업 보드를 공유하며 의존성 있는 복잡한 과업을 수행합니다.
-- **역할 기반 할당**: 에이전트의 전문 분야(Research, Coding, Testing 등)와 권한 모드를 고려하여 최적의 작업자에게 과업을 배분합니다.
+Claude4Net is designed to act like an execution-capable local development agent.
 
-### 3. 🧠 자가 치유 및 문맥 최적화 (Self-Healing & Optimization)
-- **자가 치유 v2 (Self-Healing)**: 실패 패턴(무한 루프, 환각 등)을 자동으로 분류하고, 미래 세션에 교정 지침(Healing Directive)을 주입하여 동일한 실수를 방지합니다.
-- **자동 문맥 압축 (Context Compression)**: 모델의 토큰 한도를 지능적으로 관리합니다. 중요 증거를 보존하면서도 오래된 문맥을 요약/압축하여 비용을 절감하고 긴 세션을 유지합니다.
+Core capabilities:
 
-### 4. 🛡️ 강화된 엔터프라이즈 보안 (Security Hardening)
-- **심볼릭 링크 방어**: 심볼릭 링크 체인을 통한 워크스페이스 이탈 및 순환 링크 공격을 원천 차단합니다.
-- **비밀 마스킹 확대**: 환경 변수, 명령줄 인자, JSON 출력물 내의 민감한 정보를 더욱 철저하게 마스킹합니다.
-- **상세 감사 로그**: 보안 거부 발생 시 구체적인 사유를 포함한 감사 로그를 기록하여 투명성을 높였습니다.
+- Reads, writes, edits, and lists workspace files through guarded tools
+- Runs shell commands through permission-aware execution paths
+- Routes requests across Claude, Gemini, Gemini CLI, Ollama, and compatible providers
+- Maintains agent memory and local data tables through TeruTeruPandas
+- Records sessions, trajectories, checkpoints, and verification evidence
+- Supports workspace/session isolation and checkpoint restore flows
+- Provides slash commands for spec gates, coordinates, routines, skills, providers, verification, and diagnostics
+- Offers a modern interactive terminal UI through Lumen
+- Exposes typed dashboard read/control surfaces through Blazor and SignalR
+- Supports Discord-based async orchestration and approval paths
+- Uses Ralph Loop agent prompts for worker, reviewer, final-control, and planning workflows
 
----
+## Project Layout
 
-## 🏗️ 프로젝트 구조 (Architecture)
+```text
+Claude4Net-App/
+  Claude4Net.Api/              LLM provider clients, MCP/LSP transports
+  Claude4Net.Cli/              Console entrypoint, options, Lumen TUI
+  Claude4Net.Commands/         Slash/bang command registry
+  Claude4Net.Dashboard/        ASP.NET Core host and SignalR hubs
+  Claude4Net.Dashboard.Client/ Blazor WebAssembly dashboard UI
+  Claude4Net.Discord/          Discord listener and approval integration
+  Claude4Net.MyPlugins/        Built-in local plugins and Pandas tools
+  Claude4Net.Runtime/          Agent loop, routing, checkpoints, routines, skills
+  Claude4Net.SDK/              Shared models, events, AppState, contracts
+  Claude4Net.Tests/            Unit and integration tests
+  Claude4Net.Tools/            File, shell, LSP, and system tools
+  TeruTeruPandas/              DataFrame and local data universe engine
+  .gemini/agents/              Antigravity/Ralph agent prompt definitions
+  Documents/                   SSOT, implementation history, system prompts
+  scripts/                     Release gate and validation scripts
+```
 
-- **`Claude4Net.Runtime`**: 에이전트 사고 루프, 이벤트 소싱, 자가 치유 및 다중 에이전트 조정의 핵심.
-- **`Claude4Net.Dashboard`**: ASP.NET Core 및 Blazor 기반의 실시간 관제 서버 및 클라이언트.
-- **`Claude4Net.Api`**: Multi-Provider 통신 레이어 (Gemini 2.0, Claude 3.5, Ollama 지원).
-- **`Claude4Net.SDK`**: 공통 인터페이스, 이벤트 모델 및 보안 가드.
-- **`Claude4Net.Tools`**: 파일 I/O, Bash 실행, LSP 연동 등 시스템 조작 도구.
-- **`TeruTeruPandas`**: 에이전트 전용 고성능 벡터 DB 및 데이터 처리 엔진.
+## Major Features
 
----
+### Agent Runtime
 
-## 🛠️ 주요 명령어 (Commands)
+- `AgentLoop` coordinates provider calls, tool calls, streaming, tool results, events, and completion.
+- `ToolOrchestrator` centralizes tool execution.
+- `PermissionEnforcer` and path-safety checks prevent unsafe filesystem and shell operations.
+- `CheckpointStore` protects file and memory state around risky changes.
 
-### CLI 실행 옵션
-- `dotnet run --project Claude4Net.Cli -- --dashboard`: 웹 대시보드와 함께 에이전트를 기동합니다.
-- `dotnet run --project Claude4Net.Cli -- --permission-mode ReadWrite`: 워크스페이스 쓰기 권한을 부여하여 실행합니다.
+### Provider Routing
 
-### 시스템 명령어
-- `/status`: 현재 세션의 요약 정보와 태스크 보드 상태를 표시합니다.
-- `/resume <sessionId>`: 이전 세션의 이벤트 이력을 재생하여 작업을 재개합니다.
-- `!replay`: 현재 세션의 전체 이벤트 궤적을 확인합니다.
-- `!skills`: 등록된 스킬 및 제안된 스킬 목록을 관리합니다.
+- Provider descriptors are loaded through `ProviderRegistry`.
+- Smart routing supports local and remote providers.
+- Provider settings precedence is handled through built-in, system, user, workspace, environment, and CLI layers.
+- Provider factory preparation is in place for safer provider construction.
 
----
+### Lumen CLI UI
 
-## 🚀 시작하기 (Getting Started)
+Lumen is the interactive terminal UI path.
 
-### 1. 요구 사항
-- [.NET 10.0 SDK](https://dotnet.microsoft.com/download) 이상
+Run with:
 
-### 2. 빌드 및 실행
-```bash
-dotnet build
+```powershell
+dotnet run --project Claude4Net.Cli -- --lumen
+```
+
+Useful modes:
+
+```powershell
+dotnet run --project Claude4Net.Cli -- --legacy-cli
+dotnet run --project Claude4Net.Cli -- --smoke-exit
+dotnet run --project Claude4Net.Cli -- doctor --output-format json
+```
+
+Lumen includes:
+
+- Fixed transcript/input/footer rendering
+- CJK-aware text width handling
+- Slash command palette
+- Scroll navigation
+- Approval dialog frame rendering
+- Bottom-pane anchoring fixes
+
+### Dashboard
+
+Run with:
+
+```powershell
 dotnet run --project Claude4Net.Cli -- --dashboard
 ```
 
-### 3. 프로바이더 설정
-```bash
-> /login gemini YOUR_API_KEY   # Gemini 활성화
-> /login claude YOUR_API_KEY   # Claude 활성화
+Dashboard capabilities:
+
+- Provider state read models
+- Coordinate/spec state read models
+- Skill and routine read models
+- Checkpoint and verification views
+- Typed safe control actions
+- Arbitrary remote command execution remains denied
+
+### Specs, Coordinates, Routines, And Skills
+
+Implemented surfaces include:
+
+- `/spec` command surface for structured acceptance criteria
+- `/coordinate` enforcement and evidence tracking
+- `/routine` management and permission-aware execution
+- Routine scheduler hardening
+- Skill proposal lifecycle
+- Skill apply engine
+- Skill trajectory mining
+- Global/local skill store separation
+
+K087 separated:
+
+- Global skill store from the executable-side skill path
+- Workspace-local skill store from `.claude4net/skills`
+- Skill apply and self-evolving skill paths for safe local/global behavior
+
+### Antigravity / Ralph Agent Workflow
+
+The `.gemini/agents/` directory defines Antigravity CLI agents for larger work:
+
+- `ralph-orchestrator.md`: chooses one milestone, writes execution cards, coordinates the loop
+- `gemini-cli-worker.md`: implements only the assigned card
+- `gemini-pro-first-reviewer.md`: reviews actual git diff and test evidence
+- `universal-final-controller.md`: verifies release readiness
+- `Final_Approach_Control.md`: decides commit readiness only
+- `terukirdo_plan.md`: reads attached Markdown documents and produces SSOT candidate implementation plans
+- `tech-expert.md`: provides architectural advice without direct implementation
+
+Important workflow rule:
+
+- Ralph Loop may reach commit readiness.
+- Push is outside Ralph Loop.
+- Push happens only in a separate user and third-final-controller conversation.
+
+## Getting Started
+
+Requirements:
+
+- .NET 10 SDK
+- PowerShell
+- Provider credentials for remote providers, if needed
+- Ollama installed locally if using local Ollama models
+
+Build:
+
+```powershell
+dotnet build -p:UseAppHost=false
 ```
 
----
+Run the CLI:
 
-## 🤝 기여 및 라이선스
+```powershell
+dotnet run --project Claude4Net.Cli
+```
 
-`Claude4Net`은 MIT 라이선스 하에 제공됩니다. 강력한 보안 정책과 실시간 관제 기능을 갖춘 차세대 에이전트 프레임워크를 함께 만들어보세요!
+Run with a workspace:
 
----
-**v1.2.0 Release - Enhanced Observability & Multi-Agent Coordination** 🚀
+```powershell
+dotnet run --project Claude4Net.Cli -- --setworkspace "D:\path\to\workspace"
+```
+
+Run Lumen:
+
+```powershell
+dotnet run --project Claude4Net.Cli -- --lumen --setworkspace "D:\path\to\workspace"
+```
+
+Run dashboard:
+
+```powershell
+dotnet run --project Claude4Net.Cli -- --dashboard
+```
+
+## Verification
+
+Standard checks:
+
+```powershell
+git status --short --branch
+git diff --check
+git diff --cached --check
+dotnet build -p:UseAppHost=false
+dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false
+```
+
+Official release gate:
+
+```powershell
+.\scripts\verify-release.ps1
+```
+
+The release gate currently verifies:
+
+- Standard build
+- Strict nullable build
+- Full unit/integration suite
+- Focused state/spec/provider/routine/dashboard smoke groups
+- CLI `--smoke-exit`
+
+## Operational SSOT
+
+Active project state is tracked in:
+
+- `Documents/Implementation_Plan.md`
+- `IMPLEMENTATION_PROGRESS.md`
+
+Rules:
+
+- `Documents/Implementation_Plan.md` keeps the current queue state, reusable templates, and latest completed entry.
+- `IMPLEMENTATION_PROGRESS.md` keeps historical completion evidence.
+- Old reports are not authoritative.
+- Repository state and raw command output override narrative reports.
+
+## Safety Rules
+
+- Do not modify `.agents/`.
+- Do not stage unrelated files.
+- Do not use `git add .` or `git add -A` in automated flows.
+- Do not mark work complete without build/test/release evidence.
+- Do not expose arbitrary dashboard command execution.
+- Do not push from Ralph Loop.
+- Push requires explicit user approval through the third-final-controller path.
+
+## License
+
+No repository license file is currently tracked in this branch. Add a `LICENSE` file before publishing or distributing outside the current controlled workspace.
