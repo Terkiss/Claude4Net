@@ -120,7 +120,12 @@ namespace Claude4Net.Tests
             AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
             {
                 var assemblyName = new System.Reflection.AssemblyName(args.Name);
-                string dllName = assemblyName.Name + ".dll";
+                string? simpleName = assemblyName.Name;
+                if (string.IsNullOrEmpty(simpleName))
+                {
+                    return null;
+                }
+                string dllName = simpleName + ".dll";
 
                 // 1. AppDomain Base Directory
                 string baseDir = AppDomain.CurrentDomain.BaseDirectory;
@@ -156,7 +161,7 @@ namespace Claude4Net.Tests
                     string nugetDir = System.IO.Path.Combine(userProfile, ".nuget", "packages");
                     if (System.IO.Directory.Exists(nugetDir))
                     {
-                        string pkgDir = System.IO.Path.Combine(nugetDir, assemblyName.Name.ToLowerInvariant());
+                        string pkgDir = System.IO.Path.Combine(nugetDir, simpleName.ToLowerInvariant());
                         if (System.IO.Directory.Exists(pkgDir))
                         {
                             var files = System.IO.Directory.GetFiles(pkgDir, dllName, System.IO.SearchOption.AllDirectories);

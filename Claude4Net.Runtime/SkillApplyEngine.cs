@@ -167,9 +167,12 @@ namespace Claude4Net.Runtime
             await File.WriteAllTextAsync(fullPath, newContent);
 
             // 7. Evidence & Record
-            proposal.EvidenceReferences.Add($"checkpoint:{checkpointId}");
             proposal.Metadata["ApplyDiff"] = diffPreview.DiffContent;
-            proposal.Metadata["CheckpointId"] = checkpointId;
+            if (!string.IsNullOrEmpty(checkpointId))
+            {
+                proposal.EvidenceReferences.Add($"checkpoint:{checkpointId}");
+                proposal.Metadata["CheckpointId"] = checkpointId;
+            }
 
             _proposalService.UpdateStatus(proposalId, SkillProposalStatus.Applied);
             await _proposalService.SaveAsync(workspaceRoot);

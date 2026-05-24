@@ -365,7 +365,7 @@ namespace Claude4Net.Commands
 
                             string root = ws ?? Directory.GetCurrentDirectory();
                             var miner = new TrajectoryMiner(root);
-                            var patterns = miner.MineFailurePatterns();
+                            var patterns = await miner.MineFailurePatternsAsync();
                             var newProposals = await miner.MineAndGenerateProposalsAsync(proposalService);
 
                             sb.AppendLine();
