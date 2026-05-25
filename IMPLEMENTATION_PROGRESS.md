@@ -856,10 +856,10 @@
 - [ ] 실시간 세션 스위칭 시 UI 및 SignalR 연결 해제/재연결 안정성 검증
 
 ### K093: Self-Healing v2: 실패 분류 확장과 복구 전략 추천 엔진
-- [ ] ErrorClassifier 내 Schema Mismatch, Rate Limit, Context Over 등 신규 에러 분류 추가
-- [ ] 복구 전략 추천 엔진(Recovery Strategy Recommender) 및 전략 처방 DTO 설계
-- [ ] AgentLoop 실행 단계에서 추천 전략 동적 수용 및 복구 시도 연계
-- [ ] 복구 성공률 지표 로깅 및 Trajectory 기록 추가
+- [x] ErrorClassifier 내 Schema Mismatch, Rate Limit, Context Over 등 신규 에러 분류 추가
+- [x] 복구 전략 추천 엔진(Recovery Strategy Recommender) 및 전략 처방 DTO 설계
+- [x] AgentLoop 실행 단계에서 추천 전략 동적 수용 및 복구 시도 연계
+- [x] 복구 성공률 지표 로깅 및 Trajectory 기록 추가
 
 ### K094: SkillUsageRecorder 실연결 & Self-Evolving Skills 루프 완성
 - [ ] ToolOrchestrator 실행 경로에 SkillUsageRecorder 데코레이터/인터셉터 연결

@@ -18,7 +18,7 @@ namespace Claude4Net.Runtime
         private static readonly SelfHealingService _instance = new();
 
         /// <summary>
-        /// SelfHealingService???��????�스?�스?�니??
+        /// SelfHealingService???????스?스?니??
         /// </summary>
         public static SelfHealingService Instance => _instance;
 
@@ -26,6 +26,9 @@ namespace Claude4Net.Runtime
         private readonly List<HealingDirective> _directives = new();
         private int _currentReflectionDepth = 0;
         private const int MaxReflectionDepth = 3;
+
+        public static event Action<RecoveryPrescription>? OnRecoveryPrescribed;
+        private RecoveryPrescription? _latestPrescription;
 
         private SelfHealingService()
         {
@@ -48,10 +51,40 @@ namespace Claude4Net.Runtime
         /// </summary>
         public FailurePattern ClassifyPattern(IEnumerable<object> events)
         {
+            _latestPrescription = null;
             var eventList = events.Cast<Claude4Net.SDK.Events.IAgentEvent>().ToList();
             if (eventList.Count < 3) return FailurePattern.None;
 
-            // 1. 무한 루프 감�? (?�일 ?�구 & ?�일 ?�자 ?�속 3??
+            // 1. 세분화된 에러 분류 및 처방 검사
+            var lastErrorEvent = eventList.OfType<Claude4Net.SDK.Events.ToolResultEvent>().LastOrDefault(e => e.IsError);
+            if (lastErrorEvent != null)
+            {
+                var toolName = "unknown_tool";
+                var matchingCall = eventList.OfType<Claude4Net.SDK.Events.ToolCalledEvent>()
+                    .LastOrDefault(c => c.ToolUseId == lastErrorEvent.ToolUseId);
+                if (matchingCall != null)
+                {
+                    toolName = matchingCall.ToolName;
+                }
+
+                var refinedCat = ErrorClassifier.Classify(toolName, lastErrorEvent.Result);
+                if (refinedCat != RefinedErrorCategory.Unknown)
+                {
+                    _latestPrescription = RecommendRecovery(refinedCat, toolName, lastErrorEvent.Result);
+                    OnRecoveryPrescribed?.Invoke(_latestPrescription);
+
+                    if (refinedCat == RefinedErrorCategory.JsonSchemaMismatch)
+                    {
+                        return FailurePattern.ToolUsageError;
+                    }
+                    if (refinedCat == RefinedErrorCategory.SymlinkEscapeViolation)
+                    {
+                        return FailurePattern.SecurityRejection;
+                    }
+                }
+            }
+
+            // 2. 무한 루프 감지 (동일 도구 & 동일 인자 연속 3회)
             var toolCalls = eventList.OfType<Claude4Net.SDK.Events.ToolCalledEvent>().ToList();
             for (int i = 0; i <= toolCalls.Count - 3; i++)
             {
@@ -60,39 +93,62 @@ namespace Claude4Net.Runtime
                     toolCalls[i].Arguments == toolCalls[i + 1].Arguments &&
                     toolCalls[i].Arguments == toolCalls[i + 2].Arguments)
                 {
+                    _latestPrescription = RecommendRecovery(RefinedErrorCategory.InfiniteLoop, toolCalls[i].ToolName, "Infinite loop detected");
+                    OnRecoveryPrescribed?.Invoke(_latestPrescription);
                     return FailurePattern.InfiniteLoop;
                 }
             }
 
-            // 2. ?�각 감�? (존재?��? ?�는 ?�일/경로 반복 ?�도)
+            // 3. 환각 감지 (존재하지 않는 파일/경로 반복 시도)
             var failures = eventList.OfType<Claude4Net.SDK.Events.ToolResultEvent>()
                 .Where(e => e.IsError && (e.Result?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true ||
                                            e.Result?.Contains("no such file", StringComparison.OrdinalIgnoreCase) == true))
                 .ToList();
-            if (failures.Count >= 2) return FailurePattern.Hallucination;
+            if (failures.Count >= 2)
+            {
+                _latestPrescription = RecommendRecovery(RefinedErrorCategory.Hallucination, "", "Hallucination of non-existent resource");
+                OnRecoveryPrescribed?.Invoke(_latestPrescription);
+                return FailurePattern.Hallucination;
+            }
 
-            // 3. 보안 거절 반복
+            // 4. 보안 거절 반복
             var rejections = eventList.OfType<Claude4Net.SDK.Events.ToolResultEvent>()
                 .Where(e => e.IsError && e.Result?.Contains("Security Policy Violation", StringComparison.OrdinalIgnoreCase) == true)
                 .ToList();
-            if (rejections.Count >= 2) return FailurePattern.SecurityRejection;
+            if (rejections.Count >= 2)
+            {
+                _latestPrescription = RecommendRecovery(RefinedErrorCategory.SymlinkEscapeViolation, "", "Security policy violation");
+                OnRecoveryPrescribed?.Invoke(_latestPrescription);
+                return FailurePattern.SecurityRejection;
+            }
 
             return FailurePattern.None;
         }
 
         /// <summary>
-        /// ?�패 ?�턴???�른 치유 지침을 ?�성?�니??
+        /// 실패 패턴에 따른 치유 지침을 생성합니다.
         /// </summary>
         public HealingDirective GenerateDirective(FailurePattern pattern)
         {
             var directive = new HealingDirective { Pattern = pattern };
-            directive.Instruction = pattern switch
+            
+            string baseInstruction = pattern switch
             {
                 FailurePattern.InfiniteLoop => "You are stuck in a loop. Stop calling the same tool with the same arguments. Try a different approach or verify the state first.",
                 FailurePattern.Hallucination => "You are attempting to access non-existent resources. Run 'ls' or 'dir' to verify file paths before access.",
                 FailurePattern.SecurityRejection => "Your actions violate security policies. Refrain from accessing protected paths or performing restricted operations.",
+                FailurePattern.ToolUsageError => "Tool arguments mismatch or invalid schema syntax. Double check parameters against the declaration.",
                 _ => "Analyze the previous failure and adjust your strategy to avoid repeating the same mistake."
             };
+
+            if (_latestPrescription != null)
+            {
+                directive.Instruction = $"{baseInstruction} Recommendation: {_latestPrescription.Recommendation} {(_latestPrescription.SuggestedPromptAdjustment ?? "")}".Trim();
+            }
+            else
+            {
+                directive.Instruction = baseInstruction;
+            }
 
             _directives.Add(directive);
             return directive;
@@ -208,5 +264,75 @@ namespace Claude4Net.Runtime
                 return null!;
             });
         }
+
+        /// <summary>
+        /// 분류된 에러와 환경을 기반으로 최적의 복구 전략(처방전)을 추천합니다.
+        /// </summary>
+        public RecoveryPrescription RecommendRecovery(RefinedErrorCategory category, string toolName, string error)
+        {
+            var prescription = new RecoveryPrescription
+            {
+                Category = category,
+                RetryPolicy = ErrorClassifier.GetRecommendedPolicy(category)
+            };
+
+            switch (category)
+            {
+                case RefinedErrorCategory.JsonSchemaMismatch:
+                    prescription.Recommendation = "Adjust dynamic parameters to match JSON Schema. Format your input arguments correctly.";
+                    prescription.SuggestedPromptAdjustment = "SYSTEM WARNING: The previous call failed due to JSON Schema mismatch. Ensure you strictly conform to the expected parameters and types in your next attempt.";
+                    break;
+                case RefinedErrorCategory.RateLimit:
+                    prescription.Recommendation = "Rate limit detected. Cool down or switch to alternative model routing.";
+                    if (!string.IsNullOrEmpty(AppState.ActiveModel))
+                    {
+                        if (AppState.ActiveModel.Contains("pro", StringComparison.OrdinalIgnoreCase))
+                            prescription.SuggestedModel = AppState.ActiveModel.Replace("pro", "flash", StringComparison.OrdinalIgnoreCase);
+                        else if (AppState.ActiveModel.Contains("flash", StringComparison.OrdinalIgnoreCase))
+                            prescription.SuggestedModel = AppState.ActiveModel.Replace("flash", "pro", StringComparison.OrdinalIgnoreCase);
+                        else
+                            prescription.SuggestedModel = "gemini-1.5-flash";
+                    }
+                    else
+                    {
+                        prescription.SuggestedModel = "gemini-1.5-flash";
+                    }
+                    prescription.SuggestedPromptAdjustment = "SYSTEM WARNING: Rate Limit hit. Back off and adjust request frequency.";
+                    break;
+                case RefinedErrorCategory.ContextLimitOver:
+                    prescription.Recommendation = "Context limit exceeded. Compress session history or prune messages.";
+                    prescription.SuggestedPromptAdjustment = "SYSTEM WARNING: Context limit is near or exceeded. Focus strictly on answering the prompt, avoiding verbose descriptions.";
+                    break;
+                case RefinedErrorCategory.SymlinkEscapeViolation:
+                    prescription.Recommendation = "Symlink safety violation. Keep path access restricted within workspace boundaries.";
+                    prescription.SuggestedPromptAdjustment = "SYSTEM WARNING: Path safety restriction triggered. You cannot access files outside the workspace directory or traverse symbolic links leading outside.";
+                    break;
+                case RefinedErrorCategory.PathError:
+                    prescription.Recommendation = "Path not found. Verify file layout before reading/writing.";
+                    prescription.SuggestedPromptAdjustment = "SYSTEM WARNING: The path could not be found. Execute a directory search or verify the existence of files before attempting to read/edit them.";
+                    break;
+                case RefinedErrorCategory.BuildError:
+                    prescription.Recommendation = "Compilation error. Inspect build log and fix C# syntax/reference errors.";
+                    prescription.SuggestedPromptAdjustment = "SYSTEM WARNING: Code build failed. Analyze compiler errors carefully and correct the code before running compile again.";
+                    break;
+                default:
+                    prescription.Recommendation = $"Standard error handling for {category}. Retry as specified.";
+                    break;
+            }
+
+            return prescription;
+        }
+    }
+
+    /// <summary>
+    /// 복구 처방전(Recovery Prescription) 클래스
+    /// </summary>
+    public class RecoveryPrescription
+    {
+        public RefinedErrorCategory Category { get; set; }
+        public string Recommendation { get; set; } = string.Empty;
+        public RetryPolicy? RetryPolicy { get; set; }
+        public string? SuggestedModel { get; set; }
+        public string? SuggestedPromptAdjustment { get; set; }
     }
 }

@@ -12,21 +12,21 @@ namespace Claude4Net.Tests
         [Fact]
         public void ErrorClassifier_ShouldCategorizeCorrectly_Extended()
         {
-            Assert.Equal(ErrorCategory.QuotaError, ErrorClassifier.Classify("gemini", "Resource has been exhausted (e.g. check quota)."));
-            Assert.Equal(ErrorCategory.NetworkError, ErrorClassifier.Classify("claude", "The connection was reset by the peer."));
-            Assert.Equal(ErrorCategory.TimeoutError, ErrorClassifier.Classify("tool", "Operation timed out after 30 seconds."));
-            Assert.Equal(ErrorCategory.LogicError, ErrorClassifier.Classify("pandas", "Invalid argument: column 'X' does not exist."));
-            Assert.Equal(ErrorCategory.BuildError, ErrorClassifier.Classify("bash", "error CS0103: The name 'Color' does not exist in the current context"));
+            Assert.Equal(ErrorCategory.QuotaError, Claude4Net.SDK.ErrorClassifier.Classify("gemini", "Resource has been exhausted (e.g. check quota)."));
+            Assert.Equal(ErrorCategory.NetworkError, Claude4Net.SDK.ErrorClassifier.Classify("claude", "The connection was reset by the peer."));
+            Assert.Equal(ErrorCategory.TimeoutError, Claude4Net.SDK.ErrorClassifier.Classify("tool", "Operation timed out after 30 seconds."));
+            Assert.Equal(ErrorCategory.LogicError, Claude4Net.SDK.ErrorClassifier.Classify("pandas", "Invalid argument: column 'X' does not exist."));
+            Assert.Equal(ErrorCategory.BuildError, Claude4Net.SDK.ErrorClassifier.Classify("bash", "error CS0103: The name 'Color' does not exist in the current context"));
         }
 
         [Fact]
         public void ErrorClassifier_ShouldReturnRecommendedPolicy()
         {
-            var quotaPolicy = ErrorClassifier.GetRecommendedPolicy(ErrorCategory.QuotaError);
+            var quotaPolicy = Claude4Net.SDK.ErrorClassifier.GetRecommendedPolicy(ErrorCategory.QuotaError);
             Assert.Equal(RetryStrategy.ExponentialBackoff, quotaPolicy.Strategy);
             Assert.Equal(5000, quotaPolicy.InitialDelayMs);
 
-            var networkPolicy = ErrorClassifier.GetRecommendedPolicy(ErrorCategory.NetworkError);
+            var networkPolicy = Claude4Net.SDK.ErrorClassifier.GetRecommendedPolicy(ErrorCategory.NetworkError);
             Assert.Equal(RetryStrategy.ExponentialBackoff, networkPolicy.Strategy);
             Assert.Equal(3, networkPolicy.MaxRetries);
         }

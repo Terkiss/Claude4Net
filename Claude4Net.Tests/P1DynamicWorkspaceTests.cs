@@ -143,6 +143,7 @@ namespace Claude4Net.Tests
             // Act
             var state = await hub.GetInitialState();
             var json = System.Text.Json.JsonSerializer.Serialize(state);
+            Console.WriteLine("DEBUG_JSON: " + json);
 
             // Assert
             // RecentEvents should be serialized with concrete fields because it's List<object>

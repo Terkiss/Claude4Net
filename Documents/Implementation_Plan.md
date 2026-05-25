@@ -7,8 +7,8 @@ Progress tracker: `IMPLEMENTATION_PROGRESS.md`
 Design source: `Documents/2026-05-21_Claude4Net-App_인사이트_기반_확장_설계.md`
 Backup before SSOT clean: `Documents/backups/2026-05-22/Implementation_Plan.pre-ssot-clean.2026-05-22.md`
 
-Current focus: K092
-Next milestone: K093
+Current focus: K094
+Next milestone: K095
 Queue status: active
 
 
@@ -60,6 +60,7 @@ Current reality after SSOT clean:
 - Current implementation contains partial scaffolding for SeedSpec, routines, state isolation, skill proposal apply, provider descriptor loading, and dashboard pages.
 - These scaffolds are not product-complete.
 - Latest verified baseline before this SSOT clean: `dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --no-restore` passed 502/502, and `.\scripts\verify-release.ps1` passed.
+- K093 is completed with all 635 unit/integration tests passing.
 
 Completion must be evidence-based. Do not mark K067-K084 complete from file existence alone.
 
@@ -107,7 +108,7 @@ The 2026-05-21 expansion design is complete only when all of the following are t
 | K090 | LSP/MCP Integration | Completed | LSP/MCP 실전 연결 완성 및 Mock Coverage 강화 |
 | K091 | Concurrency Hardening | Completed | 승인 대기열 동시성 하드닝 & Idempotent Approval Engine |
 | K092 | Multi-Session Replay | Proposed | Dashboard Multi-Session Observatory & Replay View |
-| K093 | Self-Healing v2 | Proposed | Self-Healing v2: 실패 분류 확장과 복구 전략 추천 엔진 |
+| K093 | Self-Healing v2 | Completed | Self-Healing v2: 실패 분류 확장과 복구 전략 추천 엔진 |
 | K094 | Self-Evolving Skills | Proposed | SkillUsageRecorder 실연결 & Self-Evolving Skills 루프 완성 |
 | K095 | Security Profiles | Proposed | Security Policy Profiles & Red-Team Regression Harness |
 | K096 | Plan/Dry-Run Mode | Proposed | Plan/Dry-Run 모드: 실행 전 영향 범위 분석과 변경 예측 |
