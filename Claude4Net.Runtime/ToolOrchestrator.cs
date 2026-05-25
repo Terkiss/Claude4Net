@@ -361,4 +361,130 @@ namespace Claude4Net.Runtime
             return results;
         }
     }
+
+    /// <summary>
+    /// Thread-safe and Idempotent Engine to handle tool execution approvals.
+    /// </summary>
+    public static class IdempotentApprovalEngine
+    {
+        private static readonly object _lock = new();
+        private static readonly Dictionary<string, ApprovalDecisionState> _decisions = new();
+        private static readonly List<Action<string, bool, string?>> _resolvers = new();
+
+        public class ApprovalDecisionState
+        {
+            public string RequestId { get; set; } = "";
+            public bool? Approved { get; set; }
+            public string? Reason { get; set; }
+            public string? Tool { get; set; }
+        }
+
+        public static void RegisterRequest(string requestId, string? tool = null)
+        {
+            lock (_lock)
+            {
+                if (!_decisions.ContainsKey(requestId))
+                {
+                    _decisions[requestId] = new ApprovalDecisionState
+                    {
+                        RequestId = requestId,
+                        Approved = null,
+                        Tool = tool
+                    };
+                }
+            }
+        }
+
+        public static bool TryRegisterDecision(string requestId, bool approved, string? reason, out string? errorMsg)
+        {
+            errorMsg = null;
+            lock (_lock)
+            {
+                if (!_decisions.TryGetValue(requestId, out var state))
+                {
+                    state = new ApprovalDecisionState
+                    {
+                        RequestId = requestId,
+                        Approved = approved,
+                        Reason = reason
+                    };
+                    _decisions[requestId] = state;
+                    TriggerResolvers(requestId, approved, reason);
+                    return true;
+                }
+
+                if (state.Approved.HasValue)
+                {
+                    if (state.Approved.Value == approved)
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        errorMsg = $"Conflicting decision for request {requestId}: already {(state.Approved.Value ? "Approved" : "Rejected")}, attempted to {(approved ? "Approve" : "Reject")}.";
+                        return false;
+                    }
+                }
+
+                state.Approved = approved;
+                state.Reason = reason;
+
+                TriggerResolvers(requestId, approved, reason);
+                return true;
+            }
+        }
+
+        public static bool? GetDecision(string requestId)
+        {
+            lock (_lock)
+            {
+                if (_decisions.TryGetValue(requestId, out var state))
+                {
+                    return state.Approved;
+                }
+                return null;
+            }
+        }
+
+        public static void RegisterResolver(Action<string, bool, string?> resolver)
+        {
+            lock (_lock)
+            {
+                _resolvers.Add(resolver);
+            }
+        }
+
+        public static void UnregisterResolver(Action<string, bool, string?> resolver)
+        {
+            lock (_lock)
+            {
+                _resolvers.Remove(resolver);
+            }
+        }
+
+        private static void TriggerResolvers(string requestId, bool approved, string? reason)
+        {
+            var resolversCopy = _resolvers.ToList();
+            foreach (var resolver in resolversCopy)
+            {
+                try
+                {
+                    resolver(requestId, approved, reason);
+                }
+                catch
+                {
+                    // ignore
+                }
+            }
+        }
+
+        public static void Reset()
+        {
+            lock (_lock)
+            {
+                _decisions.Clear();
+                _resolvers.Clear();
+            }
+        }
+    }
 }

@@ -50,8 +50,18 @@ public class AgentHub : Hub
 
     public async Task RespondToApproval(string requestId, bool approved, string? reason)
     {
-        // This will be called from the Blazor client to notify the server/runtime
-        // We'll need a way to link this back to the waiting ApprovalHandler
+        // Register the decision in IdempotentApprovalEngine for thread safety and idempotency
+        if (!IdempotentApprovalEngine.TryRegisterDecision(requestId, approved, reason, out var errorMsg))
+        {
+            if (errorMsg != null)
+            {
+                // Conflict detected!
+                Console.WriteLine($"[ERROR] Concurrency Conflict: {errorMsg}");
+                await Clients.All.SendAsync("ApprovalConflictDetected", requestId, errorMsg);
+                throw new HubException(errorMsg);
+            }
+        }
+
         await Clients.All.SendAsync("ApprovalResponded", requestId, approved, reason);
     }
 }

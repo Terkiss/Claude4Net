@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Claude4Net.SDK;
 using Claude4Net.Cli.Ui.Events;
+using Claude4Net.Runtime;
 
 namespace Claude4Net.Cli.Ui.Approval
 {
@@ -24,6 +25,8 @@ namespace Claude4Net.Cli.Ui.Approval
         {
             var requestId = Guid.NewGuid().ToString().Substring(0, 8);
 
+            IdempotentApprovalEngine.RegisterRequest(requestId, tool);
+
             // Open UI Dialog via Event
             _observer.UpdateState(new ApprovalDialogOpenedEvent(
                 requestId,
@@ -33,20 +36,59 @@ namespace Claude4Net.Cli.Ui.Approval
                 ""
             ));
 
-            // Wait for queue resolution
-            var action = await _queue.EnqueueAsync(requestId);
+            Action<string, bool, string?> resolver = (id, approved, reason) =>
+            {
+                if (id == requestId)
+                {
+                    var action = approved ? ApprovalDialogAction.Approve : ApprovalDialogAction.Deny;
+                    _queue.Resolve(requestId, action);
+                }
+            };
 
-            // Log final approval result as a durable NoticeCell
-            string statusStr = action == ApprovalDialogAction.Approve ? "APPROVED" : (action == ApprovalDialogAction.Deny ? "DENIED" : "CANCELLED");
-            string level = action == ApprovalDialogAction.Approve ? "Success" : "Warning";
-            _observer.UpdateState(new NoticeReceivedEvent($"[Approval] {tool} -> {statusStr}", level));
+            IdempotentApprovalEngine.RegisterResolver(resolver);
 
-            return action == ApprovalDialogAction.Approve;
+            try
+            {
+                var existingDecision = IdempotentApprovalEngine.GetDecision(requestId);
+                ApprovalDialogAction action;
+
+                if (existingDecision.HasValue)
+                {
+                    action = existingDecision.Value ? ApprovalDialogAction.Approve : ApprovalDialogAction.Deny;
+                }
+                else
+                {
+                    action = await _queue.EnqueueAsync(requestId);
+
+                    bool approved = action == ApprovalDialogAction.Approve;
+                    if (!IdempotentApprovalEngine.TryRegisterDecision(requestId, approved, null, out var error))
+                    {
+                        if (error != null)
+                        {
+                            Console.WriteLine($"[ERROR] Conflict detected in LumenApprovalHandler: {error}");
+                            throw new InvalidOperationException(error);
+                        }
+                    }
+                }
+
+                // Log final approval result as a durable NoticeCell
+                string statusStr = action == ApprovalDialogAction.Approve ? "APPROVED" : (action == ApprovalDialogAction.Deny ? "DENIED" : "CANCELLED");
+                string level = action == ApprovalDialogAction.Approve ? "Success" : "Warning";
+                _observer.UpdateState(new NoticeReceivedEvent($"[Approval] {tool} -> {statusStr}", level));
+
+                return action == ApprovalDialogAction.Approve;
+            }
+            finally
+            {
+                IdempotentApprovalEngine.UnregisterResolver(resolver);
+            }
         }
 
         public async Task<bool> RequestApprovalWithDiffAsync(string tool, string args, FileDiffPreview diff)
         {
             var requestId = Guid.NewGuid().ToString().Substring(0, 8);
+
+            IdempotentApprovalEngine.RegisterRequest(requestId, tool);
 
             // Open UI Dialog via Event with Diff
             _observer.UpdateState(new ApprovalDialogOpenedEvent(
@@ -57,15 +99,52 @@ namespace Claude4Net.Cli.Ui.Approval
                 diff.DiffContent
             ));
 
-            // Wait for queue resolution
-            var action = await _queue.EnqueueAsync(requestId);
+            Action<string, bool, string?> resolver = (id, approved, reason) =>
+            {
+                if (id == requestId)
+                {
+                    var action = approved ? ApprovalDialogAction.Approve : ApprovalDialogAction.Deny;
+                    _queue.Resolve(requestId, action);
+                }
+            };
 
-            // Log final approval result as a durable NoticeCell
-            string statusStr = action == ApprovalDialogAction.Approve ? "APPROVED" : (action == ApprovalDialogAction.Deny ? "DENIED" : "CANCELLED");
-            string level = action == ApprovalDialogAction.Approve ? "Success" : "Warning";
-            _observer.UpdateState(new NoticeReceivedEvent($"[Approval] {tool} (File Edit) -> {statusStr}", level));
+            IdempotentApprovalEngine.RegisterResolver(resolver);
 
-            return action == ApprovalDialogAction.Approve;
+            try
+            {
+                var existingDecision = IdempotentApprovalEngine.GetDecision(requestId);
+                ApprovalDialogAction action;
+
+                if (existingDecision.HasValue)
+                {
+                    action = existingDecision.Value ? ApprovalDialogAction.Approve : ApprovalDialogAction.Deny;
+                }
+                else
+                {
+                    action = await _queue.EnqueueAsync(requestId);
+
+                    bool approved = action == ApprovalDialogAction.Approve;
+                    if (!IdempotentApprovalEngine.TryRegisterDecision(requestId, approved, null, out var error))
+                    {
+                        if (error != null)
+                        {
+                            Console.WriteLine($"[ERROR] Conflict detected in LumenApprovalHandler: {error}");
+                            throw new InvalidOperationException(error);
+                        }
+                    }
+                }
+
+                // Log final approval result as a durable NoticeCell
+                string statusStr = action == ApprovalDialogAction.Approve ? "APPROVED" : (action == ApprovalDialogAction.Deny ? "DENIED" : "CANCELLED");
+                string level = action == ApprovalDialogAction.Approve ? "Success" : "Warning";
+                _observer.UpdateState(new NoticeReceivedEvent($"[Approval] {tool} (File Edit) -> {statusStr}", level));
+
+                return action == ApprovalDialogAction.Approve;
+            }
+            finally
+            {
+                IdempotentApprovalEngine.UnregisterResolver(resolver);
+            }
         }
     }
 }

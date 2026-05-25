@@ -844,10 +844,10 @@
 
 
 ### K091: 승인 대기열 동시성 하드닝 & Idempotent Approval Engine
-- [ ] Multi-channel(CLI, Web UI, Discord) 동시 승인 요청 처리용 동시성 제어 락 도입
-- [ ] 승인 요청에 대한 멱등성(Idempotency) 검증 엔진 구현 (동일 요청 중복 응답 방어)
-- [ ] Conflicting Approval Decisions 발생 시 예외 처리 및 사용자 안전 피드백
-- [ ] 승인 대기열 타임아웃 및 데드락 방지 검증 테스트 케이스 작성
+- [x] Multi-channel(CLI, Web UI, Discord) 동시 승인 요청 처리용 동시성 제어 락 도입
+- [x] 승인 요청에 대한 멱등성(Idempotency) 검증 엔진 구현 (동일 요청 중복 응답 방어)
+- [x] Conflicting Approval Decisions 발생 시 예외 처리 및 사용자 안전 피드백
+- [x] 승인 대기열 타임아웃 및 데드락 방지 검증 테스트 케이스 작성
 
 ### K092: Dashboard Multi-Session Observatory & Replay View
 - [ ] 다중 세션 목록 리트리브 API 및 Dashboard Sessions 페이지 구현

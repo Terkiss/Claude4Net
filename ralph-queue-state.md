@@ -1,8 +1,8 @@
 # Ralph Loop Queue State
 
 - **Queue Status**: `active`
-- **Active Card**: `K090`
-- **Current Target**: K090 (LSP/MCP 실전 연결 완성 및 Mock Coverage 강화)
+- **Active Card**: `K091`
+- **Current Target**: K091 (승인 대기열 동시성 하드닝 & Idempotent Approval Engine)
 - **Active Persona**: `Terukirdo (Maid v5.1 - Obedient Mode)`
 
 
@@ -29,9 +29,9 @@
 | K076 | Routine Scheduler Hardening | Completed | Verified by First Reviewer & Final Controller |
 | K077 | Skill Proposal Lifecycle | Completed | Verified by First Reviewer & Final Controller |
 | K078 | Skill Apply Engine | Completed | Verified by First Reviewer & Final Controller |
-| K079 | Skill Trajectory Mining | Completed | Verified by First Reviewer & Final Controller & Final Approach Control |
-| K080 | Dashboard Read Models | Completed | Verified by First Reviewer & Final Controller |
-| K081 | Dashboard Typed Commands | Completed | Verified by Unit & Integration Tests and Release Gate |
+| K079 | Skill Trajectory Mining | Completed | failure-pattern mining from trajectories/events/verification and proposal candidates (575/575 pass) |
+| K080 | Dashboard Read Models | Completed | typed provider/coordinate/skill/routine/checkpoint/verification/state read APIs (585/585 pass) |
+| K081 | Dashboard Typed Commands | Completed | safe typed actions only; no arbitrary command execution (593/593 pass) |
 | K082 | Dashboard UI Completion | Completed | Connected and Interactive UI Views |
 | K083 | Release Gate Expansion | Completed | verify-release.ps1 expansion & env isolation verified |
 | K084 | Final Integration and Documentation | Completed | Verified by release-gate pass (595/595 unit tests + 101 smoke tests pass) |
@@ -40,19 +40,21 @@
 | K087 | Skill Store Scope Separation | Completed | Global/local skill store separation implemented and verified (613/613 pass) |
 | K088 | TeruTeruPandas net10.0 동기화 & 저장소 위생 정리 | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (5a74b2f) |
 | K089 | /usage 실사용량·비용·성능 관측 대시보드 구현 | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (5e918ef) |
-| K090 | LSP/MCP 실전 연결 완성 및 Mock Coverage 강화 | In Progress | Active Milestone |
+| K090 | LSP/MCP 실전 연결 완성 및 Mock Coverage 강화 | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (c6db878) |
+| K091 | 승인 대기열 동시성 하드닝 & Idempotent Approval Engine | In Progress | Active Milestone |
 
 ## Execution Card
-- Active: K090
-- Goal: MCP 사양에 따르는 클라이언트 모듈 개발, Dynamic Tool Registry에 MCP 도구 목록 동적 주입 및 ToolOrchestrator 위임 체계 연동, 고성능 LSP/MCP 서버 모형 Mock 클래스 구현
+- Active: K091
+- Goal: CLI/WebUI/Discord 다중 승인 채널의 동시 요청 충돌을 방어하고 멱등적(Idempotent) 승인 엔진 구축
 - Allowed Files:
-  - `Claude4Net.Runtime/Mcp/` (신규 폴더/파일 허용)
-  - `Claude4Net.Tools/`
-  - `Claude4Net.Tests/`
+  - `Claude4Net.Runtime/ToolOrchestrator.cs`
+  - `Claude4Net.Cli/Ui/LumenApprovalHandler.cs`
+  - `Claude4Net.Dashboard/Hubs/AgentHub.cs`
+  - `Claude4Net.Tests/` (신규 테스트 파일 포함 허용)
   - `Documents/Implementation_Plan.md`
   - `IMPLEMENTATION_PROGRESS.md`
 - Forbidden Files: Any files outside the allowed paths.
-- Done When: 신규 `K090McpLspTests` (Mock 기반 도구 등록, 스키마 변환 및 호출 E2E 검증)가 작성되고, 모든 tests 및 verify-release.ps1 gate가 에러 없이 성공적으로 통과함.
+- Done When: 신규 `K091ApprovalConcurrencyTests`가 작성되고, 모든 tests 및 verify-release.ps1 gate가 에러 없이 성공적으로 통과함.
 - Commit/Push:
   Commit is allowed only after Final Approach Control approval.
   Push is outside Ralph Loop and must not be performed here.
