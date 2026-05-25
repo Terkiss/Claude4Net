@@ -104,7 +104,7 @@
 | K086 | CLI Startup Arguments Expansion | Completed | YOLO mode permission routing and workspace dir options implemented (609/609 pass) |
 | K087 | Skill Store Scope Separation | Completed | Global/local skill store separation implemented and verified (613/613 pass) |
 | K090 | LSP/MCP Integration | Completed | 620/620 pass (Mock MCP/LSP transport, Registry integration, E2E validation) |
-
+| K094 | SkillUsageRecorder 실연결 & Self-Evolving Skills 루프 완성 | Completed | SkillUsageRecorder integrated, JSONL logging added, trajectory mining trigger, and K094 unit/integration tests passing. |
 
 
 ## Official Verification Commands

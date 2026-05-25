@@ -1,8 +1,8 @@
 # Ralph Loop Queue State
 
 - **Queue Status**: `active`
-- **Active Card**: `K093`
-- **Current Target**: K093 (Self-Healing v2: 실패 분류 확장과 복구 전략 추천 엔진)
+- **Active Card**: `K094`
+- **Current Target**: K094 (SkillUsageRecorder 실연결 & Self-Evolving Skills 루프 완성)
 - **Active Persona**: `Terukirdo (Maid v5.1 - Obedient Mode)`
 
 
@@ -43,19 +43,21 @@
 | K090 | LSP/MCP 실전 연결 완성 및 Mock Coverage 강화 | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (c6db878) |
 | K091 | 승인 대기열 동시성 하드닝 & Idempotent Approval Engine | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (da45a19) |
 | K092 | Dashboard Multi-Session Observatory & Replay View | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (530f18c) |
-| K093 | Self-Healing v2: 실패 분류 확장과 복구 전략 추천 엔진 | In Progress | Active Milestone |
+| K093 | Self-Healing v2: 실패 분류 확장과 복구 전략 추천 엔진 | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (fe5c583) |
+| K094 | SkillUsageRecorder 실연결 & Self-Evolving Skills 루프 완성 | In Progress | Active Milestone |
 
 ## Execution Card
-- Active: K093
-- Goal: 에러 Taxonomy를 세분화하고 대안 모델 라우팅/프롬프트 동적 조정 복구 전략 추천 엔진 설계
+- Active: K094
+- Goal: 스킬 실사용 성공률/지연시간 기록 체계를 활성화하고, 지속적 오류 감지 시 자동 개선 제안 루프 완성
 - Allowed Files:
-  - `Claude4Net.Runtime/SelfHealingService.cs`
-  - `Claude4Net.Runtime/ErrorClassifier.cs`
+  - `Claude4Net.Runtime/SelfEvolvingSkills.cs`
+  - `Claude4Net.Runtime/SkillUsageRecorder.cs` (신규)
+  - `Claude4Net.Runtime/ToolOrchestrator.cs`
   - `Claude4Net.Tests/` (신규 테스트 파일 포함 허용)
   - `Documents/Implementation_Plan.md`
   - `IMPLEMENTATION_PROGRESS.md`
 - Forbidden Files: Any files outside the allowed paths.
-- Done When: 신규 `K093SelfHealingV2Tests`가 작성되고, 모든 tests 및 verify-release.ps1 gate가 에러 없이 성공적으로 통과함.
+- Done When: 신규 `K094SkillEvolutionTests`가 작성되고, 모든 tests 및 verify-release.ps1 gate가 에러 없이 성공적으로 통과함.
 - Commit/Push:
   Commit is allowed only after Final Approach Control approval.
   Push is outside Ralph Loop and must not be performed here.

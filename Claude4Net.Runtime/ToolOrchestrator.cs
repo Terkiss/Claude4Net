@@ -197,6 +197,8 @@ namespace Claude4Net.Runtime
                 var result = await tool.ExecuteAsync(jsonInput, context, ct);
                 sw.Stop();
 
+                await RecordSkillUsageAsync(tool.Name, success: true, elapsedMs: sw.ElapsedMilliseconds, score: 100);
+
                 // --- K033: HookPipeline Integration (After Execution) ---
                 if (hookPipeline != null)
                 {
@@ -230,6 +232,7 @@ namespace Claude4Net.Runtime
             catch (OperationCanceledException)
             {
                 await LogAuditAsync(tool.Name, jsonInput, PathSafetyResult.NotApplicable, approved, "Cancelled");
+                await RecordSkillUsageAsync(tool.Name, success: false, elapsedMs: 0, score: 0, error: "Cancelled");
                 return new ToolUseResult { ToolUseId = request.Id, Content = "Execution Cancelled by User.", IsError = true };
             }
             catch (Exception ex)
@@ -254,7 +257,21 @@ namespace Claude4Net.Runtime
                 });
 
                 await LogAuditAsync(tool?.Name ?? request.Name, jsonInput, PathSafetyResult.NotApplicable, approved, $"Error: {ex.Message}");
+                await RecordSkillUsageAsync(tool?.Name ?? request.Name, success: false, elapsedMs: 0, score: 0, error: ex.Message);
                 return new ToolUseResult { ToolUseId = request.Id, Content = $"Execution Error: {ex.Message}", IsError = true };
+            }
+        }
+
+        private async Task RecordSkillUsageAsync(string toolName, bool success, long elapsedMs, int score, string? error = null)
+        {
+            try
+            {
+                var recorder = _serviceProvider?.GetService<SkillUsageRecorder>() ?? new SkillUsageRecorder(_serviceProvider);
+                await recorder.RecordAsync(toolName, success, elapsedMs, score, error);
+            }
+            catch
+            {
+                // Best effort
             }
         }
 

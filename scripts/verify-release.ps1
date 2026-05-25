@@ -32,32 +32,32 @@ Run-Step "Strict Nullable Build" {
 
 # 3. Unit & Integration Tests
 Run-Step "Unit & Integration Tests" { 
-    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false 
+    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false -- xUnit.ParallelizeTestCollections=false
 }
 
 # 3.1 State Isolation Smoke
 Run-Step "State Isolation Smoke" {
-    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K063|FullyQualifiedName~K064"
+    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K063|FullyQualifiedName~K064" -- xUnit.ParallelizeTestCollections=false
 }
 
 # 3.2 Spec Gate Smoke
 Run-Step "Spec Gate Smoke" {
-    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K054|FullyQualifiedName~K055|FullyQualifiedName~K069|FullyQualifiedName~K070"
+    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K054|FullyQualifiedName~K055|FullyQualifiedName~K069|FullyQualifiedName~K070" -- xUnit.ParallelizeTestCollections=false
 }
 
 # 3.3 Provider Descriptor Smoke
 Run-Step "Provider Descriptor Smoke" {
-    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K056|FullyQualifiedName~K057|FullyQualifiedName~K071|FullyQualifiedName~K072"
+    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K056|FullyQualifiedName~K057|FullyQualifiedName~K071|FullyQualifiedName~K072" -- xUnit.ParallelizeTestCollections=false
 }
 
 # 3.4 Routine Permission Smoke
 Run-Step "Routine Permission Smoke" {
-    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K058|FullyQualifiedName~K059|FullyQualifiedName~K060|FullyQualifiedName~K074|FullyQualifiedName~K075|FullyQualifiedName~K076"
+    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K058|FullyQualifiedName~K059|FullyQualifiedName~K060|FullyQualifiedName~K074|FullyQualifiedName~K075|FullyQualifiedName~K076" -- xUnit.ParallelizeTestCollections=false
 }
 
 # 3.5 Dashboard Control Plane Smoke
 Run-Step "Dashboard Control Plane Smoke" {
-    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K065|FullyQualifiedName~K066|FullyQualifiedName~K080|FullyQualifiedName~K081"
+    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K065|FullyQualifiedName~K066|FullyQualifiedName~K080|FullyQualifiedName~K081" -- xUnit.ParallelizeTestCollections=false
 }
 
 # 4. CLI Smoke Test Verification

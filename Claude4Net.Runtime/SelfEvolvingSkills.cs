@@ -10,14 +10,6 @@ using Claude4Net.SDK.Events;
 
 namespace Claude4Net.Runtime
 {
-    public class SkillUsageRecorder
-    {
-        public void Record(string skillId, bool success, int score)
-        {
-            // Placeholder for MVP
-        }
-    }
-
     public class FailureEvidence
     {
         public string Source { get; set; } = string.Empty;
