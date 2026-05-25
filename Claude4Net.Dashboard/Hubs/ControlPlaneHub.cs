@@ -865,4 +865,76 @@ public class ControlPlaneHub : Hub
             return new CommandResult { Success = false, Error = ex.Message };
         }
     }
+
+    public async Task<UsageReadModelDto> GetUsage(string sessionId)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(sessionId))
+            {
+                sessionId = AppState.SessionId;
+            }
+
+            // Validate sessionId
+            if (sessionId.Contains("..") || sessionId.Contains("/") || sessionId.Contains("\\") || sessionId.Contains(":"))
+            {
+                return new UsageReadModelDto();
+            }
+
+            string ws = GetWorkspaceRoot();
+            var eventStore = new FileAgentEventStore(ws);
+            var projectionEngine = new EventProjectionEngine(eventStore);
+            var usageProjection = new UsageProjection();
+            projectionEngine.RegisterProjection(usageProjection);
+            await projectionEngine.RebuildAsync(sessionId);
+
+            var model = usageProjection.Model;
+            var dto = new UsageReadModelDto
+            {
+                SessionId = sessionId,
+                TotalCalls = model.TotalCalls,
+                TotalInputTokens = model.TotalInputTokens,
+                TotalOutputTokens = model.TotalOutputTokens,
+                TotalCost = model.TotalCost,
+                LatencyEma = model.LatencyEma,
+                ModelMetrics = model.ModelMetrics.Values.Select(m => new ModelUsageMetricsDto
+                {
+                    Provider = m.Provider,
+                    Model = m.Model,
+                    CallCount = m.CallCount,
+                    InputTokens = m.InputTokens,
+                    OutputTokens = m.OutputTokens,
+                    LatencyEma = m.LatencyEma,
+                    AccumulatedCost = m.AccumulatedCost
+                }).ToList()
+            };
+            return dto;
+        }
+        catch (Exception)
+        {
+            return new UsageReadModelDto();
+        }
+    }
+}
+
+public class UsageReadModelDto
+{
+    public string SessionId { get; set; } = string.Empty;
+    public int TotalCalls { get; set; }
+    public int TotalInputTokens { get; set; }
+    public int TotalOutputTokens { get; set; }
+    public double TotalCost { get; set; }
+    public double LatencyEma { get; set; }
+    public List<ModelUsageMetricsDto> ModelMetrics { get; set; } = new();
+}
+
+public class ModelUsageMetricsDto
+{
+    public string Provider { get; set; } = string.Empty;
+    public string Model { get; set; } = string.Empty;
+    public int CallCount { get; set; }
+    public int InputTokens { get; set; }
+    public int OutputTokens { get; set; }
+    public double LatencyEma { get; set; }
+    public double AccumulatedCost { get; set; }
 }

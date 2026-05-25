@@ -1,0 +1,225 @@
+@page "/usage"
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager NavigationManager
+@implements IAsyncDisposable
+
+<PageTitle>Token Usage & Diagnostics</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3><i class="bi bi-bar-chart-line-fill"></i> API Token Usage & Performance</h3>
+        <div class="d-flex gap-2">
+            <input type="text" class="form-control form-control-sm" placeholder="Session ID (Optional)" @bind="sessionId" style="width: 250px;" />
+            <button class="btn btn-primary btn-sm" @onclick="LoadUsage" disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <span> Loading...</span>
+                }
+                else
+                {
+                    <i class="bi bi-arrow-clockwise"></i><span> Refresh</span>
+                }
+            </button>
+        </div>
+    </div>
+    <p class="text-muted">Real-time LLM query counts, input/output tokens, cumulative costs, and latency EMA tracking.</p>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+        </div>
+    }
+
+    <!-- Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card h-100 border-start border-primary border-4 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-1 text-muted text-uppercase small">Total Calls</h6>
+                    <h2 class="card-title mb-0">@usageData.TotalCalls</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 border-start border-success border-4 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-1 text-muted text-uppercase small">Total Cost (USD)</h6>
+                    <h2 class="card-title mb-0">$@usageData.TotalCost.ToString("F5")</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 border-start border-warning border-4 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-1 text-muted text-uppercase small">Latency EMA</h6>
+                    <h2 class="card-title mb-0">@usageData.LatencyEma.ToString("F1") <small class="text-muted fs-6">ms</small></h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 border-start border-info border-4 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-1 text-muted text-uppercase small">Total Tokens (In / Out)</h6>
+                    <h3 class="card-title mb-0 text-truncate">
+                        @usageData.TotalInputTokens.ToString("N0") <span class="fs-6 text-muted">/</span> @usageData.TotalOutputTokens.ToString("N0")
+                    </h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading && usageData.ModelMetrics.Count == 0)
+    {
+        <div class="d-flex justify-content-center my-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading usage stats...</span>
+            </div>
+        </div>
+    }
+    else if (usageData.ModelMetrics.Count == 0)
+    {
+        <div class="alert alert-info">
+            No token usage data recorded yet. Run some tasks or prompt the agent.
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="bi bi-grid-3x3-gap"></i> Model Performance & Cost breakdown</h5>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Provider</th>
+                            <th>Model</th>
+                            <th class="text-end">Calls</th>
+                            <th class="text-end">Input Tokens</th>
+                            <th class="text-end">Output Tokens</th>
+                            <th class="text-end">Latency EMA</th>
+                            <th class="text-end">Accumulated Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var metric in usageData.ModelMetrics)
+                        {
+                            <tr>
+                                <td><span class="badge bg-secondary text-uppercase">@metric.Provider</span></td>
+                                <td><code>@metric.Model</code></td>
+                                <td class="text-end">@metric.CallCount</td>
+                                <td class="text-end">@metric.InputTokens.ToString("N0")</td>
+                                <td class="text-end">@metric.OutputTokens.ToString("N0")</td>
+                                <td class="text-end">@metric.LatencyEma.ToString("F1") ms</td>
+                                <td class="text-end font-monospace text-success">$@metric.AccumulatedCost.ToString("F5")</td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot class="table-group-divider fw-bold">
+                        <tr>
+                            <td>TOTAL</td>
+                            <td></td>
+                            <td class="text-end">@usageData.TotalCalls</td>
+                            <td class="text-end">@usageData.TotalInputTokens.ToString("N0")</td>
+                            <td class="text-end">@usageData.TotalOutputTokens.ToString("N0")</td>
+                            <td class="text-end">@usageData.LatencyEma.ToString("F1") ms</td>
+                            <td class="text-end text-success">$@usageData.TotalCost.ToString("F5")</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private HubConnection? hubConnection;
+    private string sessionId = string.Empty;
+    private UsageReadModelDto usageData = new();
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            hubConnection = new HubConnectionBuilder()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/controlPlaneHub"))
+                .WithAutomaticReconnect()
+                .Build();
+
+            await hubConnection.StartAsync();
+            await LoadUsage();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to connect to SignalR: {ex.Message}";
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadUsage()
+    {
+        isLoading = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            if (hubConnection is not null)
+            {
+                var result = await hubConnection.InvokeAsync<UsageReadModelDto>("GetUsage", sessionId);
+                if (result != null)
+                {
+                    usageData = result;
+                }
+            }
+            else
+            {
+                errorMessage = "Hub connection is not established.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading usage: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+
+    // Local DTOs for SignalR deserialization
+    public class UsageReadModelDto
+    {
+        public string SessionId { get; set; } = string.Empty;
+        public int TotalCalls { get; set; }
+        public int TotalInputTokens { get; set; }
+        public int TotalOutputTokens { get; set; }
+        public double TotalCost { get; set; }
+        public double LatencyEma { get; set; }
+        public List<ModelUsageMetricsDto> ModelMetrics { get; set; } = new();
+    }
+
+    public class ModelUsageMetricsDto
+    {
+        public string Provider { get; set; } = string.Empty;
+        public string Model { get; set; } = string.Empty;
+        public int CallCount { get; set; }
+        public int InputTokens { get; set; }
+        public int OutputTokens { get; set; }
+        public double LatencyEma { get; set; }
+        public double AccumulatedCost { get; set; }
+    }
+}

@@ -829,10 +829,10 @@
 - [x] 빌드 경고 제거 및 의존성 위생 정돈
 
 ### K089: /usage 실사용량·비용·성능 관측 대시보드 구현
-- [ ] /usage 슬래시 명령어 등록 및 CLI 포맷팅 출력 (Spectre Table)
-- [ ] API Token 사용량 및 Latency(EMA) 집계용 Read Model/Projection 구현
-- [ ] Dashboard 내 실시간 사용량 요약 페이지(Usage.razor) 및 차트 컴포넌트 추가
-- [ ] 누적 비용 계산 및 모델별 단가 정보 바인딩
+- [x] /usage 슬래시 명령어 등록 및 CLI 포맷팅 출력 (Spectre Table)
+- [x] API Token 사용량 및 Latency(EMA) 집계용 Read Model/Projection 구현
+- [x] Dashboard 내 실시간 사용량 요약 페이지(Usage.razor) 및 차트 컴포넌트 추가
+- [x] 누적 비용 계산 및 모델별 단가 정보 바인딩
 
 ### K090: LSP/MCP 실전 연결 완성 및 Mock Coverage 강화
 - [ ] Model Context Protocol(MCP) 클라이언트 구현 및 외부 도구 디스커버리 연동

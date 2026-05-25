@@ -27,16 +27,77 @@ namespace Claude4Net.Commands
     }
 
     /// <summary>
-    /// Claude4Net ?�스?�에???�용 가?�한 모든 ?�용??명령?��? 관리하???��??�트리입?�다.
-    /// ?�용?�의 ?�력 �?'!' ?�는 '/'�??�작?�는 명령?��? 가로채???�당 로직???�행?�니??
+    /// Claude4Net ?스?에???용 가?한 모든 ?용??명령?? 관리하?????트리입?다.
+    /// ?용?의 ?력 ?'!' ?는 '/'??작?는 명령?? 가로채???당 로직???행?니??
     /// </summary>
     public static class CommandRegistry
     {
         private static readonly List<Command> _commands = new()
         {
-            // --- [?��?�?�??�스???�어] ---
+            // --- [?????스???어] ---
 
-            /// <summary> ?��?�??�시: ?�용 가?�한 모든 명령??목록??출력?�니?? </summary>
+            new Command { Name = "usage", Description = "Show API token usage, costs, and latency metrics", Handler = async (a, sp) => {
+                string sessionId = AppState.SessionId;
+                if (string.IsNullOrWhiteSpace(sessionId))
+                {
+                    return "[yellow]No active session found.[/]";
+                }
+
+                string ws = AppState.CurrentCwd ?? AppState.OriginalCwd ?? AppState.SystemBaseDir ?? AppDomain.CurrentDomain.BaseDirectory;
+                var eventStore = new FileAgentEventStore(ws);
+                var projectionEngine = new EventProjectionEngine(eventStore);
+                var usageProjection = new UsageProjection();
+                projectionEngine.RegisterProjection(usageProjection);
+                try
+                {
+                    await projectionEngine.RebuildAsync(sessionId);
+                }
+                catch (Exception ex)
+                {
+                    return $"[red]Failed to load event log:[/] {Markup.Escape(ex.Message)}";
+                }
+
+                var model = usageProjection.Model;
+
+                var table = new Table().Border(TableBorder.Rounded);
+                table.Title($"[bold cyan]API Token Usage & Metrics (Session: {sessionId})[/]");
+
+                table.AddColumn("[bold]Provider[/]");
+                table.AddColumn("[bold]Model[/]");
+                table.AddColumn("[bold]Calls[/]");
+                table.AddColumn("[bold]Input Tokens[/]");
+                table.AddColumn("[bold]Output Tokens[/]");
+                table.AddColumn("[bold]Latency EMA[/]");
+                table.AddColumn("[bold]Accumulated Cost[/]");
+
+                foreach (var metric in model.ModelMetrics.Values)
+                {
+                    table.AddRow(
+                        Markup.Escape(metric.Provider),
+                        Markup.Escape(metric.Model),
+                        metric.CallCount.ToString(),
+                        metric.InputTokens.ToString("N0"),
+                        metric.OutputTokens.ToString("N0"),
+                        $"{metric.LatencyEma:F1} ms",
+                        $"${metric.AccumulatedCost:F5}"
+                    );
+                }
+
+                table.AddRow(
+                    "[bold]TOTAL[/]",
+                    "",
+                    $"[bold]{model.TotalCalls}[/]",
+                    $"[bold]{model.TotalInputTokens:N0}[/]",
+                    $"[bold]{model.TotalOutputTokens:N0}[/]",
+                    $"[bold]{model.LatencyEma:F1} ms[/]",
+                    $"[bold]${model.TotalCost:F5}[/]"
+                );
+
+                AnsiConsole.Write(table);
+                return $"Total Calls: {model.TotalCalls}, Input Tokens: {model.TotalInputTokens}, Output Tokens: {model.TotalOutputTokens}, Total Cost: ${model.TotalCost:F5}, Latency EMA: {model.LatencyEma:F1} ms";
+            }},
+
+            /// <summary> ????시: ?용 가?한 모든 명령??목록??출력?니?? </summary>
             new Command { Name = "help", Description = "Show help", Handler = (a, sp) => {
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine("[bold cyan]Available Commands:[/]");
