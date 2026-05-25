@@ -1,7 +1,5 @@
 using Xunit;
 
-[assembly: CollectionBehavior(DisableTestParallelization = true)]
-
 namespace Claude4Net.Tests
 {
     [CollectionDefinition("AppState")]

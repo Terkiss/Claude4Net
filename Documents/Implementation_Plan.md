@@ -7,9 +7,9 @@ Progress tracker: `IMPLEMENTATION_PROGRESS.md`
 Design source: `Documents/2026-05-21_Claude4Net-App_인사이트_기반_확장_설계.md`
 Backup before SSOT clean: `Documents/backups/2026-05-22/Implementation_Plan.pre-ssot-clean.2026-05-22.md`
 
-Current focus: None
-Next milestone: Awaiting user/final-controller decision
-Queue status: inactive
+Current focus: K090 (LSP/MCP 실전 연결 완성 및 Mock Coverage 강화)
+Next milestone: K091
+Queue status: active
 
 
 ## 0. SSOT Purpose
@@ -103,8 +103,8 @@ The 2026-05-21 expansion design is complete only when all of the following are t
 | K086 | CLI Startup Arguments Expansion | Completed | YOLO mode permission routing and workspace dir options implemented (609/609 pass) |
 | K087 | Skill Store Scope Separation | Completed | 글로벌 및 로컬 스킬 저장소 구조 분리 구현 및 검증 완료 (613/613 pass) |
 | K088 | Pandas Sync & Hygiene | Completed | TeruTeruPandas net10.0 동기화 & 저장소 위생 정리 |
-| K089 | Usage Dashboard | Proposed | /usage 실사용량·비용·성능 관측 대시보드 구현 |
-| K090 | LSP/MCP Integration | Proposed | LSP/MCP 실전 연결 완성 및 Mock Coverage 강화 |
+| K089 | Usage Dashboard | Completed | /usage 실사용량·비용·성능 관측 대시보드 구현 (5e918ef) |
+| K090 | LSP/MCP Integration | Completed | LSP/MCP 실전 연결 완성 및 Mock Coverage 강화 |
 | K091 | Concurrency Hardening | Proposed | 승인 대기열 동시성 하드닝 & Idempotent Approval Engine |
 | K092 | Multi-Session Replay | Proposed | Dashboard Multi-Session Observatory & Replay View |
 | K093 | Self-Healing v2 | Proposed | Self-Healing v2: 실패 분류 확장과 복구 전략 추천 엔진 |
@@ -159,9 +159,9 @@ Parallelization rules:
 - K080 read models can begin after K071/K074/K077 are stable enough to expose state.
 - K081 must wait for K080; K082 must wait for K080 and K081.
 
-## 7. Active Execution Card: None
+## 7. Active Execution Card: K090 (Completed)
 
-No active card. K086 is completed and the workspace is awaiting final verification.
+Active card: K090 LSP/MCP 실전 연결 완성 및 Mock Coverage 강화. All features are fully implemented, and verified via unit/integration/smoke tests.
 
 
 ## 8. Backlog Cards

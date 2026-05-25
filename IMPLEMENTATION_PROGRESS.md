@@ -103,6 +103,8 @@
 | K085 | Slash Command Palette | Completed | Interactive filtering command overlay popup implemented (601/601 pass) |
 | K086 | CLI Startup Arguments Expansion | Completed | YOLO mode permission routing and workspace dir options implemented (609/609 pass) |
 | K087 | Skill Store Scope Separation | Completed | Global/local skill store separation implemented and verified (613/613 pass) |
+| K090 | LSP/MCP Integration | Completed | 620/620 pass (Mock MCP/LSP transport, Registry integration, E2E validation) |
+
 
 
 ## Official Verification Commands
@@ -835,10 +837,11 @@
 - [x] 누적 비용 계산 및 모델별 단가 정보 바인딩
 
 ### K090: LSP/MCP 실전 연결 완성 및 Mock Coverage 강화
-- [ ] Model Context Protocol(MCP) 클라이언트 구현 및 외부 도구 디스커버리 연동
-- [ ] 테스트 환경용 MCP/LSP Mock 서버 패키지 구축 및 주입
-- [ ] Dynamic Tool Registry를 통한 MCP 도구 로드 및 ToolOrchestrator 위임 검증
-- [ ] Mock Coverage를 통한 외부 통신 없는 통합 테스트 시나리오 확보
+- [x] Model Context Protocol(MCP) 클라이언트 구현 및 외부 도구 디스커버리 연동
+- [x] 테스트 환경용 MCP/LSP Mock 서버 패키지 구축 및 주입
+- [x] Dynamic Tool Registry를 통한 MCP 도구 로드 및 ToolOrchestrator 위임 검증
+- [x] Mock Coverage를 통한 외부 통신 없는 통합 테스트 시나리오 확보
+
 
 ### K091: 승인 대기열 동시성 하드닝 & Idempotent Approval Engine
 - [ ] Multi-channel(CLI, Web UI, Discord) 동시 승인 요청 처리용 동시성 제어 락 도입
