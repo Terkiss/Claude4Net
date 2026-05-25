@@ -220,4 +220,20 @@ namespace Claude4Net.Dashboard.Client.Models
         public string? Message { get; set; }
         public string? Error { get; set; }
     }
+
+    public class ReplayEventDto
+    {
+        public string EventType { get; set; } = string.Empty;
+        public long Version { get; set; }
+        public DateTime Timestamp { get; set; }
+        public string Summary { get; set; } = string.Empty;
+        public string PayloadJson { get; set; } = string.Empty;
+    }
+
+    public class ReconstructedStateDto
+    {
+        public List<string> HistoryJson { get; set; } = new();
+        public string CurrentTask { get; set; } = string.Empty;
+        public long LastVersion { get; set; }
+    }
 }

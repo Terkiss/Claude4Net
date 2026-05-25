@@ -1,0 +1,351 @@
+@page "/replay"
+@using Microsoft.AspNetCore.SignalR.Client
+@using Claude4Net.Dashboard.Client.Models
+@using System.Text.Json
+@inject NavigationManager NavigationManager
+@implements IAsyncDisposable
+
+<PageTitle>Time-Travel Session Replay</PageTitle>
+
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3 px-3">
+        <h3><i class="bi bi-clock-history text-info"></i> Time-Travel Replay</h3>
+        <div class="d-flex gap-2 align-items-center">
+            <div class="input-group" style="max-width: 400px;">
+                <span class="input-group-text">Session ID</span>
+                <input type="text" class="form-control" @bind="targetSessionId" placeholder="Enter Session ID" />
+            </div>
+            <button class="btn btn-primary" @onclick="() => LoadSession(targetSessionId)" disabled="@(isLoading || string.IsNullOrWhiteSpace(targetSessionId))">
+                <i class="bi bi-arrow-right-short"></i> Load
+            </button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger mx-3" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="d-flex justify-content-center my-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading events...</span>
+            </div>
+        </div>
+    }
+    else if (events == null || events.Count == 0)
+    {
+        @if (!string.IsNullOrEmpty(currentSessionId))
+        {
+            <div class="alert alert-info mx-3">
+                No events found for session: <code>@currentSessionId</code>. Make sure the session has executed steps.
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info mx-3">
+                Please enter a Session ID above or select one from the <a href="sessions">Sessions Observatory</a> to begin.
+            </div>
+        }
+    }
+    else
+    {
+        <!-- Slider Panel -->
+        <div class="card shadow-sm border-0 mb-4 mx-3">
+            <div class="card-body bg-light rounded">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-bold">Time-Travel Slider</span>
+                    <span class="badge bg-dark font-monospace" style="font-size: 0.95rem;">
+                        Step @currentStep / @events.Count
+                    </span>
+                </div>
+                
+                <input type="range" class="form-range" min="0" max="@events.Count" @bind-value="CurrentStep" @bind-value:event="oninput" style="height: 1.5rem;" />
+
+                <div class="d-flex justify-content-between small text-muted font-monospace mt-1">
+                    <span>Step 0 (Initial)</span>
+                    <span>Step @events.Count (Latest)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mx-1">
+            <!-- Left Side: Event Timeline -->
+            <div class="col-md-5 mb-4">
+                <div class="card shadow-sm border-0 h-100" style="max-height: 700px; display: flex; flex-direction: column;">
+                    <div class="card-header bg-white border-bottom py-3">
+                        <h6 class="mb-0 fw-bold"><i class="bi bi-list-ol me-2 text-primary"></i>Event Timeline</h6>
+                    </div>
+                    <div class="card-body p-0 overflow-auto" style="flex: 1;">
+                        <div class="list-group list-group-flush">
+                            <button type="button" class="list-group-item list-group-item-action p-3 @(currentStep == 0 ? "active text-white" : "")" @onclick="() => UpdateStep(0)">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="fw-bold small">0. Session Start Baseline</span>
+                                </div>
+                                <small class="d-block opacity-75">No events applied yet.</small>
+                            </button>
+
+                            @for (int i = 0; i < events.Count; i++)
+                            {
+                                var index = i + 1;
+                                var ev = events[i];
+                                var isCurrent = currentStep == index;
+                                var isPast = index <= currentStep;
+
+                                <button type="button" class="list-group-item list-group-item-action p-3 @(isCurrent ? "active text-white" : "")" @onclick="() => UpdateStep(index)">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="fw-bold small @(isCurrent ? "text-white" : "text-dark")">@index. @ev.EventType</span>
+                                        <span class="badge @(isCurrent ? "bg-light text-dark" : "bg-secondary") font-monospace">v@ev.Version</span>
+                                    </div>
+                                    <small class="d-block mt-1 @(isCurrent ? "text-light" : "text-muted")">@ev.Summary</small>
+                                    <small class="d-block font-monospace @(isCurrent ? "text-light" : "text-secondary")" style="font-size: 0.75rem;">
+                                        @ev.Timestamp.ToLocalTime().ToString("HH:mm:ss.fff")
+                                    </small>
+                                </button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: State Reconstruction -->
+            <div class="col-md-7 mb-4">
+                <div class="card shadow-sm border-0 h-100" style="max-height: 700px; display: flex; flex-direction: column;">
+                    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-bold"><i class="bi bi-box-seam me-2 text-success"></i>State Reconstruction Snapshot</h6>
+                        @if (reconstructedState != null)
+                        {
+                            <span class="badge bg-success font-monospace">Version: @reconstructedState.LastVersion</span>
+                        }
+                    </div>
+                    <div class="card-body overflow-auto p-4" style="flex: 1; background-color: #fcfcfc;">
+                        @if (reconstructedState == null)
+                        {
+                            <div class="text-center text-muted py-5">
+                                <i class="bi bi-hourglass-split d-block fs-2 mb-2 opacity-50"></i>
+                                <span>No reconstructed state loaded. Use slider or click an event to reconstruct.</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="mb-4">
+                                <span class="text-muted small uppercase font-monospace d-block">Current Task</span>
+                                <div class="p-3 bg-light border rounded fw-bold text-dark">
+                                    @(string.IsNullOrWhiteSpace(reconstructedState.CurrentTask) ? "(No Active Task)" : reconstructedState.CurrentTask)
+                                </div>
+                            </div>
+
+                            <span class="text-muted small uppercase font-monospace d-block mb-2">Reconstructed Conversation History</span>
+
+                            @if (reconstructedState.HistoryJson == null || reconstructedState.HistoryJson.Count == 0)
+                            {
+                                <div class="text-center text-muted p-4 border border-dashed rounded bg-white">
+                                    No history messages recorded up to this point.
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="d-flex flex-column gap-3">
+                                    @foreach (var historyStr in reconstructedState.HistoryJson)
+                                    {
+                                        var messageElement = ParseJson(historyStr);
+                                        var role = GetProperty(messageElement, "role");
+                                        var contentElement = messageElement.GetProperty("content");
+
+                                        @if (role.Equals("user", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <div class="d-flex flex-column align-items-start">
+                                                <div class="badge bg-primary mb-1">User</div>
+                                                <div class="p-3 bg-primary bg-opacity-10 border border-primary border-opacity-25 rounded-3 w-100 text-dark">
+                                                    @if (contentElement.ValueKind == JsonValueKind.String)
+                                                    {
+                                                        <span style="white-space: pre-wrap;">@contentElement.GetString()</span>
+                                                    }
+                                                    else if (contentElement.ValueKind == JsonValueKind.Array)
+                                                    {
+                                                        @foreach (var item in contentElement.EnumerateArray())
+                                                        {
+                                                            var itemType = GetProperty(item, "type");
+                                                            @if (itemType.Equals("tool_result", StringComparison.OrdinalIgnoreCase))
+                                                            {
+                                                                <div class="mt-2 border-top pt-2">
+                                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                                        <span class="fw-bold text-info"><i class="bi bi-terminal"></i> Tool Result: @GetProperty(item, "tool_use_id")</span>
+                                                                        <span class="badge @(item.GetProperty("is_error").GetBoolean() ? "bg-danger" : "bg-success")">
+                                                                            @(item.GetProperty("is_error").GetBoolean() ? "Error" : "Success")
+                                                                        </span>
+                                                                    </div>
+                                                                    <pre class="bg-dark text-white p-2 rounded mb-0" style="font-size: 0.85rem; max-height: 200px; overflow-y: auto;"><code>@GetProperty(item, "content")</code></pre>
+                                                                </div>
+                                                            }
+                                                        }
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
+                                        else if (role.Equals("assistant", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <div class="d-flex flex-column align-items-end">
+                                                <div class="badge bg-success mb-1">Assistant</div>
+                                                <div class="p-3 bg-success bg-opacity-10 border border-success border-opacity-25 rounded-3 w-100 text-dark">
+                                                    <span style="white-space: pre-wrap;">@contentElement.GetString()</span>
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? SessionId { get; set; }
+
+    private HubConnection? hubConnection;
+    private List<ReplayEventDto> events = new();
+    private ReconstructedStateDto? reconstructedState;
+    private int currentStep = 0;
+    private string targetSessionId = string.Empty;
+    private string currentSessionId = string.Empty;
+    private bool isLoading = false;
+    private string? errorMessage;
+
+    public int CurrentStep
+    {
+        get => currentStep;
+        set
+        {
+            if (currentStep != value)
+            {
+                currentStep = value;
+                _ = ReconstructStateForStep(currentStep);
+            }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            hubConnection = new HubConnectionBuilder()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/controlPlaneHub"))
+                .WithAutomaticReconnect()
+                .Build();
+
+            await hubConnection.StartAsync();
+
+            if (!string.IsNullOrEmpty(SessionId))
+            {
+                targetSessionId = SessionId;
+                await LoadSession(SessionId);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to connect to control plane: {ex.Message}";
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Handle URL parameter update during navigation
+        if (!string.IsNullOrEmpty(SessionId) && SessionId != currentSessionId && hubConnection?.State == HubConnectionState.Connected)
+        {
+            targetSessionId = SessionId;
+            await LoadSession(SessionId);
+        }
+    }
+
+    private async Task LoadSession(string sessionId)
+    {
+        isLoading = true;
+        errorMessage = null;
+        currentStep = 0;
+        reconstructedState = null;
+        events.Clear();
+        currentSessionId = sessionId;
+        StateHasChanged();
+
+        try
+        {
+            if (hubConnection is not null)
+            {
+                events = await hubConnection.InvokeAsync<List<ReplayEventDto>>("GetSessionEvents", sessionId);
+                if (events.Count > 0)
+                {
+                    currentStep = events.Count;
+                    await ReconstructStateForStep(currentStep);
+                }
+            }
+            else
+            {
+                errorMessage = "Hub connection is not established.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading session events: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void UpdateStep(int step)
+    {
+        CurrentStep = step;
+    }
+
+    private async Task ReconstructStateForStep(int step)
+    {
+        try
+        {
+            if (hubConnection is not null && !string.IsNullOrEmpty(currentSessionId))
+            {
+                reconstructedState = await hubConnection.InvokeAsync<ReconstructedStateDto>("ReconstructState", currentSessionId, step);
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error reconstructing state: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+
+    private JsonElement ParseJson(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+        return doc.RootElement.Clone();
+    }
+
+    private string GetProperty(JsonElement element, string propName)
+    {
+        if (element.TryGetProperty(propName, out var prop))
+        {
+            return prop.GetString() ?? string.Empty;
+        }
+        return string.Empty;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        // Clean up connection to prevent memory leaks
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}

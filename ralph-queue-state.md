@@ -1,8 +1,8 @@
 # Ralph Loop Queue State
 
 - **Queue Status**: `active`
-- **Active Card**: `K091`
-- **Current Target**: K091 (승인 대기열 동시성 하드닝 & Idempotent Approval Engine)
+- **Active Card**: `K092`
+- **Current Target**: K092 (Dashboard Multi-Session Observatory & Replay View)
 - **Active Persona**: `Terukirdo (Maid v5.1 - Obedient Mode)`
 
 
@@ -41,20 +41,21 @@
 | K088 | TeruTeruPandas net10.0 동기화 & 저장소 위생 정리 | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (5a74b2f) |
 | K089 | /usage 실사용량·비용·성능 관측 대시보드 구현 | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (5e918ef) |
 | K090 | LSP/MCP 실전 연결 완성 및 Mock Coverage 강화 | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (c6db878) |
-| K091 | 승인 대기열 동시성 하드닝 & Idempotent Approval Engine | In Progress | Active Milestone |
+| K091 | 승인 대기열 동시성 하드닝 & Idempotent Approval Engine | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (da45a19) |
+| K092 | Dashboard Multi-Session Observatory & Replay View | In Progress | Active Milestone |
 
 ## Execution Card
-- Active: K091
-- Goal: CLI/WebUI/Discord 다중 승인 채널의 동시 요청 충돌을 방어하고 멱등적(Idempotent) 승인 엔진 구축
+- Active: K092
+- Goal: 대시보드에 다중 세션 탐색 및 JSONL 기반 타임트래블 리플레이 슬라이더 뷰 추가
 - Allowed Files:
-  - `Claude4Net.Runtime/ToolOrchestrator.cs`
-  - `Claude4Net.Cli/Ui/LumenApprovalHandler.cs`
-  - `Claude4Net.Dashboard/Hubs/AgentHub.cs`
+  - `Claude4Net.Dashboard/`
+  - `Claude4Net.Dashboard.Client/Pages/Sessions.razor` (신규)
+  - `Claude4Net.Dashboard.Client/Pages/Replay.razor` (신규)
   - `Claude4Net.Tests/` (신규 테스트 파일 포함 허용)
   - `Documents/Implementation_Plan.md`
   - `IMPLEMENTATION_PROGRESS.md`
 - Forbidden Files: Any files outside the allowed paths.
-- Done When: 신규 `K091ApprovalConcurrencyTests`가 작성되고, 모든 tests 및 verify-release.ps1 gate가 에러 없이 성공적으로 통과함.
+- Done When: 신규 `K092DashboardReplayTests`가 작성되고, 모든 tests 및 verify-release.ps1 gate가 에러 없이 성공적으로 통과함.
 - Commit/Push:
   Commit is allowed only after Final Approach Control approval.
   Push is outside Ralph Loop and must not be performed here.

@@ -1,0 +1,167 @@
+@page "/sessions"
+@using Microsoft.AspNetCore.SignalR.Client
+@using Claude4Net.Dashboard.Client.Models
+@inject NavigationManager NavigationManager
+@implements IAsyncDisposable
+
+<PageTitle>Sessions Observatory</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3><i class="bi bi-cpu-fill text-primary"></i> Multi-Session Observatory</h3>
+        <button class="btn btn-outline-primary" @onclick="LoadSessions" disabled="@isLoading">
+            @if (isLoading)
+            {
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                <span> Loading...</span>
+            }
+            else
+            {
+                <i class="bi bi-arrow-clockwise"></i>
+                <span> Refresh</span>
+            }
+        </button>
+    </div>
+    <p class="text-muted">Explore and manage execution history sessions recorded in the workspace event store.</p>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+        </div>
+    }
+
+    @if (isLoading && sessions.Count == 0)
+    {
+        <div class="d-flex justify-content-center my-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading sessions...</span>
+            </div>
+        </div>
+    }
+    else if (sessions.Count == 0)
+    {
+        <div class="alert alert-info">
+            No session records found. Active sessions will appear here once started.
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Session ID</th>
+                        <th>Start Time</th>
+                        <th>Provider</th>
+                        <th>Model</th>
+                        <th>Permission</th>
+                        <th>Status</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var session in sessions)
+                    {
+                        <tr>
+                            <td>
+                                <code class="fw-bold">@session.SessionId</code>
+                            </td>
+                            <td>
+                                @session.StartTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">@session.Provider</span>
+                            </td>
+                            <td>
+                                <small class="font-monospace">@session.Model</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border">@session.PermissionMode</span>
+                            </td>
+                            <td>
+                                @if (session.Status.Equals("Active", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <span class="badge bg-success">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-outline-secondary border text-secondary">@session.Status</span>
+                                }
+                            </td>
+                            <td class="text-center">
+                                <div class="d-flex gap-2 justify-content-center">
+                                    <a class="btn btn-sm btn-primary" href="replay?sessionId=@session.SessionId">
+                                        <i class="bi bi-play-circle-fill"></i> Replay
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private HubConnection? hubConnection;
+    private List<AgentSessionRecordDto> sessions = new();
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            hubConnection = new HubConnectionBuilder()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/controlPlaneHub"))
+                .WithAutomaticReconnect()
+                .Build();
+
+            await hubConnection.StartAsync();
+            await LoadSessions();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to connect to control plane: {ex.Message}";
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadSessions()
+    {
+        isLoading = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            if (hubConnection is not null)
+            {
+                sessions = await hubConnection.InvokeAsync<List<AgentSessionRecordDto>>("GetSessions");
+            }
+            else
+            {
+                errorMessage = "Hub connection is not established.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading sessions: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}

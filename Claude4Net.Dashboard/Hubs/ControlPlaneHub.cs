@@ -915,6 +915,161 @@ public class ControlPlaneHub : Hub
             return new UsageReadModelDto();
         }
     }
+
+    public async Task<List<AgentSessionRecordDto>> GetSessions()
+    {
+        try
+        {
+            string ws = GetWorkspaceRoot();
+            string sessionBaseDir = Path.Combine(ws, ".claude4net", "sessions");
+            if (!Directory.Exists(sessionBaseDir))
+            {
+                return new List<AgentSessionRecordDto>();
+            }
+
+            var dirs = Directory.GetDirectories(sessionBaseDir);
+            var result = new List<AgentSessionRecordDto>();
+            foreach (var dir in dirs)
+            {
+                string sessionId = Path.GetFileName(dir);
+                // Validate sessionId path traversal
+                if (sessionId.Contains("..") || sessionId.Contains("/") || sessionId.Contains("\\") || sessionId.Contains(":"))
+                {
+                    continue;
+                }
+
+                var record = await AgentSessionStore.LoadSessionRecordAsync(ws, sessionId);
+                if (record != null)
+                {
+                    result.Add(new AgentSessionRecordDto
+                    {
+                        SessionId = record.SessionId,
+                        StartTime = record.StartTime,
+                        Provider = record.Provider,
+                        Model = record.Model,
+                        PermissionMode = record.PermissionMode.ToString(),
+                        WorkspacePath = record.WorkspacePath,
+                        Status = record.Status,
+                        Metadata = record.Metadata ?? new Dictionary<string, string>()
+                    });
+                }
+                else
+                {
+                    result.Add(new AgentSessionRecordDto
+                    {
+                        SessionId = sessionId,
+                        StartTime = Directory.GetCreationTime(dir),
+                        Provider = "Unknown",
+                        Model = "Unknown",
+                        PermissionMode = "Unknown",
+                        WorkspacePath = ws,
+                        Status = "Inactive",
+                        Metadata = new Dictionary<string, string>()
+                    });
+                }
+            }
+
+            return result.OrderByDescending(r => r.StartTime).ToList();
+        }
+        catch (Exception)
+        {
+            return new List<AgentSessionRecordDto>();
+        }
+    }
+
+    public async Task<List<ReplayEventDto>> GetSessionEvents(string sessionId)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(sessionId)) return new List<ReplayEventDto>();
+            if (sessionId.Contains("..") || sessionId.Contains("/") || sessionId.Contains("\\") || sessionId.Contains(":"))
+            {
+                return new List<ReplayEventDto>();
+            }
+
+            string ws = GetWorkspaceRoot();
+            var eventStore = new FileAgentEventStore(ws);
+            var events = await eventStore.GetEventsAsync(sessionId, 0);
+
+            var result = new List<ReplayEventDto>();
+            foreach (var ev in events.OrderBy(e => e.Version))
+            {
+                string summary = GetEventSummary(ev);
+                string payloadJson = System.Text.Json.JsonSerializer.Serialize(ev, ev.GetType(), new System.Text.Json.JsonSerializerOptions { WriteIndented = false });
+
+                result.Add(new ReplayEventDto
+                {
+                    EventType = ev.EventType,
+                    Version = ev.Version,
+                    Timestamp = ev.Timestamp,
+                    Summary = summary,
+                    PayloadJson = payloadJson
+                });
+            }
+
+            return result;
+        }
+        catch (Exception)
+        {
+            return new List<ReplayEventDto>();
+        }
+    }
+
+    private string GetEventSummary(IAgentEvent ev)
+    {
+        return ev switch
+        {
+            SessionStartedEvent started => $"Session started in {started.WorkspacePath} using {started.Provider}/{started.Model}",
+            UserPromptReceivedEvent prompt => $"User prompt received: {prompt.Prompt}",
+            AgentThoughtEvent thought => $"Agent thought: {thought.Thought}",
+            ToolCalledEvent toolCall => $"Tool called: {toolCall.ToolName} with {toolCall.Arguments}",
+            ToolResultEvent toolResult => $"Tool result received (Error: {toolResult.IsError}): {toolResult.Result}",
+            FinalResponseGeneratedEvent response => $"Final response generated: {response.Response}",
+            StateTransitionEvent transition => $"State transitioned from {transition.FromState} to {transition.ToState} (Reason: {transition.Reason})",
+            TaskAttemptStartedEvent taskStart => $"Task attempt {taskStart.AttemptNumber} started (AttemptId: {taskStart.AttemptId})",
+            TaskAttemptCompletedEvent taskEnd => $"Task attempt {taskEnd.AttemptId} completed with status {taskEnd.Status} (Error: {taskEnd.Error})",
+            VerificationCompletedEvent verification => $"Verification completed with verdict: {verification.Verdict} ({verification.PassedChecks}/{verification.TotalChecks} passed)",
+            RoutineRunEvent routine => $"Routine run: {routine.RoutineId} (Success: {routine.Success}, Error: {routine.Error})",
+            DashboardCommandEvent command => $"Dashboard command: {command.CommandName} for {command.TargetId} (Success: {command.Success})",
+            _ => $"Event {ev.EventType} received"
+        };
+    }
+
+    public async Task<ReconstructedStateDto> ReconstructState(string sessionId, int eventCount)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(sessionId)) return new ReconstructedStateDto();
+            if (sessionId.Contains("..") || sessionId.Contains("/") || sessionId.Contains("\\") || sessionId.Contains(":"))
+            {
+                return new ReconstructedStateDto();
+            }
+
+            string ws = GetWorkspaceRoot();
+            var eventStore = new FileAgentEventStore(ws);
+            var allEvents = (await eventStore.GetEventsAsync(sessionId, 0)).OrderBy(e => e.Version).ToList();
+
+            var filteredEvents = allEvents.Take(eventCount);
+            var reconstructed = AgentStateReconstructor.Reconstruct(filteredEvents);
+
+            var historyStrings = new List<string>();
+            foreach (var h in reconstructed.History)
+            {
+                historyStrings.Add(System.Text.Json.JsonSerializer.Serialize(h, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+            }
+
+            return new ReconstructedStateDto
+            {
+                HistoryJson = historyStrings,
+                CurrentTask = reconstructed.CurrentTask,
+                LastVersion = reconstructed.LastVersion
+            };
+        }
+        catch (Exception)
+        {
+            return new ReconstructedStateDto();
+        }
+    }
 }
 
 public class UsageReadModelDto
