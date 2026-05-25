@@ -102,6 +102,16 @@ The 2026-05-21 expansion design is complete only when all of the following are t
 | K085 | Slash Command Palette | Completed | / 입력 시 실시간 필터링 가능한 명령어 팔레트 오버레이 표시 (601/601 pass) |
 | K086 | CLI Startup Arguments Expansion | Completed | YOLO mode permission routing and workspace dir options implemented (609/609 pass) |
 | K087 | Skill Store Scope Separation | Completed | 글로벌 및 로컬 스킬 저장소 구조 분리 구현 및 검증 완료 (613/613 pass) |
+| K088 | Pandas Sync & Hygiene | Completed | TeruTeruPandas net10.0 동기화 & 저장소 위생 정리 |
+| K089 | Usage Dashboard | Proposed | /usage 실사용량·비용·성능 관측 대시보드 구현 |
+| K090 | LSP/MCP Integration | Proposed | LSP/MCP 실전 연결 완성 및 Mock Coverage 강화 |
+| K091 | Concurrency Hardening | Proposed | 승인 대기열 동시성 하드닝 & Idempotent Approval Engine |
+| K092 | Multi-Session Replay | Proposed | Dashboard Multi-Session Observatory & Replay View |
+| K093 | Self-Healing v2 | Proposed | Self-Healing v2: 실패 분류 확장과 복구 전략 추천 엔진 |
+| K094 | Self-Evolving Skills | Proposed | SkillUsageRecorder 실연결 & Self-Evolving Skills 루프 완성 |
+| K095 | Security Profiles | Proposed | Security Policy Profiles & Red-Team Regression Harness |
+| K096 | Plan/Dry-Run Mode | Proposed | Plan/Dry-Run 모드: 실행 전 영향 범위 분석과 변경 예측 |
+| K097 | Release Control Tower | Proposed | Routine Scheduler v2 & Release Automation Control Tower |
 
 ## 6. Execution Order
 
@@ -128,6 +138,16 @@ Required order:
 19. K085 Slash Command Palette
 20. K086 CLI Startup Arguments Expansion
 21. K087 Skill Store Scope Separation
+22. K088 Pandas Sync & Hygiene
+23. K089 Usage Dashboard
+24. K090 LSP/MCP Integration
+25. K091 Concurrency Hardening
+26. K092 Multi-Session Replay
+27. K093 Self-Healing v2
+28. K094 Self-Evolving Skills
+29. K095 Security Profiles
+30. K096 Plan/Dry-Run Mode
+31. K097 Release Control Tower
 
 Parallelization rules:
 
@@ -580,6 +600,229 @@ Required tests:
 - `K018SkillRegistryTests` 글로벌 및 로컬 구조 분리 동작 검증 추가
 - `K078SkillApplyEngineTests` 글로벌 및 로컬 대상 경로 적용 동작 검증 추가
 
+### K088 TeruTeruPandas net10.0 동기화 & 저장소 위생 정리
+
+Goal: TeruTeruPandas의 .NET 10.0 타겟 동기화 및 빌드/런타임 불필요 잔재 정리
+
+Dependency: K087
+
+Allowed files:
+- `TeruTeruPandas/TeruTeruPandas.csproj`
+- `Claude4Net.Cli/Claude4Net.Cli.csproj`
+- `Claude4Net.Runtime/Claude4Net.Runtime.csproj`
+- `Claude4Net.Tests/Claude4Net.Tests.csproj`
+- `Claude4Net.MyPlugins/Claude4Net.MyPlugins.csproj`
+- `Documents/Implementation_Plan.md`
+- `IMPLEMENTATION_PROGRESS.md`
+
+Required work:
+- 모든 프로젝트 파일의 target framework가 `net10.0`으로 완전히 동기화되었는지 검증 및 통일
+- 빌드 클린 타겟에 `db/*.db` 및 런타임 과도기적 파일 정리 규칙 선언
+- 동시 테스트 실행 시 SQLite 커넥션 풀 경합 및 락 현상을 예방하기 위해 리소스 해제 규칙 보강
+
+Required tests:
+- warning-free 컴파일 및 `dotnet test` 통과 검증
+
+### K089 /usage 실사용량·비용·성능 관측 대시보드 구현
+
+Goal: API 토큰 실사용량, latencies, 누적 비용을 분석하고 /usage 커맨드 및 Dashboard 전용 뷰 제공
+
+Dependency: K080, K085
+
+Allowed files:
+- `Claude4Net.Commands/CommandRegistry.cs`
+- `Claude4Net.Dashboard/Controllers/`
+- `Claude4Net.Dashboard/Hubs/`
+- `Claude4Net.Dashboard.Client/Pages/Usage.razor`
+- `Claude4Net.Runtime/EventProjectionEngine.cs`
+- `Claude4Net.Tests/`
+- `Documents/Implementation_Plan.md`
+- `IMPLEMENTATION_PROGRESS.md`
+
+Required work:
+- API 사용량, 토큰 수, 지연 시간(EMA) 및 비용 환산 집계용 Read Model/Projection 설계
+- CLI에서 구동 가능한 `/usage` 슬래시 커맨드 추가 (Spectre.Console 테이블 형식 출력)
+- Dashboard Client 프로젝트에 실시간 사용 데이터 가시화용 `Usage.razor` 및 요약 차트 개발
+- ProviderDescriptor의 가격 정책 메타데이터 바인딩 연계
+
+Required tests:
+- 신규 `K089UsageTrackingTests` (누적 토큰 집계, latencies EMA 수렴 검증)
+
+### K090 LSP/MCP 실전 연결 완성 및 Mock Coverage 강화
+
+Goal: Model Context Protocol (MCP) 및 LSP 연동 클라이언트를 내재화하고 견고한 모의(Mock) 검증 구현
+
+Dependency: K073
+
+Allowed files:
+- `Claude4Net.Runtime/Mcp/` (신규 폴더/파일 허용)
+- `Claude4Net.Tools/`
+- `Claude4Net.Tests/`
+- `Documents/Implementation_Plan.md`
+- `IMPLEMENTATION_PROGRESS.md`
+
+Required work:
+- MCP 사양에 따르는 클라이언트 모듈 개발 (도구/프롬프트/리소스 탐색 및 동적 바인딩)
+- Dynamic Tool Registry에 MCP 도구 목록 동적 주입 및 ToolOrchestrator 위임 체계 연동
+- 통신이 발생하지 않는 단위/통합 테스트를 위해 고성능 LSP/MCP 서버 모형 Mock 클래스 구현
+
+Required tests:
+- 신규 `K090McpLspTests` (Mock 기반 도구 등록, 스키마 변환 및 호출 E2E 검증)
+
+### K091 승인 대기열 동시성 하드닝 & Idempotent Approval Engine
+
+Goal: CLI/WebUI/Discord 다중 승인 채널의 동시 요청 충돌을 방어하고 멱등적(Idempotent) 승인 엔진 구축
+
+Dependency: K075, K081
+
+Allowed files:
+- `Claude4Net.Runtime/ToolOrchestrator.cs`
+- `Claude4Net.Cli/Ui/LumenApprovalHandler.cs`
+- `Claude4Net.Dashboard/Hubs/AgentHub.cs`
+- `Claude4Net.Tests/`
+- `Documents/Implementation_Plan.md`
+- `IMPLEMENTATION_PROGRESS.md`
+
+Required work:
+- 다중 채널에서 동시 접근 시 상태 경합을 제어하는 `ApprovalQueue` 락 동시성 제어 고도화
+- 동일 RequestId에 대해 중복 승인/반려 시그널이 도달할 때, 최초 결정을 유지하고 중복 처리를 방지하는 Idempotency 로직 구현
+- 충돌성 결정(Conflicting Decision) 발생 시 명확한 로그 기록 및 사용자 채널 알림/예외 통제
+
+Required tests:
+- 신규 `K091ApprovalConcurrencyTests` (동시 multi-channel 시그널 인입 멱등성 검증)
+
+### K092 Dashboard Multi-Session Observatory & Replay View
+
+Goal: 대시보드에 다중 세션 탐색 및 JSONL 기반 타임트래블 리플레이 슬라이더 뷰 추가
+
+Dependency: K082
+
+Allowed files:
+- `Claude4Net.Dashboard/`
+- `Claude4Net.Dashboard.Client/Pages/Sessions.razor` (신규)
+- `Claude4Net.Dashboard.Client/Pages/Replay.razor` (신규)
+- `Claude4Net.Tests/`
+- `Documents/Implementation_Plan.md`
+- `IMPLEMENTATION_PROGRESS.md`
+
+Required work:
+- 세션 저장소 디렉토리의 전체 리스트 조회 API 구축 및 Sessions 페이지 구현
+- JSONL 기반 과거 이벤트를 재생하는 타임트래블 Replay Slider 프론트엔드 컴포넌트 개발
+- 특정 시점의 State Reconstruction 데이터를 브라우징할 수 있는 스냅샷 뷰어 구현
+- 실시간 연결 상태 유지하며 세션 스위칭 시 메모리 누수 방지
+
+Required tests:
+- 신규 `K092DashboardReplayTests` (JSONL 파싱 복원력 및 read-model 복원 정확성 검증)
+
+### K093 Self-Healing v2: 실패 분류 확장과 복구 전략 추천 엔진
+
+Goal: 에러 Taxonomy를 세분화하고 대안 모델 라우팅/프롬프트 동적 조정 복구 전략 추천 엔진 설계
+
+Dependency: K079
+
+Allowed files:
+- `Claude4Net.Runtime/SelfHealingService.cs`
+- `Claude4Net.Runtime/ErrorClassifier.cs`
+- `Claude4Net.Tests/`
+- `Documents/Implementation_Plan.md`
+- `IMPLEMENTATION_PROGRESS.md`
+
+Required work:
+- JSON 스키마 미스매치, Rate Limit, Context Limit Over, Symlink 탈출 위반 등 구체적 에러 카테고리 세분화
+- 복구 전략 추천 엔진(Recovery Strategy Recommender)을 구축하여 dynamic retry parameters, prompt injections 처방
+- AgentLoop에 복구 처방을 피드백하여 실행 중 자동 복구 복잡도 개선
+
+Required tests:
+- 신규 `K093SelfHealingV2Tests` (에러별 추천 전략 적합성 및 런타임 적용 복구 시나리오 검증)
+
+### K094 SkillUsageRecorder 실연결 & Self-Evolving Skills 루프 완성
+
+Goal: 스킬 실사용 성공률/지연시간 기록 체계를 활성화하고, 지속적 오류 감지 시 자동 개선 제안 루프 완성
+
+Dependency: K079, K087
+
+Allowed files:
+- `Claude4Net.Runtime/SelfEvolvingSkills.cs`
+- `Claude4Net.Runtime/SkillUsageRecorder.cs` (신규)
+- `Claude4Net.Runtime/ToolOrchestrator.cs`
+- `Claude4Net.Tests/`
+- `Documents/Implementation_Plan.md`
+- `IMPLEMENTATION_PROGRESS.md`
+
+Required work:
+- `ToolOrchestrator` 실행 단계에 `SkillUsageRecorder` 인터셉터를 부착하여 실데이터 누적
+- 영속 저장소 `.claude4net/skill-usage.jsonl`에 성과 메타데이터 로깅
+- 특정 스킬의 오류 빈도 임계치 도달 시, `SelfEvolvingSkills` 서비스가 자동으로 `SkillProposal` 생성 트리거하도록 구성
+
+Required tests:
+- 신규 `K094SkillEvolutionTests` (누적 사용에 따른 자동 제안 트리거 루프 테스트)
+
+### K095 Security Policy Profiles & Red-Team Regression Harness
+
+Goal: 보안 등급 프로파일(Strict/Permissive/Development) 파서 추가 및 회귀 방지 레드팀 시뮬레이터 구축
+
+Dependency: K086
+
+Allowed files:
+- `Claude4Net.Runtime/PermissionEnforcer.cs`
+- `Claude4Net.Runtime/SecurityPolicyConfig.cs` (신규)
+- `Claude4Net.Tests/` (신규 하네스 테스트 폴더 허용)
+- `Documents/Implementation_Plan.md`
+- `IMPLEMENTATION_PROGRESS.md`
+
+Required work:
+- 보안 프로파일 설정을 나타내는 JSON 스키마 및 파일 바인딩 기능 제공
+- PermissionEnforcer에 로드된 프로파일 매핑 적용 (허용 명령어/경로 규칙 등 세부 통제)
+- 디렉토리 탈출 시도, 비인가 명령어 주입 등의 행위를 재현하고 자동 모니터링하는 레드팀 리그레션 하네스(Security Harness) 구현
+
+Required tests:
+- 신규 `K095RedTeamSecurityTests` (공격 기법별 차단 및 프로파일별 예외 정책 확인)
+
+### K096 Plan/Dry-Run 모드: 실행 전 영향 범위 분석과 변경 예측
+
+Goal: 파일 수정이나 상태 변경 액션을 수반하는 커맨드 실행 전 가상 변경 범위를 리포팅하는 Dry-run 엔진 개발
+
+Dependency: K086
+
+Allowed files:
+- `Claude4Net.Commands/CommandRegistry.cs`
+- `Claude4Net.Runtime/AgentLoop.cs`
+- `Claude4Net.Runtime/DryRunEngine.cs` (신규)
+- `Claude4Net.Tests/`
+- `Documents/Implementation_Plan.md`
+- `IMPLEMENTATION_PROGRESS.md`
+
+Required work:
+- CLI 기동 시 `--dry-run` 및 슬래시 커맨드 `/plan` 지원 추가
+- 실제 파일 디스크 기록과 상태 스토어 저장을 가상 격리 처리하는 DryRunEngine 구축
+- 변경 발생 대상 파일 경로, ToolCall 목록, 예상 영향 범위 보고서(Impact Report) 생성
+- 터미널 출력용 포맷팅 패널 구현
+
+Required tests:
+- 신규 `K096DryRunTests` (실제 파일 미변경 여부 및 예측 보고 데이터 무결성 검증)
+
+### K097 Routine Scheduler v2 & Release Automation Control Tower
+
+Goal: 크론(CRON) 트리거 스케줄링 완성과 함께 대시보드 내 중앙 릴리스 자동화 관제탑 화면 제공
+
+Dependency: K076, K082, K083
+
+Allowed files:
+- `Claude4Net.Runtime/RoutineSchedulerService.cs`
+- `Claude4Net.Commands/CommandRegistry.cs`
+- `Claude4Net.Tests/`
+- `Documents/Implementation_Plan.md`
+- `IMPLEMENTATION_PROGRESS.md`
+
+Required work:
+- RoutineSchedulerService에 standard 5-field CRON 식 해석기 탑재
+- 스케줄링된 주기마다 릴리스 테스트 스크립트(`verify-release.ps1`)를 백그라운드 구동 가능하도록 자동화 연동
+- 대시보드 내 통합 Control Tower 뷰 개발 (빌드 상태, 루틴 스케줄 캘린더, 릴리스 게이트 상태 가시화)
+- 안전 스레드 스케줄링 락 및 중복 동작 방어 보강
+
+Required tests:
+- 신규 `K097SchedulerV2Tests` (CRON 파싱 정확도 및 Control Tower DTO 전송 연동 검증)
+
 ## 9. Verification Standard
 
 Standard commands:
@@ -650,5 +893,15 @@ Do not mark any item checked until implementation, tests, and release evidence e
 - [x] K085 Slash Command Palette
 - [x] K086 CLI Startup Arguments Expansion
 - [x] K087 Skill Store Scope Separation
+- [x] K088 Pandas Sync & Hygiene
+- [ ] K089 Usage Dashboard
+- [ ] K090 LSP/MCP Integration
+- [ ] K091 Concurrency Hardening
+- [ ] K092 Multi-Session Replay
+- [ ] K093 Self-Healing v2
+- [ ] K094 Self-Evolving Skills
+- [ ] K095 Security Profiles
+- [ ] K096 Plan/Dry-Run Mode
+- [ ] K097 Release Control Tower
 
 The expansion roadmap is complete only when every item above is checked and K084 records a full test and release-gate pass.

@@ -821,3 +821,63 @@
 - [x] `SkillApplyEngine`의 대상 경로/저장소 처리 보강 (글로벌과 로컬 타겟 경로 안전 처리 및 CheckpointStore 우회 추가)
 - [x] 관련 `K018SkillRegistryTests` 및 `K078SkillApplyEngineTests` 테스트 보강
 - [x] Official Release Gate passed (613/613 unit tests + 101 smoke tests pass)
+
+### K088: TeruTeruPandas net10.0 동기화 & 저장소 위생 정리
+- [x] TeruTeruPandas 및 하위 프로젝트 net10.0 Target Framework 동기화 설정
+- [x] 빌드/클린 단계에서 불필요한 임시 DB 파일(.db, .sqlite) 제거 규칙 정의
+- [x] 다중 테스트 병렬 실행 시 SQLite 커넥션 락 방지 로직 개선
+- [x] 빌드 경고 제거 및 의존성 위생 정돈
+
+### K089: /usage 실사용량·비용·성능 관측 대시보드 구현
+- [ ] /usage 슬래시 명령어 등록 및 CLI 포맷팅 출력 (Spectre Table)
+- [ ] API Token 사용량 및 Latency(EMA) 집계용 Read Model/Projection 구현
+- [ ] Dashboard 내 실시간 사용량 요약 페이지(Usage.razor) 및 차트 컴포넌트 추가
+- [ ] 누적 비용 계산 및 모델별 단가 정보 바인딩
+
+### K090: LSP/MCP 실전 연결 완성 및 Mock Coverage 강화
+- [ ] Model Context Protocol(MCP) 클라이언트 구현 및 외부 도구 디스커버리 연동
+- [ ] 테스트 환경용 MCP/LSP Mock 서버 패키지 구축 및 주입
+- [ ] Dynamic Tool Registry를 통한 MCP 도구 로드 및 ToolOrchestrator 위임 검증
+- [ ] Mock Coverage를 통한 외부 통신 없는 통합 테스트 시나리오 확보
+
+### K091: 승인 대기열 동시성 하드닝 & Idempotent Approval Engine
+- [ ] Multi-channel(CLI, Web UI, Discord) 동시 승인 요청 처리용 동시성 제어 락 도입
+- [ ] 승인 요청에 대한 멱등성(Idempotency) 검증 엔진 구현 (동일 요청 중복 응답 방어)
+- [ ] Conflicting Approval Decisions 발생 시 예외 처리 및 사용자 안전 피드백
+- [ ] 승인 대기열 타임아웃 및 데드락 방지 검증 테스트 케이스 작성
+
+### K092: Dashboard Multi-Session Observatory & Replay View
+- [ ] 다중 세션 목록 리트리브 API 및 Dashboard Sessions 페이지 구현
+- [ ] 특정 세션의 Event Log(JSONL) 파싱 및 타임트래블 Replay Slider 컨트롤 개발
+- [ ] Replay View 내 Dynamic State Reconstruction 데이터 브라우징 기능 추가
+- [ ] 실시간 세션 스위칭 시 UI 및 SignalR 연결 해제/재연결 안정성 검증
+
+### K093: Self-Healing v2: 실패 분류 확장과 복구 전략 추천 엔진
+- [ ] ErrorClassifier 내 Schema Mismatch, Rate Limit, Context Over 등 신규 에러 분류 추가
+- [ ] 복구 전략 추천 엔진(Recovery Strategy Recommender) 및 전략 처방 DTO 설계
+- [ ] AgentLoop 실행 단계에서 추천 전략 동적 수용 및 복구 시도 연계
+- [ ] 복구 성공률 지표 로깅 및 Trajectory 기록 추가
+
+### K094: SkillUsageRecorder 실연결 & Self-Evolving Skills 루프 완성
+- [ ] ToolOrchestrator 실행 경로에 SkillUsageRecorder 데코레이터/인터셉터 연결
+- [ ] 기술 실행 결과 메타데이터 수집 및 `.claude4net/skill-usage.jsonl` 영속화
+- [ ] 실패 빈도가 높은 기술 감지 시 자동으로 SkillProposal 생성 유도 로직 개발
+- [ ] 자가 진화 루프(자가 학습-검증-제안) 연동 E2E 통합 테스트 검증
+
+### K095: Security Policy Profiles & Red-Team Regression Harness
+- [ ] Strict/Permissive/Development 보안 정책 프로파일 설정 스키마 및 파일 바인딩
+- [ ] 디렉토리 탐색(Traversal), 임의 명령어 실행 방어 등 Red-Team 공격 시나리오 자동 검증 하네스 개발
+- [ ] PermissionEnforcer 내 Dynamic Policy Profile 매핑 및 정책 전환 로직 적용
+- [ ] Red-Team 하네스를 통한 Regression 방어 테스트 커버리지 구축
+
+### K096: Plan/Dry-Run 모드: 실행 전 영향 범위 분석과 변경 예측
+- [ ] CLI 시작 인수 및 슬래시 명령어에 Plan/Dry-Run 모드 플래그(--dry-run, /plan) 추가
+- [ ] 가상 파일 시스템 변경 추적 및 상태 변경 임시 기록용 DryRunEngine 구현
+- [ ] 실제 쓰기 동작 차단 및 예측 변경 이력(Impact Report) 생성
+- [ ] 터미널 출력용 포맷팅 패널 구현
+
+### K097: Routine Scheduler v2 & Release Automation Control Tower
+- [ ] Routine Scheduler 내 5필드 표준 CRON 표현식 해석기 도입 및 스케줄 등록
+- [ ] 중앙 관제탑(Control Tower) 대시보드 페이지 구현 및 루틴 이력 모니터링
+- [ ] verify-release.ps1 실행 루틴 스케줄 연동 및 자동화 릴리스 빌드 상태 리포팅
+- [ ] 루틴 동시 실행 락 및 스레드 풀 안정성 보강 테스트 케이스 추가

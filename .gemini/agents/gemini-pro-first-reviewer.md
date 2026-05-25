@@ -24,3 +24,7 @@ git status --short --branch
 git diff --cached --name-status
 git diff --cached --check
 # 프로젝트 전용 릴리스 게이트 또는 테스트 실행 (예: .\scripts\verify-release.ps1)
+```
+
+## 생명주기 위생 (Lifecycle Hygiene)
+- 본 에이전트는 단발성 검증 및 리뷰 작업을 수행하는 도구입니다. 리뷰 결과를 호출자(오케스트레이터)에게 보고하고 판단 및 결과 저장이 완전히 마쳐진 것이 확인되면, 호출자는 `manage_subagents` 도구의 `kill` 액션을 통해 본 세션과 분기 워크스페이스를 즉각 폐기해야 합니다. (단, 결과 보고와 산출물 저장 완료 전 조기 kill 금지)

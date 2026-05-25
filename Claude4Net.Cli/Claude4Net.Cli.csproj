@@ -1,11 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk">
+ï»¿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\Claude4Net.SDK\Claude4Net.SDK.csproj" />
     <ProjectReference Include="..\Claude4Net.Runtime\Claude4Net.Runtime.csproj" />
     <ProjectReference Include="..\Claude4Net.Commands\Claude4Net.Commands.csproj" />
     <ProjectReference Include="..\Claude4Net.Discord\Claude4Net.Discord.csproj" />
-    <!-- TeruTeruPandas??MyPlugins???˜ì¡´?±ìœ¼ë¡? ë¹Œë“œ ???ë™?¼ë¡œ ë©”ì¸ ì¶œë ¥ ?´ë”??ë³µì‚¬?©ë‹ˆ?? -->
     <ProjectReference Include="..\Claude4Net.MyPlugins\Claude4Net.MyPlugins.csproj" Private="true" />
     <ProjectReference Include="..\Claude4Net.Dashboard\Claude4Net.Dashboard.csproj" />
   </ItemGroup>
@@ -23,7 +22,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <!-- ë¦¬ì†Œ???´ë”ë¥?ì¶œë ¥ ?”ë ‰? ë¦¬ë¡?ë³µì‚¬ -->
   <ItemGroup>
     <Content Include="..\.resources\**\*.*">
       <Link>.resources\%(RecursiveDir)%(FileName)%(Extension)</Link>
@@ -31,16 +29,10 @@
     </Content>
   </ItemGroup>
 
-  <!-- ë¹Œë“œ ??'?œìˆ˜ ?ŒëŸ¬ê·¸ì¸ ì§„ìž…??ë§?plugins ?´ë”ë¡??´ë™/ë³µì‚¬ -->
   <Target Name="CopyPlugins" AfterTargets="AfterBuild">
     <Message Text="[Auto-Build] Deploying Agent Plugins..." Importance="high" />
     <MakeDir Directories="$(OutDir)plugins" Condition="!Exists('$(OutDir)plugins')" />
-
-    <!-- ?¤ì§ MyPlugins.dllë§?plugins ?´ë”???£ìŠµ?ˆë‹¤. -->
     <Copy SourceFiles="$(OutDir)Claude4Net.MyPlugins.dll" DestinationFolder="$(OutDir)plugins" SkipUnchangedFiles="true" />
-
-    <!-- ë©”ì¸ ?´ë”???¨ì? ?ë³¸?€ ?? œ?˜ì? ?Šì•„??ë¬´ë°©?˜ë©°,
-         plugins ?´ë” ?ˆì—???˜ì¡´???¼ì´ë¸ŒëŸ¬ë¦¬ê? ?žì´ì§€ ?Šê²Œ ê´€ë¦¬í•©?ˆë‹¤. -->
     <Message Text="[Auto-Build] Plugin entry point successfully deployed to $(OutDir)plugins" Importance="high" />
   </Target>
 
@@ -50,4 +42,14 @@
     </AssemblyAttribute>
   </ItemGroup>
 
+  <Target Name="CleanTempDbAndResidues" AfterTargets="Clean">
+    <Message Text="[Clean] Removing temporary database files and build runtime residues..." Importance="high" />
+    <ItemGroup>
+      <TempDbFiles Include="db\**\*.db;db\**\*.sqlite" />
+      <OutTempDbFiles Include="$(OutDir)db\**\*.db;$(OutDir)db\**\*.sqlite" />
+      <OutTempDbFiles Include="$(TargetDir)db\**\*.db;$(TargetDir)db\**\*.sqlite" />
+    </ItemGroup>
+    <Delete Files="@(TempDbFiles);@(OutTempDbFiles)" />
+    <RemoveDir Directories="db;$(OutDir)db;$(TargetDir)db" />
+  </Target>
 </Project>

@@ -15,12 +15,14 @@ namespace Claude4Net.Tests
         private readonly string _tempWorkspace;
         private readonly string _originalCwd;
         private readonly PermissionMode _originalPermissionMode;
+        private readonly string _originalSessionId;
         private const int TestPort = 5082;
 
         public K082DashboardUITests()
         {
             _originalCwd = AppState.CurrentCwd ?? string.Empty;
             _originalPermissionMode = AppState.CurrentPermissionMode;
+            _originalSessionId = AppState.SessionId;
             _tempWorkspace = Path.Combine(Path.GetTempPath(), "Claude4Net_K082_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_tempWorkspace);
             AppState.CurrentCwd = _tempWorkspace;
@@ -31,6 +33,7 @@ namespace Claude4Net.Tests
         {
             AppState.CurrentCwd = _originalCwd;
             AppState.CurrentPermissionMode = _originalPermissionMode;
+            AppState.SessionId = _originalSessionId;
             try
             {
                 if (Directory.Exists(_tempWorkspace))

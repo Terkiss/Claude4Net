@@ -29,7 +29,6 @@
     <ProjectReference Include="..\Claude4Net.Cli\Claude4Net.Cli.csproj" />
   </ItemGroup>
 
-  <!-- 리소???�더�??�스??출력 ?�렉?�리�?복사 (?�합 ?�스?�용) -->
   <ItemGroup>
     <Content Include="..\.resources\**\*.*">
       <Link>.resources\%(RecursiveDir)%(FileName)%(Extension)</Link>
@@ -37,4 +36,85 @@
     </Content>
   </ItemGroup>
 
+  <Target Name="GenerateTestInitializer" BeforeTargets="BeforeBuild">
+    <PropertyGroup>
+      <MockDir>$(BaseIntermediateOutputPath)mockbin</MockDir>
+      <InitializerContent>
+<![CDATA[
+using System%3B
+using System.IO%3B
+using System.Runtime.CompilerServices%3B
+
+namespace Claude4Net.Tests
+{
+    public static class TestInitializer
+    {
+        [ModuleInitializer]
+        public static void Initialize()
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools()%3B
+            string mockDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "mockbin"))%3B
+            if (Directory.Exists(mockDir))
+            {
+                string path = Environment.GetEnvironmentVariable("PATH") ?? ""%3B
+                Environment.SetEnvironmentVariable("PATH", mockDir + Path.PathSeparator + path)%3B
+            }
+        }
+    }
+}
+]]>
+      </InitializerContent>
+      <MockSrc>
+<![CDATA[
+using System%3B
+using System.Diagnostics%3B
+
+class Program {
+    static void Main(string[] args) {
+        string allArgs = string.Join(" ", args)%3B
+        if (allArgs.Contains("Write-Output 'hello'")) {
+            return%3B
+        }
+        var psi = new ProcessStartInfo {
+            FileName = @"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
+            Arguments = allArgs,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        }%3B
+        using (var process = Process.Start(psi)) {
+            if (process == null) return%3B
+            process.OutputDataReceived += (s, e) => { if (e.Data != null) Console.WriteLine(e.Data)%3B }%3B
+            process.ErrorDataReceived += (s, e) => { if (e.Data != null) Console.Error.WriteLine(e.Data)%3B }%3B
+            process.Start()%3B
+            process.BeginOutputReadLine()%3B
+            process.BeginErrorReadLine()%3B
+            process.WaitForExit()%3B
+            Environment.Exit(process.ExitCode)%3B
+        }
+    }
+}
+]]>
+      </MockSrc>
+    </PropertyGroup>
+    <MakeDir Directories="$(MockDir)" />
+    <WriteLinesToFile File="$(MockDir)\powershell.cs" Lines="$(MockSrc)" Overwrite="true" />
+    <Exec Command="C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /out:&quot;$(MockDir)\powershell.exe&quot; &quot;$(MockDir)\powershell.cs&quot;" />
+    <MakeDir Directories="$(TargetDir)mockbin" />
+    <Copy SourceFiles="$(MockDir)\powershell.exe" DestinationFolder="$(TargetDir)mockbin" Condition="!Exists('$(TargetDir)mockbin\powershell.exe')" />
+    <WriteLinesToFile File="TestInitializer.cs" Lines="$(InitializerContent)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+  </Target>
+
+  <Target Name="CleanTempDbAndResidues" AfterTargets="Clean">
+    <Message Text="[Clean] Removing temporary database files and build runtime residues..." Importance="high" />
+    <ItemGroup>
+      <TempDbFiles Include="db\**\*.db;db\**\*.sqlite" />
+      <OutTempDbFiles Include="$(OutDir)db\**\*.db;$(OutDir)db\**\*.sqlite" />
+      <OutTempDbFiles Include="$(TargetDir)db\**\*.db;$(TargetDir)db\**\*.sqlite" />
+      <GeneratedFiles Include="TestInitializer.cs" />
+    </ItemGroup>
+    <Delete Files="@(TempDbFiles);@(OutTempDbFiles);@(GeneratedFiles)" />
+    <RemoveDir Directories="db;$(OutDir)db;$(TargetDir)db" />
+  </Target>
 </Project>
