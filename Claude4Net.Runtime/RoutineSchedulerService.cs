@@ -15,6 +15,7 @@ namespace Claude4Net.Runtime
         private readonly CancellationTokenSource _cts;
         private Task? _backgroundTask;
         private readonly ConcurrentDictionary<string, byte> _runningRoutines = new();
+        private readonly ConcurrentDictionary<string, Task> _activeTasks = new();
 
         public TimeSpan MinimumIntervalFloor { get; set; } = TimeSpan.FromSeconds(5);
 
@@ -87,7 +88,19 @@ namespace Claude4Net.Runtime
                                 if (!_runningRoutines.ContainsKey(routine.Id))
                                 {
                                     // Start routine task
-                                    _ = Task.Run(() => RunRoutineWithTimeoutAndConcurrencyLimitAsync(routine));
+                                    var routineId = routine.Id;
+                                    var task = Task.Run(async () =>
+                                    {
+                                        try
+                                        {
+                                            await RunRoutineWithTimeoutAndConcurrencyLimitAsync(routine);
+                                        }
+                                        finally
+                                        {
+                                            _activeTasks.TryRemove(routineId, out _);
+                                        }
+                                    });
+                                    _activeTasks[routineId] = task;
                                 }
                             }
                         }
@@ -228,6 +241,17 @@ namespace Claude4Net.Runtime
                 }
                 catch (OperationCanceledException) { }
             }
+
+            var activeTasks = _activeTasks.Values.ToList();
+            if (activeTasks.Count > 0)
+            {
+                try
+                {
+                    await Task.WhenAll(activeTasks);
+                }
+                catch (Exception) { }
+            }
+
             _cts.Dispose();
         }
     }

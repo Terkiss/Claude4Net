@@ -876,10 +876,10 @@
 - [x] Official Release Gate passed (Passed all unit, integration, and security regression harness tests)
 
 ### K096: Plan/Dry-Run 모드: 실행 전 영향 범위 분석과 변경 예측
-- [ ] CLI 시작 인수 및 슬래시 명령어에 Plan/Dry-Run 모드 플래그(--dry-run, /plan) 추가
-- [ ] 가상 파일 시스템 변경 추적 및 상태 변경 임시 기록용 DryRunEngine 구현
-- [ ] 실제 쓰기 동작 차단 및 예측 변경 이력(Impact Report) 생성
-- [ ] 터미널 출력용 포맷팅 패널 구현
+- [x] CLI 시작 인수 및 슬래시 명령어에 Plan/Dry-Run 모드 플래그(--dry-run, /plan) 추가
+- [x] 가상 파일 시스템 변경 추적 및 상태 변경 임시 기록용 DryRunEngine 구현
+- [x] 실제 쓰기 동작 차단 및 예측 변경 이력(Impact Report) 생성
+- [x] 터미널 출력용 포맷팅 패널 구현 및 테스트 코드 작성 (646/646 pass)
 
 ### K097: Routine Scheduler v2 & Release Automation Control Tower
 - [ ] Routine Scheduler 내 5필드 표준 CRON 표현식 해석기 도입 및 스케줄 등록

@@ -743,6 +743,10 @@ namespace Claude4Net.Runtime
 
         public async Task RunAsync(string userPrompt, IOutputHandler output, ILLMProvider provider, string model, IUserApprovalHandler? approval = null, CancellationToken ct = default)
         {
+            if (DryRunEngine.IsActive)
+            {
+                DryRunEngine.Clear();
+            }
             var runStartTime = DateTime.UtcNow;
             await ReportAsync(new RunStartedEvent(AppState.SessionId, provider.Name, model, userPrompt));
             SelfHealingService.Instance.ResetReflectionDepth();
@@ -909,7 +913,9 @@ namespace Claude4Net.Runtime
                         });
                     }
 
-                    var batchResults = await _orchestrator.ExecuteBatchAsync(toolCalls, new { }, approval, ct);
+                    var batchResults = DryRunEngine.IsActive
+                        ? await DryRunEngine.ExecuteSimulatedBatchAsync(toolCalls, _orchestrator, approval, ct)
+                        : await _orchestrator.ExecuteBatchAsync(toolCalls, new { }, approval, ct);
 
                     var toolResults = new List<object>();
                     foreach (var result in batchResults)
@@ -1085,6 +1091,10 @@ namespace Claude4Net.Runtime
                 AnsiConsole.MarkupLine("\n[bold red]?? Circuit Breaker Hit![/]");
             }
 
+            if (DryRunEngine.IsActive)
+            {
+                DryRunEngine.RenderReport();
+            }
             await ReportAsync(new RunCompletedEvent(AppState.SessionId, sw.Elapsed));
         }
 

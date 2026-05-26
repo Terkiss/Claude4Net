@@ -1817,6 +1817,18 @@ namespace Claude4Net.Commands
 
             new Command { Name = "exit", Description = "Exit the CLI application", Handler = (a, sp) => {
                 return Task.FromResult("System is shutting down... Goodbye!");
+            }},
+
+            new Command { Name = "plan", Description = "Toggle Plan/Dry-Run mode (Simulate file/state modifications)", Handler = (a, sp) => {
+                DryRunEngine.IsActive = !DryRunEngine.IsActive;
+                if (DryRunEngine.IsActive)
+                {
+                    return Task.FromResult("[bold yellow]Plan/Dry-Run Mode Enabled.[/] All file/state modifications will be simulated and blocked. Run the agent to preview changes.");
+                }
+                else
+                {
+                    return Task.FromResult("[bold green]Plan/Dry-Run Mode Disabled.[/] Modifications will be written to the real system.");
+                }
             }}
         };
 
