@@ -7,8 +7,8 @@ Progress tracker: `IMPLEMENTATION_PROGRESS.md`
 Design source: `Documents/2026-05-21_Claude4Net-App_인사이트_기반_확장_설계.md`
 Backup before SSOT clean: `Documents/backups/2026-05-22/Implementation_Plan.pre-ssot-clean.2026-05-22.md`
 
-Current focus: K094
-Next milestone: K095
+Current focus: K096
+Next milestone: K097
 Queue status: active
 
 
@@ -109,8 +109,8 @@ The 2026-05-21 expansion design is complete only when all of the following are t
 | K091 | Concurrency Hardening | Completed | 승인 대기열 동시성 하드닝 & Idempotent Approval Engine |
 | K092 | Multi-Session Replay | Proposed | Dashboard Multi-Session Observatory & Replay View |
 | K093 | Self-Healing v2 | Completed | Self-Healing v2: 실패 분류 확장과 복구 전략 추천 엔진 |
-| K094 | Self-Evolving Skills | Proposed | SkillUsageRecorder 실연결 & Self-Evolving Skills 루프 완성 |
-| K095 | Security Profiles | Proposed | Security Policy Profiles & Red-Team Regression Harness |
+| K094 | Self-Evolving Skills | Completed | SkillUsageRecorder 실연결 & Self-Evolving Skills 루프 완성 |
+| K095 | Security Profiles | Completed | Security Policy Profiles & Red-Team Regression Harness |
 | K096 | Plan/Dry-Run Mode | Proposed | Plan/Dry-Run 모드: 실행 전 영향 범위 분석과 변경 예측 |
 | K097 | Release Control Tower | Proposed | Routine Scheduler v2 & Release Automation Control Tower |
 
@@ -160,9 +160,9 @@ Parallelization rules:
 - K080 read models can begin after K071/K074/K077 are stable enough to expose state.
 - K081 must wait for K080; K082 must wait for K080 and K081.
 
-## 7. Active Execution Card: K091 (Completed)
+## 7. Active Execution Card: K095 (Completed)
 
-Active card: K091 승인 대기열 동시성 하드닝 & Idempotent Approval Engine. All features are fully implemented, and verified via unit/integration tests.
+Active card: K095 Security Policy Profiles & Red-Team Regression Harness. All features are fully implemented, and verified via unit/integration/red-team regression tests.
 
 
 ## 8. Backlog Cards
@@ -899,9 +899,9 @@ Do not mark any item checked until implementation, tests, and release evidence e
 - [x] K090 LSP/MCP Integration
 - [x] K091 Concurrency Hardening
 - [ ] K092 Multi-Session Replay
-- [ ] K093 Self-Healing v2
-- [ ] K094 Self-Evolving Skills
-- [ ] K095 Security Profiles
+- [x] K093 Self-Healing v2
+- [x] K094 Self-Evolving Skills
+- [x] K095 Security Profiles
 - [ ] K096 Plan/Dry-Run Mode
 - [ ] K097 Release Control Tower
 

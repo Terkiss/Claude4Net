@@ -1,8 +1,8 @@
 # Ralph Loop Queue State
 
 - **Queue Status**: `active`
-- **Active Card**: `K094`
-- **Current Target**: K094 (SkillUsageRecorder 실연결 & Self-Evolving Skills 루프 완성)
+- **Active Card**: `K095`
+- **Current Target**: K095 (Security Policy Profiles & Red-Team Regression Harness)
 - **Active Persona**: `Terukirdo (Maid v5.1 - Obedient Mode)`
 
 
@@ -44,20 +44,20 @@
 | K091 | 승인 대기열 동시성 하드닝 & Idempotent Approval Engine | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (da45a19) |
 | K092 | Dashboard Multi-Session Observatory & Replay View | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (530f18c) |
 | K093 | Self-Healing v2: 실패 분류 확장과 복구 전략 추천 엔진 | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (fe5c583) |
-| K094 | SkillUsageRecorder 실연결 & Self-Evolving Skills 루프 완성 | In Progress | Active Milestone |
+| K094 | SkillUsageRecorder 실연결 & Self-Evolving Skills 루프 완성 | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (94b3989) |
+| K095 | Security Policy Profiles & Red-Team Regression Harness | In Progress | Active Milestone |
 
 ## Execution Card
-- Active: K094
-- Goal: 스킬 실사용 성공률/지연시간 기록 체계를 활성화하고, 지속적 오류 감지 시 자동 개선 제안 루프 완성
+- Active: K095
+- Goal: 보안 등급 프로파일(Strict/Permissive/Development) 파서 추가 및 회귀 방지 레드팀 시뮬레이터 구축
 - Allowed Files:
-  - `Claude4Net.Runtime/SelfEvolvingSkills.cs`
-  - `Claude4Net.Runtime/SkillUsageRecorder.cs` (신규)
-  - `Claude4Net.Runtime/ToolOrchestrator.cs`
-  - `Claude4Net.Tests/` (신규 테스트 파일 포함 허용)
+  - `Claude4Net.Runtime/PermissionEnforcer.cs`
+  - `Claude4Net.Runtime/SecurityPolicyConfig.cs` (신규)
+  - `Claude4Net.Tests/` (신규 하네스 테스트 폴더 허용)
   - `Documents/Implementation_Plan.md`
   - `IMPLEMENTATION_PROGRESS.md`
 - Forbidden Files: Any files outside the allowed paths.
-- Done When: 신규 `K094SkillEvolutionTests`가 작성되고, 모든 tests 및 verify-release.ps1 gate가 에러 없이 성공적으로 통과함.
+- Done When: 신규 `K095RedTeamSecurityTests`가 작성되고, 모든 tests 및 verify-release.ps1 gate가 에러 없이 성공적으로 통과함.
 - Commit/Push:
   Commit is allowed only after Final Approach Control approval.
   Push is outside Ralph Loop and must not be performed here.

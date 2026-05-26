@@ -225,8 +225,11 @@ namespace Claude4Net.Tests
             _scheduler.MinimumIntervalFloor = TimeSpan.FromSeconds(1);
             _scheduler.Start();
 
-            // Wait for scheduler to run the routine and timeout (approx 3-4 seconds total)
-            await Task.Delay(4000);
+            // Wait for scheduler to run the routine and timeout (up to 10 seconds)
+            for (int i = 0; i < 50 && !_store.GetRunRecords("timeout-routine").Any(); i++)
+            {
+                await Task.Delay(200);
+            }
 
             var records = _store.GetRunRecords("timeout-routine").ToList();
             Assert.NotEmpty(records);

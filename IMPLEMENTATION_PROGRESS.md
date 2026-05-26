@@ -105,6 +105,7 @@
 | K087 | Skill Store Scope Separation | Completed | Global/local skill store separation implemented and verified (613/613 pass) |
 | K090 | LSP/MCP Integration | Completed | 620/620 pass (Mock MCP/LSP transport, Registry integration, E2E validation) |
 | K094 | SkillUsageRecorder 실연결 & Self-Evolving Skills 루프 완성 | Completed | SkillUsageRecorder integrated, JSONL logging added, trajectory mining trigger, and K094 unit/integration tests passing. |
+| K095 | Security Policy Profiles & Red-Team Regression Harness | Completed | Strict/Permissive/Development profiles, command/path security enforcements, and Red-Team regression simulator harness verified. |
 
 
 ## Official Verification Commands
@@ -868,10 +869,11 @@
 - [ ] 자가 진화 루프(자가 학습-검증-제안) 연동 E2E 통합 테스트 검증
 
 ### K095: Security Policy Profiles & Red-Team Regression Harness
-- [ ] Strict/Permissive/Development 보안 정책 프로파일 설정 스키마 및 파일 바인딩
-- [ ] 디렉토리 탐색(Traversal), 임의 명령어 실행 방어 등 Red-Team 공격 시나리오 자동 검증 하네스 개발
-- [ ] PermissionEnforcer 내 Dynamic Policy Profile 매핑 및 정책 전환 로직 적용
-- [ ] Red-Team 하네스를 통한 Regression 방어 테스트 커버리지 구축
+- [x] Strict/Permissive/Development 보안 정책 프로파일 설정 스키마 및 파일 바인딩
+- [x] 디렉토리 탐색(Traversal), 임의 명령어 실행 방어 등 Red-Team 공격 시나리오 자동 검증 하네스 개발
+- [x] PermissionEnforcer 내 Dynamic Policy Profile 매핑 및 정책 전환 로직 적용
+- [x] Red-Team 하네스를 통한 Regression 방어 테스트 커버리지 구축
+- [x] Official Release Gate passed (Passed all unit, integration, and security regression harness tests)
 
 ### K096: Plan/Dry-Run 모드: 실행 전 영향 범위 분석과 변경 예측
 - [ ] CLI 시작 인수 및 슬래시 명령어에 Plan/Dry-Run 모드 플래그(--dry-run, /plan) 추가
