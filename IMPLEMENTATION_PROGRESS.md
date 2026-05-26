@@ -104,8 +104,13 @@
 | K086 | CLI Startup Arguments Expansion | Completed | YOLO mode permission routing and workspace dir options implemented (609/609 pass) |
 | K087 | Skill Store Scope Separation | Completed | Global/local skill store separation implemented and verified (613/613 pass) |
 | K090 | LSP/MCP Integration | Completed | 620/620 pass (Mock MCP/LSP transport, Registry integration, E2E validation) |
-| K094 | SkillUsageRecorder 실연결 & Self-Evolving Skills 루프 완성 | Completed | SkillUsageRecorder integrated, JSONL logging added, trajectory mining trigger, and K094 unit/integration tests passing. |
-| K095 | Security Policy Profiles & Red-Team Regression Harness | Completed | Strict/Permissive/Development profiles, command/path security enforcements, and Red-Team regression simulator harness verified. |
+| K091 | 승인 대기열 동시성 하드닝 & Idempotent Approval Engine | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (da45a19) |
+| K092 | Dashboard Multi-Session Observatory & Replay View | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (530f18c) |
+| K093 | Self-Healing v2: 실패 분류 확장과 복구 전략 추천 엔진 | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (fe5c583) |
+| K094 | SkillUsageRecorder 실연결 & Self-Evolving Skills 루프 완성 | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (94b3989) |
+| K095 | Security Policy Profiles & Red-Team Regression Harness | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (82fb468) |
+| K096 | Plan/Dry-Run 모드: 실행 전 영향 범위 분석과 변경 예측 | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (0a3a1be) |
+| K097 | Release Control Tower / Routine Scheduler v2 | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (85ef5ea) |
 
 
 ## Official Verification Commands
@@ -851,10 +856,10 @@
 - [x] 승인 대기열 타임아웃 및 데드락 방지 검증 테스트 케이스 작성
 
 ### K092: Dashboard Multi-Session Observatory & Replay View
-- [ ] 다중 세션 목록 리트리브 API 및 Dashboard Sessions 페이지 구현
-- [ ] 특정 세션의 Event Log(JSONL) 파싱 및 타임트래블 Replay Slider 컨트롤 개발
-- [ ] Replay View 내 Dynamic State Reconstruction 데이터 브라우징 기능 추가
-- [ ] 실시간 세션 스위칭 시 UI 및 SignalR 연결 해제/재연결 안정성 검증
+- [x] 다중 세션 목록 리트리브 API 및 Dashboard Sessions 페이지 구현
+- [x] 특정 세션의 Event Log(JSONL) 파싱 및 타임트래블 Replay Slider 컨트롤 개발
+- [x] Replay View 내 Dynamic State Reconstruction 데이터 브라우징 기능 추가
+- [x] 실시간 세션 스위칭 시 UI 및 SignalR 연결 해제/재연결 안정성 검증
 
 ### K093: Self-Healing v2: 실패 분류 확장과 복구 전략 추천 엔진
 - [x] ErrorClassifier 내 Schema Mismatch, Rate Limit, Context Over 등 신규 에러 분류 추가
@@ -863,10 +868,10 @@
 - [x] 복구 성공률 지표 로깅 및 Trajectory 기록 추가
 
 ### K094: SkillUsageRecorder 실연결 & Self-Evolving Skills 루프 완성
-- [ ] ToolOrchestrator 실행 경로에 SkillUsageRecorder 데코레이터/인터셉터 연결
-- [ ] 기술 실행 결과 메타데이터 수집 및 `.claude4net/skill-usage.jsonl` 영속화
-- [ ] 실패 빈도가 높은 기술 감지 시 자동으로 SkillProposal 생성 유도 로직 개발
-- [ ] 자가 진화 루프(자가 학습-검증-제안) 연동 E2E 통합 테스트 검증
+- [x] ToolOrchestrator 실행 경로에 SkillUsageRecorder 데코레이터/인터셉터 연결
+- [x] 기술 실행 결과 메타데이터 수집 및 `.claude4net/skill-usage.jsonl` 영속화
+- [x] 실패 빈도가 높은 기술 감지 시 자동으로 SkillProposal 생성 유도 로직 개발
+- [x] 자가 진화 루프(자가 학습-검증-제안) 연동 E2E 통합 테스트 검증
 
 ### K095: Security Policy Profiles & Red-Team Regression Harness
 - [x] Strict/Permissive/Development 보안 정책 프로파일 설정 스키마 및 파일 바인딩
@@ -882,7 +887,7 @@
 - [x] 터미널 출력용 포맷팅 패널 구현 및 테스트 코드 작성 (646/646 pass)
 
 ### K097: Routine Scheduler v2 & Release Automation Control Tower
-- [ ] Routine Scheduler 내 5필드 표준 CRON 표현식 해석기 도입 및 스케줄 등록
-- [ ] 중앙 관제탑(Control Tower) 대시보드 페이지 구현 및 루틴 이력 모니터링
-- [ ] verify-release.ps1 실행 루틴 스케줄 연동 및 자동화 릴리스 빌드 상태 리포팅
-- [ ] 루틴 동시 실행 락 및 스레드 풀 안정성 보강 테스트 케이스 추가
+- [x] Routine Scheduler 내 5필드 표준 CRON 표현식 해석기 도입 및 스케줄 등록
+- [x] 중앙 관제탑(Control Tower) 대시보드 페이지 구현 및 루틴 이력 모니터링
+- [x] verify-release.ps1 실행 루틴 스케줄 연동 및 자동화 릴리스 빌드 상태 리포팅
+- [x] 루틴 동시 실행 락 및 스레드 풀 안정성 보강 테스트 케이스 추가
