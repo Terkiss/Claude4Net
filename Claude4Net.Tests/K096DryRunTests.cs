@@ -14,9 +14,11 @@ namespace Claude4Net.Tests
     public class K096DryRunTests : IDisposable
     {
         private readonly string _tempTestDir;
+        private readonly string? _originalCwd;
 
         public K096DryRunTests()
         {
+            _originalCwd = AppState.CurrentCwd;
             _tempTestDir = Path.Combine(Path.GetTempPath(), "K096Tests_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_tempTestDir);
             AppState.CurrentCwd = _tempTestDir;
@@ -25,6 +27,7 @@ namespace Claude4Net.Tests
 
         public void Dispose()
         {
+            AppState.CurrentCwd = _originalCwd;
             DryRunEngine.Clear();
             DryRunEngine.IsActive = false;
             if (Directory.Exists(_tempTestDir))
@@ -120,11 +123,11 @@ namespace Claude4Net.Tests
             // Assert
             Assert.False(readResult.IsError);
             Assert.NotNull(readResult.Content);
-            
+
             // Read tool return properties check (filePath, content, totalLines)
             var json = System.Text.Json.JsonSerializer.Serialize(readResult.Content);
             using var doc = System.Text.Json.JsonDocument.Parse(json);
-            
+
             Assert.Equal("Line 2\nLine 3", doc.RootElement.GetProperty("content").GetString());
             Assert.Equal(3, doc.RootElement.GetProperty("totalLines").GetInt32());
         }

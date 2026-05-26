@@ -1,4 +1,4 @@
-# Ralph Loop Queue State
+﻿# Ralph Loop Queue State
 
 - **Queue Status**: `idle`
 - **Active Card**: `none`

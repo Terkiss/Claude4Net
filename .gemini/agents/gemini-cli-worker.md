@@ -1,4 +1,4 @@
----
+﻿---
 name: gemini-cli-worker
 description: "제미나이 CLI 구현 워커. 지정된 마일스톤을 구현 및 검증한 후 커밋/푸시 없이 1차 리뷰어에게 인계합니다."
 kind: local

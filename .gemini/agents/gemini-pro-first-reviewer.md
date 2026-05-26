@@ -1,4 +1,4 @@
----
+﻿---
 name: gemini-pro-first-reviewer
 description: "제미나이 3.1 Pro 기반 1차 리뷰어. 워커의 보고서를 믿지 않고 git 상태, diff, 테스트 및 릴리스 게이트를 직접 검증합니다."
 kind: local

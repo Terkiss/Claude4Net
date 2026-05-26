@@ -1,4 +1,4 @@
-using Xunit;
+﻿using Xunit;
 using Claude4Net.Runtime;
 using Claude4Net.SDK;
 using System;
@@ -83,7 +83,7 @@ namespace Claude4Net.Tests
             var config = SecurityPolicyConfig.Parse(json);
             Assert.Equal("CustomStrict", config.ActiveProfile);
             Assert.True(config.Profiles.ContainsKey("CustomStrict"));
-            
+
             var profile = config.Profiles["CustomStrict"];
             Assert.Equal(SecurityProfileLevel.Strict, profile.Level);
             Assert.Contains("^dotnet run$", profile.AllowedCommandPatterns);
@@ -132,7 +132,7 @@ namespace Claude4Net.Tests
                 PathSafetyResult.Workspace,
                 isSensitiveTool: true,
                 new CommandRiskAssessment(CommandRiskLevel.Safe, "Safe", Array.Empty<string>()));
-            
+
             // Inside workspace write requires approval in Prompt mode
             Assert.Equal(PermissionDecision.RequireApproval, result.Decision);
 
@@ -146,7 +146,7 @@ namespace Claude4Net.Tests
                 PathSafetyResult.Outside,
                 isSensitiveTool: true,
                 new CommandRiskAssessment(CommandRiskLevel.Safe, "Safe", Array.Empty<string>()));
-            
+
             Assert.Equal(PermissionDecision.Deny, result.Decision);
         }
 
@@ -166,7 +166,7 @@ namespace Claude4Net.Tests
                 PathSafetyResult.Workspace,
                 isSensitiveTool: true,
                 new CommandRiskAssessment(CommandRiskLevel.Safe, "Safe", Array.Empty<string>()));
-            
+
             Assert.Equal(PermissionDecision.RequireApproval, result.Decision); // needs approval in Prompt mode for bash tool
 
             // Blocked command (not whitelisted)
@@ -177,7 +177,7 @@ namespace Claude4Net.Tests
                 PathSafetyResult.Workspace,
                 isSensitiveTool: true,
                 new CommandRiskAssessment(CommandRiskLevel.Dangerous, "Dangerous", Array.Empty<string>()));
-            
+
             Assert.Equal(PermissionDecision.Deny, result.Decision);
         }
 
@@ -197,7 +197,7 @@ namespace Claude4Net.Tests
                 PathSafetyResult.Workspace,
                 isSensitiveTool: true,
                 new CommandRiskAssessment(CommandRiskLevel.Safe, "Safe", Array.Empty<string>()));
-            
+
             Assert.Equal(PermissionDecision.Deny, result.Decision);
         }
 
@@ -208,7 +208,7 @@ namespace Claude4Net.Tests
             var report = harness.RunDiagnostics();
 
             Assert.NotNull(report);
-            
+
             // In Strict mode, malicious attacks should be blocked
             Assert.True(report.StrictBlocksCount > 0, "Strict profile should block some malicious attacks.");
             Assert.True(report.DevelopmentBlocksCount == 0 || report.DevelopmentBlocksCount < report.StrictBlocksCount,
@@ -301,7 +301,7 @@ namespace Claude4Net.Tests
                         scenario.SafetyResult,
                         scenario.IsSensitive,
                         new CommandRiskAssessment(scenario.CommandRisk, "Test Risk", Array.Empty<string>()));
-                    
+
                     report.Logs.Add($"[Strict] Scenario '{scenario.Name}' -> Decision: {eval.Decision}, Reason: {eval.Reason}");
                     if (eval.Decision == PermissionDecision.Deny)
                     {
@@ -325,7 +325,7 @@ namespace Claude4Net.Tests
                         scenario.SafetyResult,
                         scenario.IsSensitive,
                         new CommandRiskAssessment(scenario.CommandRisk, "Test Risk", Array.Empty<string>()));
-                    
+
                     report.Logs.Add($"[Permissive] Scenario '{scenario.Name}' -> Decision: {eval.Decision}, Reason: {eval.Reason}");
                     if (eval.Decision == PermissionDecision.Deny)
                     {
@@ -349,7 +349,7 @@ namespace Claude4Net.Tests
                         scenario.SafetyResult,
                         scenario.IsSensitive,
                         new CommandRiskAssessment(scenario.CommandRisk, "Test Risk", Array.Empty<string>()));
-                    
+
                     report.Logs.Add($"[Development] Scenario '{scenario.Name}' -> Decision: {eval.Decision}, Reason: {eval.Reason}");
                     if (eval.Decision == PermissionDecision.Deny)
                     {

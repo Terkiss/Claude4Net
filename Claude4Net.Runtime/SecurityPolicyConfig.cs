@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -21,10 +21,10 @@ namespace Claude4Net.Runtime
 
         public List<string> AllowedCommandPatterns { get; set; } = new();
         public List<string> BlockedCommandPatterns { get; set; } = new();
-        
+
         public List<string> AllowedFolders { get; set; } = new();
         public List<string> BlockedFolders { get; set; } = new();
-        
+
         public bool AllowOutsideWorkspace { get; set; } = false;
         public bool BlockDirectoryTraversal { get; set; } = true;
         public bool RequireApprovalForSensitiveTools { get; set; } = true;
@@ -46,7 +46,7 @@ namespace Claude4Net.Runtime
                     AllowTrailingCommas = true
                 };
                 options.Converters.Add(new JsonStringEnumConverter());
-                
+
                 return JsonSerializer.Deserialize<SecurityPolicyConfig>(json, options) ?? CreateDefault();
             }
             catch

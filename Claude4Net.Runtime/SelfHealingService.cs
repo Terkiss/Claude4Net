@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Text;
 using System.Linq;
@@ -131,7 +131,7 @@ namespace Claude4Net.Runtime
         public HealingDirective GenerateDirective(FailurePattern pattern)
         {
             var directive = new HealingDirective { Pattern = pattern };
-            
+
             string baseInstruction = pattern switch
             {
                 FailurePattern.InfiniteLoop => "You are stuck in a loop. Stop calling the same tool with the same arguments. Try a different approach or verify the state first.",

@@ -1,4 +1,4 @@
-@page "/replay"
+﻿@page "/replay"
 @using Microsoft.AspNetCore.SignalR.Client
 @using Claude4Net.Dashboard.Client.Models
 @using System.Text.Json
@@ -62,7 +62,7 @@
                         Step @currentStep / @events.Count
                     </span>
                 </div>
-                
+
                 <input type="range" class="form-range" min="0" max="@events.Count" @bind-value="CurrentStep" @bind-value:event="oninput" style="height: 1.5rem;" />
 
                 <div class="d-flex justify-content-between small text-muted font-monospace mt-1">

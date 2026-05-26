@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading.Tasks;
 using Claude4Net.SDK;
 using Claude4Net.Cli.Ui.Events;

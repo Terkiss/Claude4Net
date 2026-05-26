@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -23,7 +23,7 @@ namespace Claude4Net.Runtime
         public static System.Threading.AsyncLocal<string?> ActivePath { get; } = new();
 
         private static SecurityPolicyConfig _config = SecurityPolicyConfig.CreateDefault();
-        
+
         public static SecurityPolicyConfig Config
         {
             get => _config;

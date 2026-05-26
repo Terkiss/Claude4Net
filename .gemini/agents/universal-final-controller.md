@@ -1,4 +1,4 @@
----
+﻿---
 name: universal-final-controller
 description: "모델에 구애받지 않는 범용 AI 최종 컨트롤러. 증거를 기반으로 승인, 대기, 차단 또는 이관을 판정합니다."
 kind: local

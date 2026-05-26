@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -186,15 +186,15 @@ namespace Claude4Net.Runtime
                 var lockDir = Path.Combine(_workspaceRoot, ".claude4net");
                 Directory.CreateDirectory(lockDir);
                 var lockPath = Path.Combine(lockDir, "scheduler.lock");
-                
+
                 _globalLockStream = new FileStream(
-                    lockPath, 
-                    FileMode.OpenOrCreate, 
-                    FileAccess.ReadWrite, 
-                    FileShare.None, 
-                    4096, 
+                    lockPath,
+                    FileMode.OpenOrCreate,
+                    FileAccess.ReadWrite,
+                    FileShare.None,
+                    4096,
                     FileOptions.DeleteOnClose);
-                    
+
                 _isGlobalLocked = true;
                 return true;
             }
@@ -212,15 +212,15 @@ namespace Claude4Net.Runtime
                 var lockDir = Path.Combine(_workspaceRoot, ".claude4net", "locks");
                 Directory.CreateDirectory(lockDir);
                 var lockPath = Path.Combine(lockDir, $"routine_{routineId}.lock");
-                
+
                 var fileStream = new FileStream(
-                    lockPath, 
-                    FileMode.OpenOrCreate, 
-                    FileAccess.ReadWrite, 
-                    FileShare.None, 
-                    4096, 
+                    lockPath,
+                    FileMode.OpenOrCreate,
+                    FileAccess.ReadWrite,
+                    FileShare.None,
+                    4096,
                     FileOptions.DeleteOnClose);
-                    
+
                 _activeLocks[routineId] = fileStream;
                 return true;
             }
@@ -245,11 +245,11 @@ namespace Claude4Net.Runtime
         private bool IsRoutineLockedByAnyInstance(string routineId)
         {
             if (_activeLocks.ContainsKey(routineId)) return true;
-            
+
             var lockDir = Path.Combine(_workspaceRoot, ".claude4net", "locks");
             var lockPath = Path.Combine(lockDir, $"routine_{routineId}.lock");
             if (!File.Exists(lockPath)) return false;
-            
+
             try
             {
                 using var fs = new FileStream(lockPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
@@ -299,7 +299,7 @@ namespace Claude4Net.Runtime
 
                             // If CRON is parsed, we bypass Webhook/Event rejection
                             bool isCron = false;
-                            if (!string.IsNullOrWhiteSpace(routine.Trigger.Expression) && 
+                            if (!string.IsNullOrWhiteSpace(routine.Trigger.Expression) &&
                                 routine.Trigger.Expression.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries).Length == 5)
                             {
                                 try
@@ -386,7 +386,7 @@ namespace Claude4Net.Runtime
             if (!routine.Enabled) throw new InvalidOperationException($"Routine {routineId} is disabled.");
 
             bool isCron = false;
-            if (!string.IsNullOrWhiteSpace(routine.Trigger.Expression) && 
+            if (!string.IsNullOrWhiteSpace(routine.Trigger.Expression) &&
                 routine.Trigger.Expression.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries).Length == 5)
             {
                 try
@@ -425,7 +425,7 @@ namespace Claude4Net.Runtime
 
             try
             {
-                bool isReleaseVerification = routine.Actions.Any(a => a.Kind == RoutineActionKind.Verification || 
+                bool isReleaseVerification = routine.Actions.Any(a => a.Kind == RoutineActionKind.Verification ||
                     (a.Kind == RoutineActionKind.Script && a.Payload.Contains("verify-release.ps1")));
 
                 if (isReleaseVerification)
@@ -499,12 +499,12 @@ namespace Claude4Net.Runtime
                     {
                         var outTask = process.StandardOutput.ReadToEndAsync();
                         var errTask = process.StandardError.ReadToEndAsync();
-                        
+
                         using var timeoutCts = routine.Timeout.HasValue
                             ? new CancellationTokenSource(routine.Timeout.Value)
                             : new CancellationTokenSource();
                         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, timeoutCts.Token);
-                        
+
                         await process.WaitForExitAsync(linkedCts.Token);
                         output = outTask.Result;
                         error = errTask.Result;
@@ -530,10 +530,10 @@ namespace Claude4Net.Runtime
 
             var orchestrator = new VerificationOrchestrator(_workspaceRoot);
             var session = orchestrator.CreateVerifierSession(routine.Id);
-            
+
             var checks = new List<VerificationCheck>();
             checks.Add(orchestrator.RunCheck("Release Gate Verification Script", $"powershell.exe -File {scriptPath}", output + "\n" + error, exitCode));
-            
+
             var verifResult = orchestrator.AggregateResult(session.VerifierSessionId, session.GeneratorSessionId, checks);
             await orchestrator.WriteResultAsync(verifResult);
 
@@ -629,7 +629,7 @@ namespace Claude4Net.Runtime
             if (!routine.Enabled) return null;
             if (routine.Trigger == null) return null;
 
-            if (!string.IsNullOrWhiteSpace(routine.Trigger.Expression) && 
+            if (!string.IsNullOrWhiteSpace(routine.Trigger.Expression) &&
                 routine.Trigger.Expression.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries).Length == 5)
             {
                 try

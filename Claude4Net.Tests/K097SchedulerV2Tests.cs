@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -39,7 +39,7 @@ namespace Claude4Net.Tests
             var parser = new SimpleCronParser("*/5 * * * *");
             var baseTime = new DateTimeOffset(2026, 5, 26, 10, 0, 0, TimeSpan.FromHours(9));
             var next = parser.GetNextOccurrence(baseTime);
-            
+
             // next should be 2026-05-26 10:05:00
             Assert.Equal(new DateTimeOffset(2026, 5, 26, 10, 5, 0, TimeSpan.FromHours(9)), next);
         }

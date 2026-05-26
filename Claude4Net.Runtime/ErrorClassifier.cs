@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Text.RegularExpressions;
 using Claude4Net.SDK;
 
@@ -23,7 +23,7 @@ namespace Claude4Net.Runtime
         QuotaError,
         InfiniteLoop,
         Hallucination,
-        
+
         // Refined Categories
         JsonSchemaMismatch,
         RateLimit,
@@ -76,13 +76,13 @@ namespace Claude4Net.Runtime
 
         private static bool RegexMatch(string input, string pattern)
         {
-            try 
-            { 
-                return Regex.IsMatch(input, pattern, RegexOptions.IgnoreCase); 
+            try
+            {
+                return Regex.IsMatch(input, pattern, RegexOptions.IgnoreCase);
             }
-            catch 
-            { 
-                return input.Contains(pattern.Split('|')[0]); 
+            catch
+            {
+                return input.Contains(pattern.Split('|')[0]);
             }
         }
 

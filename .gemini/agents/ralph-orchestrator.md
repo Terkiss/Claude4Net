@@ -1,4 +1,4 @@
----
+﻿---
 name: ralph-orchestrator
 description: "Ralph Loop를 관리하는 메인 오케스트레이터. 마일스톤 선택, 실행 카드 작성, 작업자/리뷰어/최종관제 호출, 큐 진행을 조율한다."
 tools:

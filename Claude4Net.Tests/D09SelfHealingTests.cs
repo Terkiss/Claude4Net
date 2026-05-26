@@ -1,4 +1,4 @@
-using Xunit;
+﻿using Xunit;
 using Claude4Net.SDK;
 using Claude4Net.Runtime;
 using System.IO;

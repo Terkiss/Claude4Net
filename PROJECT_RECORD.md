@@ -142,14 +142,14 @@ sequenceDiagram
     CLI->>AL: 에이전트 사고 루프 구동
     AL->>DB: 사용자 프롬프트 기반 코사인 유사도 RAG 임베딩 검색
     DB-->>AL: 과거 유사 컨텍스트 추출 및 결합
-    
+
     rect rgb(200, 220, 255)
         note right of AL: Reasoning Loop (사고 - 행동 - 관찰)
         AL->>LLM: 컨텍스트 + 시스템 프롬프트 + 현재 질문 스트리밍 요청
         LLM-->>AL: 텍스트 델타 스트리밍 & 도구 호출 제안 (ToolCall)
         AL->>TO: 도구 실행 요청 (예: FileWriteTool)
         TO->>PE: 실행 보안 및 권한 평가 위임
-        
+
         alt 권한 요구 (RequireApproval) & TUI / Blazor 활성화
             PE-->>TO: 승인 보류 (RequireApproval)
             TO->>CLI: 디렉토리/Diff 정보 팝업 노출 및 승인 대기
@@ -162,7 +162,7 @@ sequenceDiagram
         TO-->>AL: 실행 결과 (ToolResult) 회신
         AL->>DB: 도구 실행 이력 로깅 (agent_trajectories 추가)
     end
-    
+
     AL->>DB: 최종 응답 및 입력 벡터 임베딩 저장 (Memory 업서트)
     AL-->>CLI: 최종 완료 응답 렌더링
     CLI-->>User: 화면 종료 및 대기 상태로 전환
@@ -491,7 +491,7 @@ sequenceDiagram
 - **Milestones covered**: K013 ~ K087 (Gemini 호환성 패치, 세션 관리, 스펙 제어, 대시보드 UI 고도화, CLI 실행 인자 확장, 글로벌/로컬 스킬 저장소 분리 등)
 
 ### Raw Evidence
-- **git status**: 
+- **git status**:
   ```text
   ## experiment...origin/experiment
   ?? "20260524_코덱스_3차_검증관.md"
@@ -505,7 +505,7 @@ sequenceDiagram
 
 ### Findings
 - **P1 Findings**: 없음 (릴리스 차단 결함 없음)
-- **P2 Findings**: 
+- **P2 Findings**:
   - `TeruTeruPandas` 프로젝트가 `.NET 9.0`을 타깃으로 삼아 컴파일되고 있어 솔루션 전반의 Target Framework(`net10.0`)와 일시적 불일치 상태임 (추후 마이그레이션 권장)
 - **P3 Findings**:
   - `SkillUsageRecorder`의 일부 실측 데이터베이스 수집 루프가 플레이스홀더 주석으로 남겨진 상태
@@ -526,5 +526,4 @@ sequenceDiagram
 - **residual risk**: 없음
 
 ### Decision
-모든 테스트 및 빌드 검증이 통과하였고 형상 위생이 양호하므로, `experiment` 및 `experiment_bak` 브랜치를 최종 릴리스 및 마일스톤 완료 상태로 승인함.
-
+- **Decision**: 모든 테스트 및 빌드 검증이 통과하였고 형상 위생이 양호하므로, `experiment` 및 `experiment_bak` 브랜치를 최종 릴리스 및 마일스톤 완료 상태로 승인함.

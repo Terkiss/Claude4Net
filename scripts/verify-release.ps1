@@ -26,38 +26,38 @@ function Run-Step {
 Run-Step "Standard Build" { dotnet build -p:UseAppHost=false }
 
 # 2. Strict Nullable Build
-Run-Step "Strict Nullable Build" { 
-    dotnet build -p:UseAppHost=false -warnaserror:CS8600,CS8601,CS8602,CS8603,CS8604,CS8618,CS8620,CS8625 
+Run-Step "Strict Nullable Build" {
+    dotnet build -p:UseAppHost=false -warnaserror:CS8600,CS8601,CS8602,CS8603,CS8604,CS8618,CS8620,CS8625
 }
 
 # 3. Unit & Integration Tests
-Run-Step "Unit & Integration Tests" { 
-    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false -- xUnit.ParallelizeTestCollections=false
+Run-Step "Unit & Integration Tests" {
+    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false -- RunConfiguration.DisableParallelization=true
 }
 
 # 3.1 State Isolation Smoke
 Run-Step "State Isolation Smoke" {
-    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K063|FullyQualifiedName~K064" -- xUnit.ParallelizeTestCollections=false
+    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K063|FullyQualifiedName~K064" -- RunConfiguration.DisableParallelization=true
 }
 
 # 3.2 Spec Gate Smoke
 Run-Step "Spec Gate Smoke" {
-    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K054|FullyQualifiedName~K055|FullyQualifiedName~K069|FullyQualifiedName~K070" -- xUnit.ParallelizeTestCollections=false
+    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K054|FullyQualifiedName~K055|FullyQualifiedName~K069|FullyQualifiedName~K070" -- RunConfiguration.DisableParallelization=true
 }
 
 # 3.3 Provider Descriptor Smoke
 Run-Step "Provider Descriptor Smoke" {
-    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K056|FullyQualifiedName~K057|FullyQualifiedName~K071|FullyQualifiedName~K072" -- xUnit.ParallelizeTestCollections=false
+    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K056|FullyQualifiedName~K057|FullyQualifiedName~K071|FullyQualifiedName~K072" -- RunConfiguration.DisableParallelization=true
 }
 
 # 3.4 Routine Permission Smoke
 Run-Step "Routine Permission Smoke" {
-    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K058|FullyQualifiedName~K059|FullyQualifiedName~K060|FullyQualifiedName~K074|FullyQualifiedName~K075|FullyQualifiedName~K076" -- xUnit.ParallelizeTestCollections=false
+    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K058|FullyQualifiedName~K059|FullyQualifiedName~K060|FullyQualifiedName~K074|FullyQualifiedName~K075|FullyQualifiedName~K076" -- RunConfiguration.DisableParallelization=true
 }
 
 # 3.5 Dashboard Control Plane Smoke
 Run-Step "Dashboard Control Plane Smoke" {
-    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K065|FullyQualifiedName~K066|FullyQualifiedName~K080|FullyQualifiedName~K081" -- xUnit.ParallelizeTestCollections=false
+    dotnet test .\Claude4Net.Tests\Claude4Net.Tests.csproj -p:UseAppHost=false --filter "FullyQualifiedName~K065|FullyQualifiedName~K066|FullyQualifiedName~K080|FullyQualifiedName~K081" -- RunConfiguration.DisableParallelization=true
 }
 
 # 4. CLI Smoke Test Verification
@@ -85,10 +85,10 @@ if ($cliExitCode -eq 0 -and ($stdout -match $expectedMsg)) {
     Write-Host "Exit Code: $cliExitCode" -ForegroundColor Yellow
     Write-Host "--- OUTPUT ---"
     Write-Host $stdout
-    
+
     if ($stdout -match "Gemini API key is missing") {
         Write-Host "`n[CRITICAL] Gemini API key is missing. This is unexpected in smoke test mode." -ForegroundColor Red
     }
-    
+
     exit 1
 }

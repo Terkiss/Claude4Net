@@ -1,4 +1,4 @@
-# Implementation Plan - Milestone K096: Plan/Dry-Run 모드
+﻿# Implementation Plan - Milestone K096: Plan/Dry-Run 모드
 
 Milestone K096 introduces a Dry-Run/Plan mode in Claude4Net. This mode enables developers and agents to simulate the impact of executing file system modifications, state modifications, or terminal commands before they are actually executed, yielding an `ImpactReport` and printing a Spectre.Console visual summary.
 

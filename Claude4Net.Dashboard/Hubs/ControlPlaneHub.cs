@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
 using Claude4Net.Commands;
 using Claude4Net.Runtime;
 using Claude4Net.SDK;
