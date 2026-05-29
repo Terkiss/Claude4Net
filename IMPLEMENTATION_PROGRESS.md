@@ -118,8 +118,8 @@
 | K102 | Live Frame Delta API & Commands | Completed | Implement Delta Polling (seq tracking) and command processor. Verified by First Reviewer, Final Controller & Final Approach Control (a683bcb) |
 | K103 | Android App Bootstrap & Auth UI | Completed | Set up Compose project, Retrofit, EncryptedSharedPreferences, Auth UI. Verified by First Reviewer, Final Controller & Final Approach Control (f8d1a1b) |
 | K104 | Android Chat Feed & Side Drawer | Completed | Build the main 9:16 layout, navigation drawer with '+ New chat', and scrollable list showing history and input bar. Verified by First Reviewer, Final Controller & Final Approach Control (de6b18a) |
-| K105 | Interactive Bubbles & Avatar Integration | In Progress | Map polling frames to chat bubble updates, show Terukirdo's blue-haired avatar, embed inline verification cards and Approve/Reject buttons |
-| K106 | End-to-End Release Validation | Proposed | Connect app and server E2E, check release gates |
+| K105 | Interactive Bubbles & Avatar Integration | Completed | Map polling frames to chat bubble updates, show Terukirdo's blue-haired avatar, embed inline verification cards and Approve/Reject buttons. Verified by First Reviewer, Final Controller & Final Approach Control (ebce52a) |
+| K106 | End-to-End Release Validation | In Progress | Connect app and server E2E, check release gates |
 
 
 
