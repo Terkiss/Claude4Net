@@ -112,7 +112,7 @@
 | K096 | Plan/Dry-Run 모드: 실행 전 영향 범위 분석과 변경 예측 | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (0a3a1be) |
 | K097 | Release Control Tower / Routine Scheduler v2 | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (85ef5ea) |
 | K098 | API Startup & Infrastructure | Completed | Parse `--api` arguments, configure hosting, isolate AppState snapshot. Verified by First Reviewer, Final Controller & Final Approach Control (74a7c2b) |
-| K099 | TeruTeruPandas Auth Database | Proposed | Create pairing/token database schemas, implement HMAC-SHA256 hashing |
+| K099 | TeruTeruPandas Auth Database | Completed | Create pairing/token database schemas, implement HMAC-SHA256 hashing. Verified by First Reviewer, Final Controller & Final Approach Control (f8d0c86) |
 | K100 | Pairing & LAN Auth Endpoints | Proposed | Connect pairing routes, implement LAN Auto-Connect terminal prompt |
 | K101 | Job Queue & Isolated Execution | Proposed | Build the Single-Worker Job queue, spawn workspaces, wrap AppState |
 | K102 | Live Frame Delta API & Commands | Proposed | Implement Delta Polling (seq tracking) and command processor |
@@ -909,9 +909,10 @@
 
 
 ### K099: TeruTeruPandas Auth Database
-- [ ] Create `android_pairing_requests` schema
-- [ ] Create `android_auth_tokens` schema
-- [ ] Implement secure HMAC-SHA256 hashing for codes/tokens
+- [x] Create `android_pairing_requests` schema
+- [x] Create `android_auth_tokens` schema
+- [x] Implement secure HMAC-SHA256 hashing for codes/tokens
+
 
 ### K100: Pairing & LAN Auth Endpoints
 - [ ] Implement Pairing code generation (10-digit PIN)
