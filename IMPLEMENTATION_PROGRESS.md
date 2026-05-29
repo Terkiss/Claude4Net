@@ -115,7 +115,7 @@
 | K099 | TeruTeruPandas Auth Database | Completed | Create pairing/token database schemas, implement HMAC-SHA256 hashing. Verified by First Reviewer, Final Controller & Final Approach Control (f8d0c86) |
 | K100 | Pairing & LAN Auth Endpoints | Completed | Connect pairing routes, implement LAN Auto-Connect terminal prompt. Verified by First Reviewer, Final Controller & Final Approach Control (8900586) |
 | K101 | Job Queue & Isolated Execution | Completed | Build the Single-Worker Job queue, spawn workspaces, wrap AppState. Verified by First Reviewer, Final Controller & Final Approach Control (6d33227) |
-| K102 | Live Frame Delta API & Commands | Proposed | Implement Delta Polling (seq tracking) and command processor |
+| K102 | Live Frame Delta API & Commands | Completed | Implement Delta Polling (seq tracking) and command processor. Verified by First Reviewer, Final Controller & Final Approach Control (a683bcb) |
 | K103 | Android App Bootstrap & Auth UI | Proposed | Set up Compose project, Retrofit, EncryptedSharedPreferences, Auth UI |
 | K104 | Android Dashboard & Detail Screen | Proposed | Build job list/creation forms, live 15fps polling logs terminal view |
 | K105 | Android Approval & Tabbed Viewer | Proposed | Build approval dialog modal and tabbed view for Logs/Diffs |
@@ -928,8 +928,9 @@
 
 
 ### K102: Live Frame Delta API & Commands
-- [ ] Implement delta frame polling endpoint
-- [ ] Implement command dispatching API (idempotency, cancellation, push approval)
+- [x] Implement delta frame polling endpoint
+- [x] Implement command dispatching API (idempotency, cancellation, push approval)
+
 
 ### K103: Android App Bootstrap & Auth UI
 - [ ] Create Kotlin Compose application
