@@ -39,13 +39,16 @@ SettingsManager.ApplyPrecedence(globalConfig, options.Provider, options.Model);
 var services = new ServiceCollection();
 CliServiceRegistration.ConfigureServices(services);
 
-if (options.StartDashboard)
+bool shouldStartDashboard = options.StartDashboard || options.EnableApi;
+if (shouldStartDashboard)
 {
-    AnsiConsole.MarkupLine("[grey][[INFO]] Web Dashboard starting on http://localhost:5000...[/]");
+    string host = options.EnableApi ? (options.ApiHost ?? "0.0.0.0") : "localhost";
+    int port = options.ApiPort ?? DashboardServer.DefaultPort;
+    AnsiConsole.MarkupLine($"[grey][[INFO]] Web Dashboard starting on http://{host}:{port}...[/]");
     try
     {
-        await DashboardServer.StartAsync(Array.Empty<string>(), DashboardServer.DefaultPort);
-        AnsiConsole.MarkupLine("[bold green][[OK]] Web Dashboard started at http://localhost:5000[/]");
+        await Claude4Net.Dashboard.Startup.StartAsync(Array.Empty<string>(), host, port);
+        AnsiConsole.MarkupLine($"[bold green][[OK]] Web Dashboard started at http://{host}:{port}[/]");
     }
     catch (Exception ex)
     {

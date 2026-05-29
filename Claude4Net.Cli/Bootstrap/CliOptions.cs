@@ -16,6 +16,21 @@ public sealed class CliOptions
     public bool StartDashboard { get; set; }
 
     /// <summary>
+    /// Whether to enable API hosting.
+    /// </summary>
+    public bool EnableApi { get; set; }
+
+    /// <summary>
+    /// Host to bind the API to.
+    /// </summary>
+    public string? ApiHost { get; set; }
+
+    /// <summary>
+    /// Port to bind the API to.
+    /// </summary>
+    public int? ApiPort { get; set; }
+
+    /// <summary>
     /// Permission mode argument.
     /// </summary>
     public string? PermissionModeArg { get; set; }
@@ -24,6 +39,7 @@ public sealed class CliOptions
     /// Whether to exit immediately after a smoke test.
     /// </summary>
     public bool SmokeExit { get; set; }
+
 
     /// <summary>
     /// Whether to run the doctor command.
@@ -73,6 +89,35 @@ public sealed class CliOptions
             if (arg.Equals("--dashboard", StringComparison.OrdinalIgnoreCase))
             {
                 options.StartDashboard = true;
+            }
+            else if (arg.Equals("--api", StringComparison.OrdinalIgnoreCase))
+            {
+                options.EnableApi = true;
+                if (i + 1 < args.Length)
+                {
+                    var next = args[i + 1];
+                    if (next.Equals("true", StringComparison.OrdinalIgnoreCase))
+                    {
+                        options.EnableApi = true;
+                        i++;
+                    }
+                    else if (next.Equals("false", StringComparison.OrdinalIgnoreCase))
+                    {
+                        options.EnableApi = false;
+                        i++;
+                    }
+                }
+            }
+            else if (arg.Equals("--api-host", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                options.ApiHost = args[++i];
+            }
+            else if (arg.Equals("--api-port", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                if (int.TryParse(args[++i], out int port))
+                {
+                    options.ApiPort = port;
+                }
             }
             else if (arg.Equals("--smoke-exit", StringComparison.OrdinalIgnoreCase))
             {

@@ -1,4 +1,4 @@
-﻿# Claude4Net Implementation Progress (D01-D10)
+# Claude4Net Implementation Progress (D01-D10)
 
 ## Overview
 - Start Date: 2024-05-22
@@ -111,6 +111,16 @@
 | K095 | Security Policy Profiles & Red-Team Regression Harness | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (82fb468) |
 | K096 | Plan/Dry-Run 모드: 실행 전 영향 범위 분석과 변경 예측 | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (0a3a1be) |
 | K097 | Release Control Tower / Routine Scheduler v2 | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (85ef5ea) |
+| K098 | API Startup & Infrastructure | Proposed | Parse `--api` arguments, configure hosting, isolate AppState snapshot |
+| K099 | TeruTeruPandas Auth Database | Proposed | Create pairing/token database schemas, implement HMAC-SHA256 hashing |
+| K100 | Pairing & LAN Auth Endpoints | Proposed | Connect pairing routes, implement LAN Auto-Connect terminal prompt |
+| K101 | Job Queue & Isolated Execution | Proposed | Build the Single-Worker Job queue, spawn workspaces, wrap AppState |
+| K102 | Live Frame Delta API & Commands | Proposed | Implement Delta Polling (seq tracking) and command processor |
+| K103 | Android App Bootstrap & Auth UI | Proposed | Set up Compose project, Retrofit, EncryptedSharedPreferences, Auth UI |
+| K104 | Android Dashboard & Detail Screen | Proposed | Build job list/creation forms, live 15fps polling logs terminal view |
+| K105 | Android Approval & Tabbed Viewer | Proposed | Build approval dialog modal and tabbed view for Logs/Diffs |
+| K106 | End-to-End Release Validation | Proposed | Connect app and server E2E, check release gates |
+
 
 
 ## Official Verification Commands
@@ -891,3 +901,46 @@
 - [x] 중앙 관제탑(Control Tower) 대시보드 페이지 구현 및 루틴 이력 모니터링
 - [x] verify-release.ps1 실행 루틴 스케줄 연동 및 자동화 릴리스 빌드 상태 리포팅
 - [x] 루틴 동시 실행 락 및 스레드 풀 안정성 보강 테스트 케이스 추가
+
+### K098: API Startup & Infrastructure
+- [ ] Parse `--api [true/false]`, `--api-host`, `--api-port` startup options in CLI
+- [ ] Implement `AppStateSnapshot` context backup/restore
+- [ ] Conditionally bind WebHost to specified API address / interface
+
+### K099: TeruTeruPandas Auth Database
+- [ ] Create `android_pairing_requests` schema
+- [ ] Create `android_auth_tokens` schema
+- [ ] Implement secure HMAC-SHA256 hashing for codes/tokens
+
+### K100: Pairing & LAN Auth Endpoints
+- [ ] Implement Pairing code generation (10-digit PIN)
+- [ ] Implement Bearer token verification middleware
+- [ ] Implement LAN auto-connect 10-second prompt approval logic
+
+### K101: Job Queue & Isolated Execution
+- [ ] Implement FIFO sequential Job Queue
+- [ ] Implement workspaces isolation worktree setup
+- [ ] Capture AppState context snapshot before execution and restore on exit
+- [ ] Trigger automatic code compilation, tests, and verify-release.ps1
+
+### K102: Live Frame Delta API & Commands
+- [ ] Implement delta frame polling endpoint
+- [ ] Implement command dispatching API (idempotency, cancellation, push approval)
+
+### K103: Android App Bootstrap & Auth UI
+- [ ] Create Kotlin Compose application
+- [ ] Implement Retrofit client and encrypted preferences
+- [ ] Create Pairing PIN input screen and LAN connection trigger
+
+### K104: Android Dashboard & Detail Screen
+- [ ] Implement Job List and Creation forms
+- [ ] Implement 15fps polling live ViewModel terminal view
+
+### K105: Android Approval & Tabbed Viewer
+- [ ] Implement overlay confirmation AlertDialog for pending approvals
+- [ ] Implement tabbed layout for logs, diffs, and verification metrics
+
+### K106: End-to-End Release Validation
+- [ ] Verify full Android-server pairing, polling, and workspace checkout flows
+- [ ] Clean up local testing worktrees and run standard verify-release.ps1
+
