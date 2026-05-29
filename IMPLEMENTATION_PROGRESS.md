@@ -114,7 +114,7 @@
 | K098 | API Startup & Infrastructure | Completed | Parse `--api` arguments, configure hosting, isolate AppState snapshot. Verified by First Reviewer, Final Controller & Final Approach Control (74a7c2b) |
 | K099 | TeruTeruPandas Auth Database | Completed | Create pairing/token database schemas, implement HMAC-SHA256 hashing. Verified by First Reviewer, Final Controller & Final Approach Control (f8d0c86) |
 | K100 | Pairing & LAN Auth Endpoints | Completed | Connect pairing routes, implement LAN Auto-Connect terminal prompt. Verified by First Reviewer, Final Controller & Final Approach Control (8900586) |
-| K101 | Job Queue & Isolated Execution | Proposed | Build the Single-Worker Job queue, spawn workspaces, wrap AppState |
+| K101 | Job Queue & Isolated Execution | Completed | Build the Single-Worker Job queue, spawn workspaces, wrap AppState. Verified by First Reviewer, Final Controller & Final Approach Control (6d33227) |
 | K102 | Live Frame Delta API & Commands | Proposed | Implement Delta Polling (seq tracking) and command processor |
 | K103 | Android App Bootstrap & Auth UI | Proposed | Set up Compose project, Retrofit, EncryptedSharedPreferences, Auth UI |
 | K104 | Android Dashboard & Detail Screen | Proposed | Build job list/creation forms, live 15fps polling logs terminal view |
@@ -921,10 +921,11 @@
 
 
 ### K101: Job Queue & Isolated Execution
-- [ ] Implement FIFO sequential Job Queue
-- [ ] Implement workspaces isolation worktree setup
-- [ ] Capture AppState context snapshot before execution and restore on exit
-- [ ] Trigger automatic code compilation, tests, and verify-release.ps1
+- [x] Implement FIFO sequential Job Queue
+- [x] Implement workspaces isolation worktree setup
+- [x] Capture AppState context snapshot before execution and restore on exit
+- [x] Trigger automatic code compilation, tests, and verify-release.ps1
+
 
 ### K102: Live Frame Delta API & Commands
 - [ ] Implement delta frame polling endpoint
