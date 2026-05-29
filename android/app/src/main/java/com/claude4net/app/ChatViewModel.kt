@@ -8,7 +8,16 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 
 data class JobRun(val id: String, val name: String)
-data class Message(val id: String, val sender: String, val text: String, val timestamp: Long = System.currentTimeMillis())
+data class Message(
+    val id: String,
+    val sender: String,
+    val text: String,
+    val timestamp: Long = System.currentTimeMillis(),
+    val buildStatus: String? = null,    // "Passed", "Failed", "Running", "Pending"
+    val testsStatus: String? = null,    // "Passed", "Failed", "Running", "Pending"
+    val gateStatus: String? = null,     // "Passed", "Failed", "Running", "Pending"
+    val hasPendingApproval: Boolean = false
+)
 
 class ChatViewModel : ViewModel() {
     var jobs = mutableStateListOf<JobRun>()
@@ -34,10 +43,18 @@ class ChatViewModel : ViewModel() {
 
         messages["job_1"] = listOf(
             Message("m1", "Agent", "Hello, I am ready to help refactor your code."),
-            Message("m2", "User", "Please optimize the MainActivity layout.")
+            Message(
+                id = "m2",
+                sender = "Agent",
+                text = "Please optimize the MainActivity layout. I have analyzed the codebase and am ready to proceed with changes.",
+                buildStatus = "Passed",
+                testsStatus = "Running",
+                gateStatus = "Pending",
+                hasPendingApproval = true
+            )
         )
         messages["job_2"] = listOf(
-            Message("m3", "Agent", "Database Migration agent started."),
+            Message("m3", "Agent", "Database Migration agent started.", buildStatus = "Passed", testsStatus = "Passed", gateStatus = "Passed"),
             Message("m4", "User", "Run baseline schema checks.")
         )
 
@@ -85,5 +102,35 @@ class ChatViewModel : ViewModel() {
         // Generate a mock response
         val agentMsg = Message("msg_a_${System.currentTimeMillis()}", "Agent", "Mock agent response to: \"$text\"")
         messages[jobId] = (messages[jobId] ?: emptyList()) + agentMsg
+    }
+
+    fun approveJob(messageId: String) {
+        val jobId = selectedJobId ?: return
+        val currentMsgs = messages[jobId] ?: return
+        messages[jobId] = currentMsgs.map { msg ->
+            if (msg.id == messageId) {
+                msg.copy(
+                    hasPendingApproval = false,
+                    text = msg.text + "\n\n✅ [APPROVED BY USER]"
+                )
+            } else {
+                msg
+            }
+        }
+    }
+
+    fun rejectJob(messageId: String) {
+        val jobId = selectedJobId ?: return
+        val currentMsgs = messages[jobId] ?: return
+        messages[jobId] = currentMsgs.map { msg ->
+            if (msg.id == messageId) {
+                msg.copy(
+                    hasPendingApproval = false,
+                    text = msg.text + "\n\n❌ [REJECTED BY USER]"
+                )
+            } else {
+                msg
+            }
+        }
     }
 }

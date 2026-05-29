@@ -3,9 +3,13 @@ package com.claude4net.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
@@ -14,6 +18,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -176,6 +184,31 @@ fun MainAppLayout(
             ) {
                 val currentMessages = viewModel.messages[viewModel.selectedJobId] ?: emptyList()
                 
+                // Status badge helper
+                @Composable
+                fun StatusBadge(label: String, status: String) {
+                    val badgeColor = when (status) {
+                        "Passed" -> Color(0xFF4CAF50)
+                        "Failed" -> Color(0xFFF44336)
+                        "Running" -> Color(0xFFFFC107)
+                        else -> Color(0xFF9E9E9E)
+                    }
+                    Surface(
+                        shape = MaterialTheme.shapes.extraSmall,
+                        color = badgeColor.copy(alpha = 0.15f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, badgeColor),
+                        modifier = Modifier.padding(end = 4.dp, bottom = 4.dp)
+                    ) {
+                        Text(
+                            text = "[$label: $status]",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = badgeColor,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
                 // Conversation Feed
                 LazyColumn(
                     modifier = Modifier
@@ -190,12 +223,26 @@ fun MainAppLayout(
                         val bgColor = if (isUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer
                         val textColor = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
 
-                        Column(
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            horizontalAlignment = alignment
+                                .padding(vertical = 6.dp),
+                            horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
+                            verticalAlignment = Alignment.Top
                         ) {
+                            if (!isUser) {
+                                // Terukirdo Avatar Image (leading element next to bubble)
+                                Image(
+                                    painter = painterResource(id = R.drawable.terukirdo_profile),
+                                    contentDescription = "Terukirdo Avatar",
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+
                             Surface(
                                 shape = MaterialTheme.shapes.medium,
                                 color = bgColor,
@@ -213,6 +260,45 @@ fun MainAppLayout(
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = textColor
                                     )
+
+                                    // Render Build/Test/Gate status badges
+                                    if (message.buildStatus != null || message.testsStatus != null || message.gateStatus != null) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.Start
+                                        ) {
+                                            message.buildStatus?.let { StatusBadge("Build", it) }
+                                            message.testsStatus?.let { StatusBadge("Tests", it) }
+                                            message.gateStatus?.let { StatusBadge("Gate", it) }
+                                        }
+                                    }
+
+                                    // Render Approve/Reject buttons for pending approvals
+                                    if (message.hasPendingApproval) {
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Button(
+                                                onClick = { viewModel.approveJob(message.id) },
+                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                                                modifier = Modifier.weight(1f),
+                                                contentPadding = PaddingValues(vertical = 4.dp)
+                                            ) {
+                                                Text("Approve", color = Color.White, style = MaterialTheme.typography.labelMedium)
+                                            }
+                                            Button(
+                                                onClick = { viewModel.rejectJob(message.id) },
+                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336)),
+                                                modifier = Modifier.weight(1f),
+                                                contentPadding = PaddingValues(vertical = 4.dp)
+                                            ) {
+                                                Text("Reject", color = Color.White, style = MaterialTheme.typography.labelMedium)
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

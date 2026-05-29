@@ -87,4 +87,40 @@ class ChatViewModelTest {
         assertEquals("Agent", agentMessage?.sender)
         assertTrue(agentMessage?.text?.contains("Mock agent response") == true)
     }
+
+    @Test
+    fun testApproveJob() {
+        val viewModel = ChatViewModel()
+        // Message "m2" in job_1 has pending approval
+        val currentMsgs = viewModel.messages["job_1"]
+        val msgM2 = currentMsgs?.find { it.id == "m2" }
+        assertNotNull(msgM2)
+        assertTrue(msgM2?.hasPendingApproval == true)
+
+        viewModel.approveJob("m2")
+
+        val updatedMsgs = viewModel.messages["job_1"]
+        val updatedM2 = updatedMsgs?.find { it.id == "m2" }
+        assertNotNull(updatedM2)
+        assertFalse(updatedM2?.hasPendingApproval == true)
+        assertTrue(updatedM2?.text?.contains("[APPROVED BY USER]") == true)
+    }
+
+    @Test
+    fun testRejectJob() {
+        val viewModel = ChatViewModel()
+        // Message "m2" in job_1 has pending approval
+        val currentMsgs = viewModel.messages["job_1"]
+        val msgM2 = currentMsgs?.find { it.id == "m2" }
+        assertNotNull(msgM2)
+        assertTrue(msgM2?.hasPendingApproval == true)
+
+        viewModel.rejectJob("m2")
+
+        val updatedMsgs = viewModel.messages["job_1"]
+        val updatedM2 = updatedMsgs?.find { it.id == "m2" }
+        assertNotNull(updatedM2)
+        assertFalse(updatedM2?.hasPendingApproval == true)
+        assertTrue(updatedM2?.text?.contains("[REJECTED BY USER]") == true)
+    }
 }
