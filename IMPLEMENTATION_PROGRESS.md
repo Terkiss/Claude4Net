@@ -116,9 +116,9 @@
 | K100 | Pairing & LAN Auth Endpoints | Completed | Connect pairing routes, implement LAN Auto-Connect terminal prompt. Verified by First Reviewer, Final Controller & Final Approach Control (8900586) |
 | K101 | Job Queue & Isolated Execution | Completed | Build the Single-Worker Job queue, spawn workspaces, wrap AppState. Verified by First Reviewer, Final Controller & Final Approach Control (6d33227) |
 | K102 | Live Frame Delta API & Commands | Completed | Implement Delta Polling (seq tracking) and command processor. Verified by First Reviewer, Final Controller & Final Approach Control (a683bcb) |
-| K103 | Android App Bootstrap & Auth UI | Proposed | Set up Compose project, Retrofit, EncryptedSharedPreferences, Auth UI |
-| K104 | Android Dashboard & Detail Screen | Proposed | Build job list/creation forms, live 15fps polling logs terminal view |
-| K105 | Android Approval & Tabbed Viewer | Proposed | Build approval dialog modal and tabbed view for Logs/Diffs |
+| K103 | Android App Bootstrap & Auth UI | Completed | Set up Compose project, Retrofit, EncryptedSharedPreferences, Auth UI. Verified by First Reviewer, Final Controller & Final Approach Control (f8d1a1b) |
+| K104 | Android Chat Feed & Side Drawer | In Progress | Build the main 9:16 layout, navigation drawer with '+ New chat', and scrollable list showing history and input bar |
+| K105 | Interactive Bubbles & Avatar Integration | Proposed | Map polling frames to chat bubble updates, show Terukirdo's blue-haired avatar, embed inline verification cards and Approve/Reject buttons |
 | K106 | End-to-End Release Validation | Proposed | Connect app and server E2E, check release gates |
 
 
