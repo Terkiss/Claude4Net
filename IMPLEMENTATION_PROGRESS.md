@@ -113,7 +113,7 @@
 | K097 | Release Control Tower / Routine Scheduler v2 | Completed | Verified by First Reviewer, Final Controller & Final Approach Control (85ef5ea) |
 | K098 | API Startup & Infrastructure | Completed | Parse `--api` arguments, configure hosting, isolate AppState snapshot. Verified by First Reviewer, Final Controller & Final Approach Control (74a7c2b) |
 | K099 | TeruTeruPandas Auth Database | Completed | Create pairing/token database schemas, implement HMAC-SHA256 hashing. Verified by First Reviewer, Final Controller & Final Approach Control (f8d0c86) |
-| K100 | Pairing & LAN Auth Endpoints | Proposed | Connect pairing routes, implement LAN Auto-Connect terminal prompt |
+| K100 | Pairing & LAN Auth Endpoints | Completed | Connect pairing routes, implement LAN Auto-Connect terminal prompt. Verified by First Reviewer, Final Controller & Final Approach Control (8900586) |
 | K101 | Job Queue & Isolated Execution | Proposed | Build the Single-Worker Job queue, spawn workspaces, wrap AppState |
 | K102 | Live Frame Delta API & Commands | Proposed | Implement Delta Polling (seq tracking) and command processor |
 | K103 | Android App Bootstrap & Auth UI | Proposed | Set up Compose project, Retrofit, EncryptedSharedPreferences, Auth UI |
@@ -915,9 +915,10 @@
 
 
 ### K100: Pairing & LAN Auth Endpoints
-- [ ] Implement Pairing code generation (10-digit PIN)
-- [ ] Implement Bearer token verification middleware
-- [ ] Implement LAN auto-connect 10-second prompt approval logic
+- [x] Implement Pairing code generation (10-digit PIN)
+- [x] Implement Bearer token verification middleware
+- [x] Implement LAN auto-connect 10-second prompt approval logic
+
 
 ### K101: Job Queue & Isolated Execution
 - [ ] Implement FIFO sequential Job Queue
