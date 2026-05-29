@@ -1,7 +1,7 @@
 # Ralph Queue State
 
 ## Queue Mode Status
-- **Active Milestone**: K104 (Android Chat Feed & Side Drawer)
+- **Active Milestone**: K105 (Interactive Bubbles & Avatar Integration)
 - **Current Loop Step**: 0.5 (Milestone Selection & State Initialization)
 - **Rework Count**: 0
 
@@ -12,8 +12,8 @@
 - **K101 (Job Queue & Isolated Execution)**: Completed
 - **K102 (Live Frame Delta API & Commands)**: Completed
 - **K103 (Android App Bootstrap & Auth UI)**: Completed
-- **K104 (Android Chat Feed & Side Drawer)**: In Progress
-- **K105 (Interactive Bubbles & Avatar Integration)**: Proposed
+- **K104 (Android Chat Feed & Side Drawer)**: Completed
+- **K105 (Interactive Bubbles & Avatar Integration)**: In Progress
 - **K106 (End-to-End Release Validation)**: Proposed
 
 ## Execution Evidence History
@@ -23,6 +23,8 @@
 - **K101**: Completed successfully. JobQueue FIFO and git worktree isolation verified. Commit hash: `6d33227`.
 - **K102**: Completed successfully. Delta framing sequence logic and command idempotency verified. Commit hash: `a683bcb`.
 - **K103**: Completed successfully. Compose application bootstrapped with secure preferences and auth endpoints integration. Commit hash: `f8d1a1b`.
+- **K104**: Completed successfully. Scaffold layout with side drawer navigation and lazy column feed implemented. Commit hash: `de6b18a`.
+
 
 
 
