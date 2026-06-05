@@ -2,7 +2,7 @@
 
 ## Current Status
 **Phase**: Execution (Phase 1)
-**Overall Progress**: 16% (1/6 Cards Completed)
+**Overall Progress**: 33% (2/6 Cards Completed)
 **Design SSOT**: [ANDROID_REST_API_APP_DESIGN.md](file:///d:/Project/CKP/Test/openclaude/Claude4Net-App/ANDROID_REST_API_APP_DESIGN.md)
 
 ## Ralph Loop Execution Cards
@@ -12,11 +12,11 @@
 - **Goal**: 가짜 워커 산출물 및 빌드 깨짐(CS1002 등) 유발 `Claude4Net.Api` 무효화
 
 ### [Card-01] 호스팅 아키텍처 정상화 및 CLI 통합
-- **Status**: ⏳ Pending (Ready for Dispatch)
+- **Status**: ✅ Completed
 - **Goal**: `Claude4Net.Dashboard` API 통합 및 CLI `--api` 파서 연동
 
 ### [Card-02] TeruTeruPandas 인증 시스템 (Pairing & LAN Auth)
-- **Status**: ⏳ Pending
+- **Status**: ✅ Completed
 - **Goal**: 10자리 페어링, LAN 자동 승인, JWT Sliding Expiration 적용
 
 ### [Card-03] Job API 및 15fps Delta Polling 구현
@@ -37,3 +37,6 @@
 - **[2026-05-29]**: 빌드 실패 현상 및 쓰레기 파일 발견으로 **[Card-00] 사전 정화 단계** 신규 편입.
 - **[2026-06-03]**: 서브에이전트 현장 점검 결과, 쓰레기 파일이 소멸되었고 `dotnet build` 가 0에러 0경고로 완벽하게 통과함. Card-00 자동 완료 처리.
 - **[Next Action]**: Card-01 워커 투입 대기 중.
+- **[2026-06-06]**: Card-01 완료. `Claude4Net.Api` 삭제로 발생했던 잔여 `.csproj` 참조 오류를 수정하고 전체 테스트 통과 검증 (커밋: `8cd123d`).
+- **[2026-06-06]**: Card-02 완료. `TeruTeruPandas` 인증 시스템 (Pairing & LAN Auth) 구현 완료, DB 마이그레이션 생성 및 테스트 통과 검증.
+- **[Next Action]**: Card-03 워커 투입 대기 중.

@@ -6,8 +6,8 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
-using TeruTeruPandas.Core;
-using TeruTeruPandas.Core.Column;
+using Microsoft.EntityFrameworkCore;
+using Claude4Net.Runtime.Storage;
 
 namespace Claude4Net.Runtime.Security
 {
@@ -34,24 +34,22 @@ namespace Claude4Net.Runtime.Security
             string pairingId = "pair_" + Guid.NewGuid().ToString("N").Substring(0, 12);
 
             // 4. Save to database
-            await PandasUniverseManager.Instance.ExecuteAsync(u =>
+            using (var db = new AuthDatabase())
             {
-                var df = u.GetTableOrThrow("android_pairing_requests");
-                var newRowCols = new Dictionary<string, IColumn>
+                
+                db.AndroidPairingRequests.Add(new AndroidPairingRequest
                 {
-                    ["PairingId"] = new StringColumn(new[] { pairingId }),
-                    ["DeviceName"] = new StringColumn(new[] { deviceName }),
-                    ["AppInstanceId"] = new StringColumn(new[] { appInstanceId }),
-                    ["CodeHash"] = new StringColumn(new[] { codeHash }),
-                    ["CreatedAt"] = new StringColumn(new[] { DateTime.UtcNow.ToString("O") }),
-                    ["ExpiresAt"] = new StringColumn(new[] { expiresAt.ToString("O") }),
-                    ["AttemptCount"] = new PrimitiveColumn<int>(new[] { 0 }),
-                    ["Status"] = new StringColumn(new[] { "Pending" })
-                };
-                var newRowDf = new DataFrame(newRowCols);
-                var updatedDf = DataFrameJoinExtensions.Concat(new[] { df, newRowDf }, 0);
-                u.AddOrUpdateTable("android_pairing_requests", updatedDf);
-            });
+                    PairingId = pairingId,
+                    DeviceName = deviceName,
+                    AppInstanceId = appInstanceId,
+                    CodeHash = codeHash,
+                    CreatedAt = DateTime.UtcNow.ToString("O"),
+                    ExpiresAt = expiresAt.ToString("O"),
+                    AttemptCount = 0,
+                    Status = "Pending"
+                });
+                await db.SaveChangesAsync();
+            }
 
             // 5. Print to console
             Console.WriteLine("[Android Pairing]");
@@ -64,148 +62,126 @@ namespace Claude4Net.Runtime.Security
 
         public static async Task<(bool Success, string Message, TokenResponse? Token)> ConfirmPairingAsync(string pairingId, string code, string clientIp)
         {
-            return await PandasUniverseManager.Instance.ExecuteAsync(async u =>
+            using var db = new AuthDatabase();
+            
+
+            var req = await db.AndroidPairingRequests.FirstOrDefaultAsync(r => r.PairingId == pairingId);
+            if (req == null) return (false, "Pairing request not found.", null);
+
+            if (req.Status != "Pending") return (false, $"Pairing request is already {req.Status}.", null);
+
+            if (DateTime.TryParse(req.ExpiresAt, null, System.Globalization.DateTimeStyles.RoundtripKind, out var expiresAt))
             {
-                var df = u.GetTableOrThrow("android_pairing_requests");
-                int targetRow = -1;
-
-                for (int i = 0; i < df.RowCount; i++)
+                if (DateTime.UtcNow > expiresAt.ToUniversalTime())
                 {
-                    if (df[i, "PairingId"]?.ToString() == pairingId)
-                    {
-                        targetRow = i;
-                        break;
-                    }
+                    req.Status = "Expired";
+                    await db.SaveChangesAsync();
+                    return (false, "Pairing code has expired.", null);
                 }
+            }
 
-                if (targetRow == -1)
+            string codeHash = Cryptography.ComputeHmacSha256(code);
+            if (req.CodeHash != codeHash)
+            {
+                req.AttemptCount++;
+                if (req.AttemptCount >= 5)
                 {
-                    return (false, "Pairing request not found.", null);
+                    req.Status = "Failed";
+                    await db.SaveChangesAsync();
+                    return (false, "Too many failed attempts. Pairing request blocked.", null);
                 }
+                await db.SaveChangesAsync();
+                return (false, "Invalid pairing code.", null);
+            }
 
-                string status = df[targetRow, "Status"]?.ToString() ?? "";
-                if (status != "Pending")
-                {
-                    return (false, $"Pairing request is already {status}.", null);
-                }
+            // Success
+            req.Status = "Approved";
+            
+            // Generate token
+            string token = "at_" + Guid.NewGuid().ToString("N");
+            string tokenHash = Cryptography.ComputeHmacSha256(token);
+            DateTime tokenExpiresAt = DateTime.UtcNow.Add(TokenLifetime);
 
-                if (DateTime.TryParse(df[targetRow, "ExpiresAt"]?.ToString(), null, System.Globalization.DateTimeStyles.RoundtripKind, out var expiresAt))
-                {
-                    if (DateTime.UtcNow > expiresAt.ToUniversalTime())
-                    {
-                        df[targetRow, "Status"] = "Expired";
-                        u.AddOrUpdateTable("android_pairing_requests", df);
-                        return (false, "Pairing code has expired.", null);
-                    }
-                }
+            var authToken = new AndroidAuthToken
+            {
+                TokenId = "tok_" + Guid.NewGuid().ToString("N"),
+                DeviceName = req.DeviceName,
+                AppInstanceId = req.AppInstanceId,
+                TokenHash = tokenHash,
+                Scopes = "jobs:create jobs:read jobs:approve jobs:cancel",
+                AuthMethod = "PairingCode",
+                ClientIp = clientIp,
+                CreatedAt = DateTime.UtcNow.ToString("O"),
+                ExpiresAt = tokenExpiresAt.ToString("O"),
+                LastUsedAt = DateTime.UtcNow.ToString("O"),
+                LastExtendedAt = DateTime.UtcNow.ToString("O"),
+                RefreshEligibleAt = DateTime.UtcNow.Add(SlidingWindow).ToString("O")
+            };
 
+            db.AndroidAuthTokens.Add(authToken);
+            await db.SaveChangesAsync();
 
-                int attemptCount = 0;
-                var rawAttempt = df[targetRow, "AttemptCount"];
-                if (rawAttempt != null)
-                {
-                    int.TryParse(rawAttempt.ToString(), out attemptCount);
-                }
-
-
-                attemptCount++;
-                df[targetRow, "AttemptCount"] = attemptCount;
-
-                string codeHash = df[targetRow, "CodeHash"]?.ToString() ?? "";
-                string inputHash = Cryptography.ComputeHmacSha256(code);
-
-                if (codeHash != inputHash)
-                {
-                    if (attemptCount >= 5)
-                    {
-                        df[targetRow, "Status"] = "Failed";
-                    }
-                    u.AddOrUpdateTable("android_pairing_requests", df);
-                    return (false, "Invalid pairing code.", null);
-                }
-
-                // Success!
-                df[targetRow, "Status"] = "Confirmed";
-                u.AddOrUpdateTable("android_pairing_requests", df);
-
-                string deviceName = df[targetRow, "DeviceName"]?.ToString() ?? "";
-                string appInstanceId = df[targetRow, "AppInstanceId"]?.ToString() ?? "";
-
-                var token = await IssueTokenAsync(u, deviceName, appInstanceId, "PairingCode", clientIp);
-                return (true, "Pairing confirmed successfully.", token);
+            return (true, "Success", new TokenResponse
+            {
+                AccessToken = token,
+                ExpiresAt = tokenExpiresAt,
+                DeviceId = req.AppInstanceId,
+                Scopes = new List<string> { "jobs:create", "jobs:read", "jobs:approve", "jobs:cancel" }
             });
         }
 
         public static async Task<(bool Success, string Message, TokenResponse? Token)> AuthorizeLanAsync(string deviceName, string appInstanceId, string clientIpAddress)
         {
-            if (!IPAddress.TryParse(clientIpAddress, out var ip))
+            if (!IPAddress.TryParse(clientIpAddress, out var ipAddress))
             {
-                return (false, "Invalid client IP address format.", null);
+                return (false, "Invalid IP address.", null);
             }
 
-            if (!IsPrivateIp(ip))
+            if (!IsPrivateIp(ipAddress) && !IsInSameSubnet(ipAddress))
             {
-                return (false, "Client IP is not in a private range.", null);
+                return (false, "LAN authorization is only allowed for private or same-subnet IP addresses.", null);
             }
 
-            if (!IsInSameSubnet(ip))
-            {
-                return (false, "Client IP is not in the same subnet as the host.", null);
-            }
-
-            // Prompt console with 10-second timeout
             bool approved = PromptApprovalWithTimeout(deviceName, clientIpAddress, TimeSpan.FromSeconds(10));
             if (!approved)
             {
-                return (false, "LAN authorization request was denied or timed out.", null);
+                return (false, "LAN authorization request denied or timed out.", null);
             }
 
-            var token = await PandasUniverseManager.Instance.ExecuteAsync(async u =>
-            {
-                return await IssueTokenAsync(u, deviceName, appInstanceId, "LanApproved", clientIpAddress);
-            });
-
-            return (true, "LAN authorization successful.", token);
-        }
-
-        private static async Task<TokenResponse> IssueTokenAsync(DataUniverse u, string deviceName, string appInstanceId, string authMethod, string clientIp)
-        {
-            byte[] tokenBytes = new byte[32];
-            RandomNumberGenerator.Fill(tokenBytes);
-            string token = "c4n_at_" + Convert.ToHexString(tokenBytes).ToLowerInvariant();
+            // Generate token
+            string token = "at_" + Guid.NewGuid().ToString("N");
             string tokenHash = Cryptography.ComputeHmacSha256(token);
+            DateTime tokenExpiresAt = DateTime.UtcNow.Add(TokenLifetime);
 
-            string tokenId = "tok_" + Guid.NewGuid().ToString("N").Substring(0, 12);
-            DateTime expiresAt = DateTime.UtcNow.Add(TokenLifetime);
-            DateTime refreshEligibleAt = DateTime.UtcNow.Add(SlidingWindow);
+            using var db = new AuthDatabase();
+            
 
-            var df = u.GetTableOrThrow("android_auth_tokens");
-            var newRowCols = new Dictionary<string, IColumn>
+            var authToken = new AndroidAuthToken
             {
-                ["TokenId"] = new StringColumn(new[] { tokenId }),
-                ["DeviceName"] = new StringColumn(new[] { deviceName }),
-                ["AppInstanceId"] = new StringColumn(new[] { appInstanceId }),
-                ["TokenHash"] = new StringColumn(new[] { tokenHash }),
-                ["Scopes"] = new StringColumn(new[] { "[\"jobs:create\",\"jobs:read\",\"jobs:approve\",\"jobs:cancel\"]" }),
-                ["AuthMethod"] = new StringColumn(new[] { authMethod }),
-                ["ClientIp"] = new StringColumn(new[] { clientIp }),
-                ["CreatedAt"] = new StringColumn(new[] { DateTime.UtcNow.ToString("O") }),
-                ["ExpiresAt"] = new StringColumn(new[] { expiresAt.ToString("O") }),
-                ["LastUsedAt"] = new StringColumn(new[] { "" }),
-                ["LastExtendedAt"] = new StringColumn(new[] { "" }),
-                ["RefreshEligibleAt"] = new StringColumn(new[] { refreshEligibleAt.ToString("O") })
+                TokenId = "tok_" + Guid.NewGuid().ToString("N"),
+                DeviceName = deviceName,
+                AppInstanceId = appInstanceId,
+                TokenHash = tokenHash,
+                Scopes = "jobs:create jobs:read jobs:approve jobs:cancel",
+                AuthMethod = "LAN",
+                ClientIp = clientIpAddress,
+                CreatedAt = DateTime.UtcNow.ToString("O"),
+                ExpiresAt = tokenExpiresAt.ToString("O"),
+                LastUsedAt = DateTime.UtcNow.ToString("O"),
+                LastExtendedAt = DateTime.UtcNow.ToString("O"),
+                RefreshEligibleAt = DateTime.UtcNow.Add(SlidingWindow).ToString("O")
             };
-            var newRowDf = new DataFrame(newRowCols);
-            var updatedDf = DataFrameJoinExtensions.Concat(new[] { df, newRowDf }, 0);
-            u.AddOrUpdateTable("android_auth_tokens", updatedDf);
 
-            return new TokenResponse
+            db.AndroidAuthTokens.Add(authToken);
+            await db.SaveChangesAsync();
+
+            return (true, "Success", new TokenResponse
             {
                 AccessToken = token,
-                ExpiresAt = expiresAt,
+                ExpiresAt = tokenExpiresAt,
                 DeviceId = appInstanceId,
                 Scopes = new List<string> { "jobs:create", "jobs:read", "jobs:approve", "jobs:cancel" }
-            };
+            });
         }
 
         public static async Task<bool> ValidateTokenAsync(string token)
@@ -213,37 +189,32 @@ namespace Claude4Net.Runtime.Security
             if (string.IsNullOrWhiteSpace(token)) return false;
             string tokenHash = Cryptography.ComputeHmacSha256(token);
 
-            return await PandasUniverseManager.Instance.ExecuteAsync(u =>
-            {
-                if (!u.ContainsTable("android_auth_tokens")) return false;
-                var df = u.GetTableOrThrow("android_auth_tokens");
-                for (int i = 0; i < df.RowCount; i++)
-                {
-                    if (df[i, "TokenHash"]?.ToString() == tokenHash)
-                    {
-                        if (DateTime.TryParse(df[i, "ExpiresAt"]?.ToString(), null, System.Globalization.DateTimeStyles.RoundtripKind, out var expiresAt))
-                        {
-                            if (expiresAt.ToUniversalTime() > DateTime.UtcNow)
-                            {
-                                df[i, "LastUsedAt"] = DateTime.UtcNow.ToString("O");
-                                if (DateTime.TryParse(df[i, "RefreshEligibleAt"]?.ToString(), null, System.Globalization.DateTimeStyles.RoundtripKind, out var refreshEligibleAt))
-                                {
-                                    if (DateTime.UtcNow > refreshEligibleAt.ToUniversalTime())
-                                    {
-                                        df[i, "ExpiresAt"] = DateTime.UtcNow.Add(TokenLifetime).ToString("O");
-                                        df[i, "LastExtendedAt"] = DateTime.UtcNow.ToString("O");
-                                        df[i, "RefreshEligibleAt"] = DateTime.UtcNow.Add(SlidingWindow).ToString("O");
-                                    }
-                                }
-                                u.AddOrUpdateTable("android_auth_tokens", df);
-                                return true;
-                            }
-                        }
+            using var db = new AuthDatabase();
+            
 
+            var authToken = await db.AndroidAuthTokens.FirstOrDefaultAsync(t => t.TokenHash == tokenHash);
+            if (authToken == null) return false;
+
+            if (DateTime.TryParse(authToken.ExpiresAt, null, System.Globalization.DateTimeStyles.RoundtripKind, out var expiresAt))
+            {
+                if (expiresAt.ToUniversalTime() > DateTime.UtcNow)
+                {
+                    authToken.LastUsedAt = DateTime.UtcNow.ToString("O");
+                    if (DateTime.TryParse(authToken.RefreshEligibleAt, null, System.Globalization.DateTimeStyles.RoundtripKind, out var refreshEligibleAt))
+                    {
+                        if (DateTime.UtcNow > refreshEligibleAt.ToUniversalTime())
+                        {
+                            authToken.ExpiresAt = DateTime.UtcNow.Add(TokenLifetime).ToString("O");
+                            authToken.LastExtendedAt = DateTime.UtcNow.ToString("O");
+                            authToken.RefreshEligibleAt = DateTime.UtcNow.Add(SlidingWindow).ToString("O");
+                        }
                     }
+                    await db.SaveChangesAsync();
+                    return true;
                 }
-                return false;
-            });
+            }
+
+            return false;
         }
 
         public static bool IsPrivateIp(IPAddress ip)
