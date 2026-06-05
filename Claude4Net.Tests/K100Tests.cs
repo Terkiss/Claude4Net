@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Xunit;
 using Claude4Net.Runtime;
 using Claude4Net.Runtime.Security;
+using Claude4Net.SDK;
 
 namespace Claude4Net.Tests
 {
@@ -12,15 +13,92 @@ namespace Claude4Net.Tests
     [Trait("Category", "K100")]
     public class K100Tests : IAsyncLifetime
     {
+        private string _originalCwd;
+        private string _originalSessionId;
+        private string _tempWorkspace;
+        private string _originalProvider;
+        private string _originalModel;
+        private PermissionMode _originalPermissionMode;
+
+        private static void NeutralizeLeakedSchedulers()
+        {
+            try
+            {
+                var tempPath = Path.GetTempPath();
+                var patterns = new[]
+                {
+                    "Claude4Net_Test_Scheduler_*",
+                    "Claude4Net_Test_Scheduler_Hardening_*",
+                    "Claude4Net_Test_SchedulerV2_*"
+                };
+
+                foreach (var pattern in patterns)
+                {
+                    if (!Directory.Exists(tempPath)) continue;
+                    foreach (var dir in Directory.GetDirectories(tempPath, pattern))
+                    {
+                        try
+                        {
+                            var routinesDir = Path.Combine(dir, ".claude4net", "routines");
+                            if (Directory.Exists(routinesDir))
+                            {
+                                foreach (var file in Directory.GetFiles(routinesDir, "*.json"))
+                                {
+                                    try { File.Delete(file); } catch { }
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+                }
+                System.Threading.Thread.Sleep(250);
+            }
+            catch { }
+        }
+
         public async Task InitializeAsync()
         {
+            NeutralizeLeakedSchedulers();
+
+            _originalCwd = AppState.CurrentCwd ?? string.Empty;
+            _originalSessionId = AppState.SessionId;
+            _originalProvider = AppState.ActiveProvider;
+            _originalModel = AppState.ActiveModel;
+            _originalPermissionMode = AppState.CurrentPermissionMode;
+
+            _tempWorkspace = Path.Combine(Path.GetTempPath(), "Claude4Net_K100_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_tempWorkspace);
+
+            AppState.CurrentCwd = _tempWorkspace;
+            AppState.SessionId = "session-k100-" + Guid.NewGuid().ToString("N");
+
             await PandasUniverseManager.Instance.ResetAndFlushForTestAsync();
+            await PandasUniverseManager.Instance.EnsureBaselineTablesAsync();
         }
 
         public async Task DisposeAsync()
         {
             await PandasUniverseManager.Instance.ResetAndFlushForTestAsync();
+
+            NeutralizeLeakedSchedulers();
+
+            AppState.CurrentCwd = _originalCwd;
+            AppState.SessionId = _originalSessionId;
+            AppState.ActiveProvider = _originalProvider;
+            AppState.ActiveModel = _originalModel;
+            AppState.CurrentPermissionMode = _originalPermissionMode;
+            AppState.Tasks.Clear();
+
+            try
+            {
+                if (Directory.Exists(_tempWorkspace))
+                {
+                    Directory.Delete(_tempWorkspace, true);
+                }
+            }
+            catch { }
         }
+
 
         [Fact]
         public async Task PairingRequest_GeneratesValidPinAndStoresPending()

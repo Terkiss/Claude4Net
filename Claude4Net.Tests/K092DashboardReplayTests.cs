@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -17,20 +17,73 @@ namespace Claude4Net.Tests
     {
         private readonly string _tempWorkspace;
         private readonly string _originalCwd;
+        private readonly string _originalSessionId;
         private readonly string _testSessionId;
+        private readonly string _originalProvider;
+        private readonly string _originalModel;
+        private readonly PermissionMode _originalPermissionMode;
+
+        private static void NeutralizeLeakedSchedulers()
+        {
+            try
+            {
+                var tempPath = Path.GetTempPath();
+                var patterns = new[]
+                {
+                    "Claude4Net_Test_Scheduler_*",
+                    "Claude4Net_Test_Scheduler_Hardening_*",
+                    "Claude4Net_Test_SchedulerV2_*"
+                };
+
+                foreach (var pattern in patterns)
+                {
+                    if (!Directory.Exists(tempPath)) continue;
+                    foreach (var dir in Directory.GetDirectories(tempPath, pattern))
+                    {
+                        try
+                        {
+                            var routinesDir = Path.Combine(dir, ".claude4net", "routines");
+                            if (Directory.Exists(routinesDir))
+                            {
+                                foreach (var file in Directory.GetFiles(routinesDir, "*.json"))
+                                {
+                                    try { File.Delete(file); } catch { }
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+                }
+                System.Threading.Thread.Sleep(250);
+            }
+            catch { }
+        }
 
         public K092DashboardReplayTests()
         {
+            NeutralizeLeakedSchedulers();
+
             _originalCwd = AppState.CurrentCwd ?? string.Empty;
+            _originalSessionId = AppState.SessionId;
+            _originalProvider = AppState.ActiveProvider;
+            _originalModel = AppState.ActiveModel;
+            _originalPermissionMode = AppState.CurrentPermissionMode;
+
             _tempWorkspace = Path.Combine(Path.GetTempPath(), "Claude4Net_K092_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_tempWorkspace);
             AppState.CurrentCwd = _tempWorkspace;
-            _testSessionId = "session-k092";
+            _testSessionId = "session-k092-" + Guid.NewGuid().ToString("N");
+            AppState.SessionId = _testSessionId;
         }
 
         public void Dispose()
         {
             AppState.CurrentCwd = _originalCwd;
+            AppState.SessionId = _originalSessionId;
+            AppState.ActiveProvider = _originalProvider;
+            AppState.ActiveModel = _originalModel;
+            AppState.CurrentPermissionMode = _originalPermissionMode;
+            AppState.Tasks.Clear();
             try
             {
                 if (Directory.Exists(_tempWorkspace))

@@ -32,8 +32,21 @@ worker-result.md
 judge-result.md
 final-control-result.md
 ralph-queue-state.md
+rework-directive.md
+
 
 # Images
 *.png
 *.jpg
 *.jpeg
+
+# Android build & local configs
+android/local.properties
+android/.gradle/
+android/app/build/
+Claude4Net.JaVaSDK/
+
+# Orchestration / Agent artifacts
+.agents/
+.gemini/agents/Final_Approach_Control.md
+.gemini/agents/terukirdo_plan.md

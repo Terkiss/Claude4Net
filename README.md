@@ -1,7 +1,7 @@
 # 🤖 Claude4Net (v1.2.0 Stable)
 
-[![Release Gate](https://img.shields.io/badge/Release%20Gate-Passed-green)](file:///D:/Project/CKP/Test/openclaude/Claude4Net-App/scripts/verify-release.ps1)
-[![Tests](https://img.shields.io/badge/Tests-613%2F613%20Passed-brightgreen)](file:///D:/Project/CKP/Test/openclaude/Claude4Net-App/Claude4Net.Tests/)
+[![Release Gate](https://img.shields.io/badge/Release%20Gate-Passed-green)](./scripts/verify-release.ps1)
+[![Tests](https://img.shields.io/badge/Tests-613%2F613%20Passed-brightgreen)](./Claude4Net.Tests/)
 [![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 [![Framework](https://img.shields.io/badge/.NET-10.0-purple)](https://dotnet.microsoft.com/download)
 
@@ -46,8 +46,8 @@
 - **`Claude4Net.SDK`**: 공통 인터페이스, 이벤트 모델 및 보안 가드.
 - **`Claude4Net.Tools`**: 파일 I/O, Bash 실행, LSP 연동 등 시스템 조작 도구.
 - **`TeruTeruPandas`**: 에이전트 전용 고성능 벡터 DB 및 데이터 처리 엔진.
-- **`Claude4Net.JaVaSDK`**: Android 앱 빌드를 위한 로컬 이식형(Portable) JDK 17 꾸러미. ([Claude4Net.JaVaSDK](file:///D:/Project/CKP/Test/openclaude/Claude4Net-App/Claude4Net.JaVaSDK))
-- **`android/`**: Jetpack Compose와 Retrofit으로 개발된 원격 제어 모바일 클라이언트 앱. ([android/](file:///D:/Project/CKP/Test/openclaude/Claude4Net-App/android))
+- **`Claude4Net.JaVaSDK`**: Android 앱 빌드를 위한 로컬 이식형(Portable) JDK 17 꾸러미. ([Claude4Net.JaVaSDK](./Claude4Net.JaVaSDK))
+- **`android/`**: Jetpack Compose와 Retrofit으로 개발된 원격 제어 모바일 클라이언트 앱. ([android/](./android))
 
 ---
 
@@ -71,7 +71,7 @@
 `Claude4Net`은 모바일 환경에서도 원격으로 작업을 지시하고, 실시간으로 에이전트의 사고 흐름을 관제하며 피드백을 제공할 수 있도록 **REST API 서버**와 **Android 모바일 클라이언트 앱**을 지원합니다. (K098~K106)
 
 ### 1. API 서버 구동 매개변수 (API Server Startup Parameters)
-기존 [Claude4Net.Cli/](file:///D:/Project/CKP/Test/openclaude/Claude4Net-App/Claude4Net.Cli) 프로젝트 구동 시 아래 매개변수를 추가하여 API 서버를 함께 기동할 수 있습니다. API 서버는 백그라운드에서 독자적인 에이전트 작업 실행 환경(Worktree 격리)과 작업 큐(Job Queue)를 관리합니다.
+기존 [Claude4Net.Cli/](./Claude4Net.Cli) 프로젝트 구동 시 아래 매개변수를 추가하여 API 서버를 함께 기동할 수 있습니다. API 서버는 백그라운드에서 독자적인 에이전트 작업 실행 환경(Worktree 격리)과 작업 큐(Job Queue)를 관리합니다.
 
 - `--api`: API 서버를 활성화합니다. (`--api true` 및 `--api` 모두 활성화로 처리하며, `--api false`로 명시적 비활성화 가능)
 - `--api-host <Host>`: API 서버가 바인딩할 호스트 주소입니다. 외부 안드로이드 기기 등에서의 접속을 허용하려면 `0.0.0.0`으로 설정할 수 있습니다. (기본값: `localhost`)
@@ -90,7 +90,7 @@ dotnet run --project Claude4Net.Cli -- --dashboard --api --api-host 0.0.0.0 --ap
 3. **HMAC 보안 페어링 키 (HMAC Pairing Keys)**: 승인된 기기에 대해 HMAC-SHA256 해시 알고리즘 기반의 보안 인증 토큰이 데이터베이스(`android_auth_tokens`, `android_pairing_requests` 테이블)에 안전하게 저장되며, Android 앱은 이후 모든 API 요청 시 이 Bearer 토큰을 사용합니다.
 
 ### 3. 안드로이드 모바일 클라이언트 앱 (Android Mobile Client App)
-[android/](file:///D:/Project/CKP/Test/openclaude/Claude4Net-App/android) 프로젝트에 구현된 전용 모바일 앱은 다음과 같은 디자인 및 관제 편의성을 제공합니다.
+[android/](./android) 프로젝트에 구현된 전용 모바일 앱은 다음과 같은 디자인 및 관제 편의성을 제공합니다.
 
 - **세로형 9:16 채팅 피드 레이아웃 (Vertical 9:16 Aspect Ratio Chat Feed)**: 모바일 한 손 조작에 최적화된 채팅 형태의 타임라인 뷰를 제공합니다.
 - **네비게이션 드로어 (Navigation Drawer)**: 왼쪽 드로어 메뉴를 통해 기존 작업 이력을 조회하고, `+ New Chat` 버튼으로 새로운 에이전트 작업을 즉시 시작할 수 있습니다.
@@ -98,7 +98,7 @@ dotnet run --project Claude4Net.Cli -- --dashboard --api --api-host 0.0.0.0 --ap
 - **인라인 승인 카드 및 컨트롤**: 에이전트가 빌드/테스트 또는 위험한 파일 수정을 수행하기 전, 실시간 델타 폴링(Delta Polling) 결과에 따라 인라인 승인 대기 카드가 노출되며, 사용자는 모바일 화면에서 직접 `Approve` / `Reject` 버튼을 눌러 작업을 제어할 수 있습니다.
 
 ### 4. 안드로이드 앱 빌드 방법 (Build Instructions)
-로컬에 빌드 환경이 완벽히 갖춰지지 않은 환경을 위해, 리포지토리의 [Claude4Net.JaVaSDK](file:///D:/Project/CKP/Test/openclaude/Claude4Net-App/Claude4Net.JaVaSDK)에 포함된 로컬 이식형(Portable) JDK 17을 활용해 빌드할 수 있습니다.
+로컬에 빌드 환경이 완벽히 갖춰지지 않은 환경을 위해, 리포지토리의 [Claude4Net.JaVaSDK](./Claude4Net.JaVaSDK)에 포함된 로컬 이식형(Portable) JDK 17을 활용해 빌드할 수 있습니다.
 
 1. `Claude4Net.JaVaSDK/jdk.zip` 파일의 압축을 해제합니다.
 2. 터미널에서 Java Home 경로를 압축 해제된 JDK 17 디렉터리로 임시 지정하거나, Gradle 빌드 시 JVM 인자로 주입하여 빌드를 진행합니다.
