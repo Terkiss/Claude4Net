@@ -2,6 +2,7 @@
 using Claude4Net.Runtime.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -9,9 +10,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Claude4Net.Runtime.Migrations
 {
     [DbContext(typeof(AuthDatabase))]
-    partial class AuthDatabaseModelSnapshot : ModelSnapshot
+    [Migration("20260605202059_AddJobStates")]
+    partial class AddJobStates
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.0");

@@ -17,7 +17,7 @@ namespace Claude4Net.Dashboard.Controllers
         }
 
         [HttpGet("{jobId}/frame")]
-        public IActionResult GetFrame([FromRoute] string jobId, [FromQuery] int afterSeq = 0)
+        public async Task<IActionResult> GetFrame([FromRoute] string jobId, [FromQuery] int afterSeq = 0, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(jobId))
             {
@@ -29,25 +29,50 @@ namespace Claude4Net.Dashboard.Controllers
                 return NotFound($"Job {jobId} not found.");
             }
 
-            lock (state)
+            int timeoutMs = 30000;
+            int intervalMs = 66; // ~15fps
+            int elapsed = 0;
+
+            while (elapsed < timeoutMs)
             {
-                if (state.Sequence <= afterSeq)
+                if (cancellationToken.IsCancellationRequested) return NoContent();
+
+                int currentSeq;
+                lock (state)
                 {
-                    return NoContent(); // 204 No Content if sequence matches/has no changes
+                    currentSeq = state.Sequence;
                 }
 
-                return Ok(new
+                if (currentSeq > afterSeq)
                 {
-                    jobId = state.JobId,
-                    sequence = state.Sequence,
-                    progress = state.Progress,
-                    phase = state.Phase,
-                    latestMessage = state.LatestMessage,
-                    pendingApproval = state.PendingApproval,
-                    changedFiles = state.ChangedFiles,
-                    verificationState = state.VerificationState
-                });
+                    lock (state)
+                    {
+                        return Ok(new
+                        {
+                            jobId = state.JobId,
+                            sequence = state.Sequence,
+                            progress = state.Progress,
+                            phase = state.Phase,
+                            latestMessage = state.LatestMessage,
+                            pendingApproval = state.PendingApproval,
+                            changedFiles = state.ChangedFiles,
+                            verificationState = state.VerificationState
+                        });
+                    }
+                }
+
+                try
+                {
+                    await Task.Delay(intervalMs, cancellationToken);
+                }
+                catch (TaskCanceledException)
+                {
+                    return NoContent();
+                }
+                elapsed += intervalMs;
             }
+
+            return NoContent(); // 204 No Content if sequence matches/has no changes after timeout
         }
 
         [HttpPost("{jobId}/commands")]
