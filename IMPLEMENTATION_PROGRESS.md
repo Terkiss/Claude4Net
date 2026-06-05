@@ -2,7 +2,7 @@
 
 ## Current Status
 **Phase**: Execution (Phase 1)
-**Overall Progress**: 33% (2/6 Cards Completed)
+**Overall Progress**: 50% (3/6 Cards Completed)
 **Design SSOT**: [ANDROID_REST_API_APP_DESIGN.md](file:///d:/Project/CKP/Test/openclaude/Claude4Net-App/ANDROID_REST_API_APP_DESIGN.md)
 
 ## Ralph Loop Execution Cards
@@ -20,11 +20,11 @@
 - **Goal**: 10자리 페어링, LAN 자동 승인, JWT Sliding Expiration 적용
 
 ### [Card-03] Job API 및 15fps Delta Polling 구현
-- **Status**: ⏳ Pending
+- **Status**: ✅ Completed
 - **Goal**: In-memory Mock 제거 및 15fps 델타 폴링(Delta Polling) 컨트롤러 구축
 
 ### [Card-04] Android Job Worker & Git 샌드박스 연동
-- **Status**: ⏳ Pending
+- **Status**: ✅ Completed
 - **Goal**: 백그라운드 샌드박스(`AndroidWork`) 구동 및 자동 Commit/Push 파이프라인
 
 ### [Card-05] Android 클라이언트 UI 개발 (Jetpack Compose)
@@ -36,7 +36,8 @@
 ## Log & Evidence
 - **[2026-05-29]**: 빌드 실패 현상 및 쓰레기 파일 발견으로 **[Card-00] 사전 정화 단계** 신규 편입.
 - **[2026-06-03]**: 서브에이전트 현장 점검 결과, 쓰레기 파일이 소멸되었고 `dotnet build` 가 0에러 0경고로 완벽하게 통과함. Card-00 자동 완료 처리.
-- **[Next Action]**: Card-01 워커 투입 대기 중.
 - **[2026-06-06]**: Card-01 완료. `Claude4Net.Api` 삭제로 발생했던 잔여 `.csproj` 참조 오류를 수정하고 전체 테스트 통과 검증 (커밋: `8cd123d`).
 - **[2026-06-06]**: Card-02 완료. `TeruTeruPandas` 인증 시스템 (Pairing & LAN Auth) 구현 완료, DB 마이그레이션 생성 및 테스트 통과 검증.
-- **[Next Action]**: Card-03 워커 투입 대기 중.
+- **[2026-06-06]**: Card-03 완료. Job API 및 15fps Delta Polling (Long Polling) 로직 Task.Delay 활용하여 성능 저하 없이 구현. DB 마이그레이션 시각 검증 및 커밋 완료 (커밋: `6a7c29d`).
+- **[2026-06-06]**: [Card-04] 완료. Android Job Worker & Git 샌드박스 연동 구현 완료 (커밋: `ebb5f0f`).
+- **[Next Action]**: Card-05 투입 대기 중.
