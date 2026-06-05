@@ -21,20 +21,20 @@ namespace Claude4Net.Tests
         }
 
         [Fact]
-        public void DeltaFraming_SequenceValidation()
+        public async Task DeltaFraming_SequenceValidation()
         {
             var jobId = "test-job-102";
             var controller = new JobController();
 
             // 1. Initial request when job is not tracked -> should return NotFound
-            var getResultNotFound = controller.GetFrame(jobId, 0);
+            var getResultNotFound = await controller.GetFrame(jobId, 0);
             Assert.IsType<NotFoundObjectResult>(getResultNotFound);
 
             // 2. Register job state
             JobStateTracker.GetOrCreateState(jobId);
 
             // 3. Request with afterSeq = 0. Since sequence starts at 1, 1 > 0, so should return 200 OK.
-            var getResultOk = controller.GetFrame(jobId, 0);
+            var getResultOk = await controller.GetFrame(jobId, 0);
             var okResult = Assert.IsType<OkObjectResult>(getResultOk);
             var value = okResult.Value;
             var sequence = (int)value.GetType().GetProperty("sequence").GetValue(value);
@@ -44,7 +44,8 @@ namespace Claude4Net.Tests
 
 
             // 4. Request with afterSeq = 1. Since sequence is 1, 1 <= 1, so should return 204 No Content.
-            var getResultNoContent = controller.GetFrame(jobId, 1);
+            var cts = new System.Threading.CancellationTokenSource(100);
+            var getResultNoContent = await controller.GetFrame(jobId, 1, cts.Token);
             Assert.IsType<NoContentResult>(getResultNoContent);
 
             // 5. Update state -> sequence increments to 2
@@ -56,7 +57,7 @@ namespace Claude4Net.Tests
             });
 
             // 6. Request with afterSeq = 1 -> should return 200 OK because 2 > 1.
-            var getResultOk2 = controller.GetFrame(jobId, 1);
+            var getResultOk2 = await controller.GetFrame(jobId, 1);
             var okResult2 = Assert.IsType<OkObjectResult>(getResultOk2);
             var value2 = okResult2.Value;
             var sequence2 = (int)value2.GetType().GetProperty("sequence").GetValue(value2);
@@ -68,7 +69,8 @@ namespace Claude4Net.Tests
 
 
             // 7. Request with afterSeq = 2 -> should return 204 No Content because 2 <= 2.
-            var getResultNoContent2 = controller.GetFrame(jobId, 2);
+            var cts2 = new System.Threading.CancellationTokenSource(100);
+            var getResultNoContent2 = await controller.GetFrame(jobId, 2, cts2.Token);
             Assert.IsType<NoContentResult>(getResultNoContent2);
         }
 

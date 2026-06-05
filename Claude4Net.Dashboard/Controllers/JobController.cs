@@ -75,6 +75,25 @@ namespace Claude4Net.Dashboard.Controllers
             return NoContent(); // 204 No Content if sequence matches/has no changes after timeout
         }
 
+        [HttpGet("{jobId}/workspace-status")]
+        public IActionResult GetWorkspaceStatus([FromRoute] string jobId)
+        {
+            if (string.IsNullOrWhiteSpace(jobId))
+            {
+                return BadRequest("Job ID is required.");
+            }
+
+            try
+            {
+                var status = GitWorkspaceManager.GetWorkspaceStatus(jobId);
+                return Ok(status);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
         [HttpPost("{jobId}/commands")]
         public IActionResult PostCommand([FromRoute] string jobId, [FromBody] CommandRequest request)
         {
@@ -111,12 +130,15 @@ namespace Claude4Net.Dashboard.Controllers
                         case "cancel-job":
                             s.Phase = "Cancelled";
                             s.LatestMessage = "Job cancelled.";
+                            JobWorker.CancelJob(jobId);
                             break;
 
                         case "approvegitpush":
                         case "approve_git_push":
                         case "approve-git-push":
                             s.LatestMessage = "Git push approved.";
+                            s.PendingApproval = false;
+                            s.Phase = "PushApproved";
                             break;
 
                         default:

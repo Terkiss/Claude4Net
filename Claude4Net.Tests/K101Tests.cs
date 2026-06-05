@@ -51,7 +51,17 @@ namespace Claude4Net.Tests
             queue.Enqueue(req1);
             queue.Enqueue(req2);
 
-            await Task.WhenAll(tcs1.Task, tcs2.Task);
+            var autoApproveTask = Task.Run(async () =>
+            {
+                while (results.Count < 2)
+                {
+                    JobStateTracker.UpdateState("job-001", s => { s.PendingApproval = false; s.Phase = "PushApproved"; });
+                    JobStateTracker.UpdateState("job-002", s => { s.PendingApproval = false; s.Phase = "PushApproved"; });
+                    await Task.Delay(100);
+                }
+            });
+
+            await Task.WhenAll(tcs1.Task, tcs2.Task, autoApproveTask);
             queue.Stop();
 
             // Assert

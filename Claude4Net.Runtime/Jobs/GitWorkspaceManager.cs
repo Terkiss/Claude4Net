@@ -34,5 +34,36 @@ namespace Claude4Net.Runtime.Jobs
             // For now, let's make sure the directories are created.
             return repoDir;
         }
+
+        public static object GetWorkspaceStatus(string jobId)
+        {
+            string jobDir = Path.Combine(RootPath, "jobs", jobId);
+            string repoDir = Path.Combine(jobDir, @"workspace\repo");
+
+            if (!Directory.Exists(repoDir))
+            {
+                return new { status = "Not Found", message = "Workspace not initialized." };
+            }
+
+            // In a real environment, we would parse `git status`.
+            return new
+            {
+                branch = "main",
+                status = "Clean",
+                changedFiles = new string[0]
+            };
+        }
+
+        public static Task CommitAsync(string repoDir, string message)
+        {
+            // Simulate commit
+            return Task.CompletedTask;
+        }
+
+        public static Task PushAsync(string repoDir)
+        {
+            // Simulate push
+            return Task.CompletedTask;
+        }
     }
 }

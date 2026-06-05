@@ -7,8 +7,22 @@ namespace Claude4Net.Runtime.Jobs
 {
     public class JobWorker
     {
-        public static async Task<JobResult> RunJobAsync(JobRequest request)
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, CancellationTokenSource> _jobCts = new();
+
+        public static void CancelJob(string jobId)
         {
+            if (_jobCts.TryGetValue(jobId, out var cts))
+            {
+                cts.Cancel();
+            }
+        }
+
+        public static async Task<JobResult> RunJobAsync(JobRequest request, CancellationToken externalToken = default)
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(externalToken);
+            _jobCts[request.JobId] = cts;
+            var token = cts.Token;
+
             // Prepare isolated workspace
             string repoDir = GitWorkspaceManager.PrepareWorkspace(request.JobId, request.RepoUrl, request.BaseBranch);
 
@@ -27,26 +41,30 @@ namespace Claude4Net.Runtime.Jobs
                 // We're executing compilation, tests, and verify-release.ps1 inside the job workspace on code modification.
                 
                 // 1. Run compilation
-                var compileResult = await RunCommandAsync("dotnet build -p:UseAppHost=false", repoDir);
+                var compileResult = await RunCommandAsync("dotnet build -p:UseAppHost=false", repoDir, token);
                 if (compileResult.ExitCode != 0)
                 {
                     message = "Compilation failed: " + compileResult.Output;
                     return new JobResult { JobId = request.JobId, Success = false, Message = message };
                 }
 
+                token.ThrowIfCancellationRequested();
+
                 // 2. Run tests
-                var testResult = await RunCommandAsync("dotnet test", repoDir);
+                var testResult = await RunCommandAsync("dotnet test", repoDir, token);
                 if (testResult.ExitCode != 0)
                 {
                     message = "Tests failed: " + testResult.Output;
                     return new JobResult { JobId = request.JobId, Success = false, Message = message };
                 }
 
+                token.ThrowIfCancellationRequested();
+
                 // 3. Run verify-release.ps1 inside job workspace
                 string verifyScriptPath = Path.Combine(repoDir, @"scripts\verify-release.ps1");
                 if (File.Exists(verifyScriptPath))
                 {
-                    var verifyResult = await RunCommandAsync("powershell -File " + verifyScriptPath, repoDir);
+                    var verifyResult = await RunCommandAsync("powershell -File " + verifyScriptPath, repoDir, token);
                     if (verifyResult.ExitCode != 0)
                     {
                         message = "Verify release script failed: " + verifyResult.Output;
@@ -54,8 +72,49 @@ namespace Claude4Net.Runtime.Jobs
                     }
                 }
 
+                token.ThrowIfCancellationRequested();
+
+                // 4. Automatic Commit
+                await GitWorkspaceManager.CommitAsync(repoDir, "Auto commit after successful verification");
+
+                // 5. Wait for Push Approval
+                JobStateTracker.UpdateState(request.JobId, s => 
+                {
+                    s.PendingApproval = true;
+                    s.Phase = "WaitingForApproval";
+                    s.LatestMessage = "Verification passed. Waiting for git push approval.";
+                });
+
+                while (true)
+                {
+                    token.ThrowIfCancellationRequested();
+                    
+                    bool isApproved = false;
+                    JobStateTracker.UpdateState(request.JobId, s => 
+                    {
+                        if (s.Phase != "WaitingForApproval" && !s.PendingApproval)
+                        {
+                            isApproved = true;
+                        }
+                    });
+
+                    if (isApproved)
+                    {
+                        break;
+                    }
+
+                    await Task.Delay(1000, token);
+                }
+
+                // 6. Automatic Push
+                await GitWorkspaceManager.PushAsync(repoDir);
+
                 success = true;
-                message = "Job execution completed successfully.";
+                message = "Job execution and git push completed successfully.";
+            }
+            catch (OperationCanceledException)
+            {
+                message = "Job execution was cancelled.";
             }
             catch (Exception ex)
             {
@@ -64,16 +123,23 @@ namespace Claude4Net.Runtime.Jobs
             finally
             {
                 snapshot.Restore();
+                _jobCts.TryRemove(request.JobId, out _);
+                JobStateTracker.UpdateState(request.JobId, s => 
+                {
+                    s.Phase = success ? "Completed" : "Failed";
+                    s.LatestMessage = message;
+                });
             }
 
             return new JobResult { JobId = request.JobId, Success = success, Message = message };
         }
 
-        private static async Task<(int ExitCode, string Output)> RunCommandAsync(string commandLine, string workingDirectory)
+        private static async Task<(int ExitCode, string Output)> RunCommandAsync(string commandLine, string workingDirectory, CancellationToken token = default)
         {
             // Simulate run command for testing/compilation purposes.
             // If the workspace is simulated, we can just return exit code 0 or execute it.
             // Under test context, we may want to simulate the run.
+            await Task.Delay(10, token); // Simulate some work
             return (0, "Simulated execution output");
         }
     }
