@@ -1,8 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\Claude4Net.SDK\Claude4Net.SDK.csproj" />
-    <ProjectReference Include="..\Claude4Net.Api\Claude4Net.Api.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

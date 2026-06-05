@@ -1,5 +1,4 @@
 <Solution>
-  <Project Path="Claude4Net.Api/Claude4Net.Api.csproj" />
   <Project Path="Claude4Net.Cli/Claude4Net.Cli.csproj" />
   <Project Path="Claude4Net.Commands/Claude4Net.Commands.csproj" />
   <Project Path="Claude4Net.Discord/Claude4Net.Discord.csproj" />
