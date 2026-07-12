@@ -1,0 +1,12 @@
+Terukirdo Trajectory
+====================
+
+2026-07-12
+- Read the Claude4Net repository structure and identified the CLI -> Runtime AgentLoop -> Provider -> ToolOrchestrator flow.
+- Completed repository hygiene work: removed build/analyzer warnings, added generated-artifact ignore rules, and rewrote README.md as readable UTF-8 documentation.
+- Rewrote the CLI service-registration comments in Korean; legacy provider/registry files still require a dedicated encoding-safe comment migration.
+- Verified `dotnet build Claude4Net.slnx --no-restore` with 0 warnings and 0 errors.
+- Verified targeted tests (44 passed) and the full Claude4Net test project.
+- Committed the repository state as `a1a5e1f` (`chore: consolidate repository harness and provider updates`).
+- Pushed the commit to `origin/experiment`.
+- Created the initial memory and trajectory files because they were previously absent.
