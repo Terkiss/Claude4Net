@@ -58,9 +58,9 @@ namespace Claude4Net.Tests
             var decision2 = router.Route("Hi", RoutingIntent.SmallModel);
             Assert.Equal("gemini", decision2.SelectedProvider);
             
-            // LocalOnly should choose a local provider (ollama or gemini-cli)
+            // LocalOnly should choose a local provider
             var decision3 = router.Route("Sensitive data processing", RoutingIntent.LocalOnly);
-            Assert.True(decision3.SelectedProvider == "ollama" || decision3.SelectedProvider == "gemini-cli");
+            Assert.True(router.Registry.IsLocal(decision3.SelectedProvider));
         }
 
         [Fact]

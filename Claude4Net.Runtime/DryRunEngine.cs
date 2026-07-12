@@ -260,7 +260,7 @@ namespace Claude4Net.Runtime
                     var input = JsonSerializer.Deserialize<FileReadInput>(jsonInput, options);
                     if (input != null)
                     {
-                        string content;
+                        string? content;
                         lock (_lock)
                         {
                             _virtualFiles.TryGetValue(input.file_path, out content);

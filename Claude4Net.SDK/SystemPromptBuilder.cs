@@ -52,6 +52,12 @@ namespace Claude4Net.SDK
                 sb.AppendLine("## Ollama Local Agent Protocol");
                 sb.AppendLine("- 도구 우선주의: 대답하기 전에 반드시 제공된 도구를 먼저 실행하십시오.");
             }
+            else if (providerName.ToLower() == "lmstudio")
+            {
+                sb.AppendLine("## LM Studio Local Agent Protocol");
+                sb.AppendLine("- Strict Tool Calling: When you need to create or modify a file, DO NOT output the raw code in your conversational response. ONLY pass the code as the JSON argument to the tool (e.g., `write_file`).");
+                sb.AppendLine("- This saves tokens and prevents duplicate text. Always prefer calling the tool silently and let the user see the result.");
+            }
 
             sb.AppendLine();
 

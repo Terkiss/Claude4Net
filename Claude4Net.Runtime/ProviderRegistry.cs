@@ -137,8 +137,43 @@ namespace Claude4Net.Runtime
 
             Register(new ProviderDescriptor
             {
+                Id = "lmstudio",
+                Label = "LM Studio (Local)",
+                TransportKind = "openai-compat",
+                Endpoint = "http://localhost:1234",
+                DefaultModels = new ProviderDefaultModels
+                {
+                    Small = "local-model",
+                    Large = "local-model"
+                },
+                Capabilities = new ProviderCapabilities
+                {
+                    ToolCalling = true,
+                    Vision = false,
+                    ThoughtSignature = false,
+                    Streaming = true,
+                    Embeddings = true,
+                    Local = true
+                },
+                Auth = new ProviderAuth
+                {
+                    Mode = "api-key",
+                    EnvVars = new[] { "LMSTUDIO_API_KEY" }
+                },
+                CostScore = 0.0,
+                SupportedCategories = new[]
+                {
+                    RoutingCategory.CheapUtility,
+                    RoutingCategory.QuickFix
+                },
+                ContextWindowSize = 8192
+            });
+
+
+            Register(new ProviderDescriptor
+            {
                 Id = "gemini-cli",
-                Label = "Gemini CLI (Local OAuth)",
+                Label = "Gemini CLI (파기 - 오래된 버전, antigravity-cli 권장)",
                 TransportKind = "cli",
                 DefaultModels = new ProviderDefaultModels
                 {
@@ -149,6 +184,38 @@ namespace Claude4Net.Runtime
                 {
                     ToolCalling = true,
                     Vision = false,
+                    ThoughtSignature = true,
+                    Streaming = true,
+                    Embeddings = false,
+                    Local = true
+                },
+                Auth = new ProviderAuth
+                {
+                    Mode = "oauth",
+                    EnvVars = Array.Empty<string>()
+                },
+                CostScore = 0.0,
+                SupportedCategories = new[]
+                {
+                    RoutingCategory.CheapUtility
+                },
+                ContextWindowSize = 1_000_000
+            });
+
+            Register(new ProviderDescriptor
+            {
+                Id = "antigravity-cli",
+                Label = "Antigravity CLI (Local Agent)",
+                TransportKind = "cli",
+                DefaultModels = new ProviderDefaultModels
+                {
+                    Small = "gemini-2.0-flash",
+                    Large = "gemini-3.1-pro"
+                },
+                Capabilities = new ProviderCapabilities
+                {
+                    ToolCalling = true,
+                    Vision = true,
                     ThoughtSignature = true,
                     Streaming = true,
                     Embeddings = false,
@@ -385,6 +452,7 @@ namespace Claude4Net.Runtime
             {
                 "gemini" => (ILLMProvider)serviceProvider.GetRequiredService<Claude4Net.Api.GeminiProvider>(),
                 "gemini-cli" => (ILLMProvider)serviceProvider.GetRequiredService<Claude4Net.Api.GeminiCliProvider>(),
+                "antigravity-cli" => (ILLMProvider)serviceProvider.GetRequiredService<Claude4Net.Api.AntigravityCliProvider>(),
                 "ollama" => (ILLMProvider)serviceProvider.GetRequiredService<Claude4Net.Api.OllamaProvider>(),
                 _ => (ILLMProvider)serviceProvider.GetRequiredService<Claude4Net.Api.ClaudeService>()
             };

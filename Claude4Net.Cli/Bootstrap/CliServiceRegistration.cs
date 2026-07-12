@@ -11,33 +11,33 @@ using Claude4Net.Discord;
 namespace Claude4Net.Cli.Bootstrap;
 
 /// <summary>
-/// Service registration for Claude4Net CLI.
+/// Claude4Net CLI에서 사용하는 서비스를 등록합니다.
 /// </summary>
 public static class CliServiceRegistration
 {
     /// <summary>
-    /// Configures services for the application.
+    /// 애플리케이션의 의존성 주입 서비스를 구성합니다.
     /// </summary>
     public static void ConfigureServices(IServiceCollection services)
     {
         AppState.LoadDiscordApprovers();
 
-        // HTTP Client
+        // 외부 API 호출에 사용하는 HTTP 클라이언트
         services.AddHttpClient();
 
-        // Runtime Services
+        // 런타임 서비스
         services.AddSingleton<ProviderRegistry>(sp => ProviderRegistry.CreateWithDefaults());
         services.AddSingleton<HookPipeline>();
         services.AddSingleton<AuditTrailService>(sp => new AuditTrailService(maxEntries: 100));
         services.AddSingleton<MemoryStrategyManager>(sp => MemoryStrategyManager.CreateWithDefaults());
 
-        // Messaging
+        // 메시징 서비스
         services.AddSingleton<IInputBroker, ChannelBroker>();
 
-        // Discord
+        // Discord 연동
         services.AddSingleton<DiscordListenerService>();
 
-        // Tools
+        // 도구 레지스트리와 도구 서비스
         services.AddSingleton<LspClient>();
         services.AddSingleton<ITool, LspTool>();
         services.AddSingleton<ITool, BashTool>();
@@ -46,11 +46,11 @@ public static class CliServiceRegistration
         services.AddSingleton<ITool, FileEditTool>();
         services.AddSingleton<ITool, LsTool>();
 
-        // Runtime Core
+        // 런타임 핵심 구성 요소
         services.AddSingleton<ISmartRouter, SmartRouter>();
         services.AddSingleton<IUserApprovalHandler, CliUserApprovalHandler>();
 
-        // Skill Registry
+        // 스킬 레지스트리
         services.AddSingleton<SkillRegistryService>(sp =>
         {
             string ws = AppState.CurrentCwd ?? AppState.SystemBaseDir;
@@ -69,7 +69,7 @@ public static class CliServiceRegistration
             sp));
         services.AddSingleton<IToolRegistry>(sp => sp.GetRequiredService<ToolOrchestrator>());
 
-        // LLM Providers
+        // LLM provider 등록
         services.AddSingleton<AnthropicClient>(sp =>
         {
             var clientFactory = sp.GetRequiredService<IHttpClientFactory>();
@@ -85,6 +85,7 @@ public static class CliServiceRegistration
             return new GeminiProvider(httpClient, sp.GetRequiredService<IToolRegistry>());
         });
         services.AddSingleton<GeminiCliProvider>();
+        services.AddSingleton<Claude4Net.Api.AntigravityCliProvider>();
         services.AddSingleton<IEmbeddingProvider, GeminiEmbeddingProvider>(sp =>
         {
             var clientFactory = sp.GetRequiredService<IHttpClientFactory>();
@@ -99,11 +100,12 @@ public static class CliServiceRegistration
             return new OllamaProvider(httpClient, sp.GetRequiredService<IToolRegistry>());
         });
 
-        // Provider Factories
+        // provider factory 등록
         services.AddSingleton<IProviderFactory, AnthropicProviderFactory>();
         services.AddSingleton<IProviderFactory, GeminiProviderFactory>();
         services.AddSingleton<IProviderFactory, OllamaProviderFactory>();
         services.AddSingleton<IProviderFactory, GeminiCliProviderFactory>();
+        services.AddSingleton<IProviderFactory, AntigravityCliProviderFactory>();
         services.AddSingleton<IProviderFactory, OpenAiCompatProviderFactory>();
     }
 }

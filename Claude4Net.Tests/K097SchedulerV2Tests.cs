@@ -99,8 +99,8 @@ namespace Claude4Net.Tests
             var state = await _scheduler.GetControlTowerStateAsync();
 
             Assert.NotNull(state);
-            Assert.True(state.ActiveSchedules.Any(s => s.RoutineId == "active-routine"));
-            Assert.True(state.ReleaseGates.Any(g => g.GatewayName == "Standard Build" && g.IsPassed));
+            Assert.Contains(state.ActiveSchedules, s => s.RoutineId == "active-routine");
+            Assert.Contains(state.ReleaseGates, g => g.GatewayName == "Standard Build" && g.IsPassed);
             Assert.True(state.BuildState.LastBuildSuccess);
         }
 

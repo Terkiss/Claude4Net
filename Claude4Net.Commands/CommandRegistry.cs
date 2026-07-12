@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Linq;
@@ -660,39 +660,92 @@ namespace Claude4Net.Commands
             /// <summary> 모델 변�? ?�재 ?�션?�서 ?�용??LLM 모델??검?�하거나 변경합?�다. </summary>
             new Command { Name = "model", Description = "Browse and change LLM models", Handler = async (args, sp) => {
                 if (string.IsNullOrWhiteSpace(args)) {
-                    var sb = new System.Text.StringBuilder();
-                    sb.AppendLine($"[bold cyan]Current Session Status:[/]");
-                    sb.AppendLine($"  Provider: [bold]{Markup.Escape(AppState.ActiveProvider)}[/]");
-                    sb.AppendLine($"  Active Model: [bold]{Markup.Escape(AppState.ActiveModel)}[/]");
-                    sb.AppendLine();
+                    AnsiConsole.MarkupLine($"[bold cyan]Current Session Status:[/]");
+                    AnsiConsole.MarkupLine($"  Provider: [bold]{Markup.Escape(AppState.ActiveProvider)}[/]");
+                    AnsiConsole.MarkupLine($"  Active Model: [bold]{Markup.Escape(AppState.ActiveModel)}[/]");
+                    AnsiConsole.WriteLine();
 
-                    if (!string.IsNullOrEmpty(AuthManager.GetGeminiApiKey())) {
-                        sb.AppendLine("[bold yellow]Google Gemini Models (Available):[/]");
-                        sb.AppendLine("  - gemini-2.0-flash, gemini-2.0-flash-lite-preview, gemini-2.0-pro-exp-02-05, gemini-2.0-flash-thinking-exp");
-                        sb.AppendLine("  - gemini-1.5-pro, gemini-1.5-flash, gemini-1.5-flash-8b");
-                        sb.AppendLine();
-                    }
+                    var modelsMap = new System.Collections.Generic.Dictionary<string, (string Provider, string ModelId)>
+                    {
+                        { "Gemini 3.5 Flash (Medium)", ("antigravity-cli", "Gemini 3.5 Flash (Medium)") },
+                        { "Gemini 3.5 Flash (High)", ("antigravity-cli", "Gemini 3.5 Flash (High)") },
+                        { "Gemini 3.5 Flash (Low)", ("antigravity-cli", "Gemini 3.5 Flash (Low)") },
+                        { "Gemini 3.1 Pro (Low)", ("antigravity-cli", "Gemini 3.1 Pro (Low)") },
+                        { "Gemini 3.1 Pro (High)", ("antigravity-cli", "Gemini 3.1 Pro (High)") },
+                        { "Claude Sonnet 4.6 (Thinking)", ("antigravity-cli", "Claude Sonnet 4.6 (Thinking)") },
+                        { "Claude Opus 4.6 (Thinking)", ("antigravity-cli", "Claude Opus 4.6 (Thinking)") },
+                        { "GPT-OSS 120B (Medium)", ("antigravity-cli", "GPT-OSS 120B (Medium)") }
+                    };
 
-                    if (!string.IsNullOrEmpty(AuthManager.GetAnthropicApiKey())) {
-                        sb.AppendLine("[bold magenta]Anthropic Claude Models (Available):[/]");
-                        sb.AppendLine("  - claude-3-5-sonnet-20241022, claude-3-5-haiku-20241022");
-                        sb.AppendLine();
-                    }
-
-                    string? ollamaUri = AuthManager.GetApiKey("ollama");
-                    if (!string.IsNullOrEmpty(ollamaUri)) {
-                        sb.AppendLine("[bold green]Ollama Local Models (Real-time):[/]");
-                        try {
+                    try {
+                        string? ollamaUri = AuthManager.GetApiKey("ollama");
+                        if (!string.IsNullOrEmpty(ollamaUri)) {
                             var ollama = sp.GetRequiredService<OllamaProvider>();
-                            var models = await ollama.ListModelsAsync();
-                            if (models.Any()) foreach(var m in models) sb.AppendLine($"  - {Markup.Escape(m)}");
-                            else sb.AppendLine("  (No local models found)");
-                        } catch { sb.AppendLine("  (Ollama server not reachable)"); }
-                        sb.AppendLine();
+                            var ollamaModels = await ollama.ListModelsAsync();
+                            foreach (var m in ollamaModels) modelsMap[$"[green][Ollama][/] {Markup.Escape(m)}"] = ("ollama", m);
+                        }
+                    } catch { }
+
+                    try {
+                        string? lmstudioUri = AuthManager.GetApiKey("lmstudio") ?? "http://localhost:1234";
+                        if (!string.IsNullOrEmpty(lmstudioUri)) {
+                            var clientFactory = sp.GetRequiredService<IHttpClientFactory>();
+                            var client = clientFactory.CreateClient("lmstudio");
+                            client.Timeout = TimeSpan.FromSeconds(2);
+                            string endpoint = lmstudioUri;
+                            string? apiKey = null;
+                            int spaceIdx = endpoint.IndexOf(' ');
+                            if (spaceIdx > 0) {
+                                apiKey = endpoint.Substring(spaceIdx + 1).Trim();
+                                endpoint = endpoint.Substring(0, spaceIdx).Trim();
+                            }
+                            if (!string.IsNullOrEmpty(apiKey)) {
+                                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+                            }
+                            if (!endpoint.Contains("/v1")) endpoint = endpoint.TrimEnd('/') + "/v1";
+                            var response = await client.GetAsync($"{endpoint}/models");
+                            if (response.IsSuccessStatusCode) {
+                                var jsonStr = await response.Content.ReadAsStringAsync();
+                                var doc = System.Text.Json.JsonDocument.Parse(jsonStr);
+                                var data = doc.RootElement.GetProperty("data");
+                                foreach (var item in data.EnumerateArray()) {
+                                    if (item.TryGetProperty("id", out var idProp)) {
+                                        string m = idProp.GetString() ?? "";
+                                        modelsMap[$"[blue][LMStudio][/] {Markup.Escape(m)}"] = ("lmstudio", m);
+                                    }
+                                }
+                            }
+                        }
+                    } catch { }
+
+                    modelsMap["[red](Cancel)[/]"] = ("", "");
+
+                    var prompt = new SelectionPrompt<string>()
+                        .Title("[white]Switch Model[/]")
+                        .PageSize(15)
+                        .AddChoices(modelsMap.Keys)
+                        .UseConverter(label => 
+                        {
+                            if (modelsMap.TryGetValue(label, out var info))
+                            {
+                                if (!string.IsNullOrEmpty(info.ModelId) && info.ModelId.Equals(AppState.ActiveModel, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    return $"{label}   [grey](current)[/]";
+                                }
+                            }
+                            return label;
+                        });
+
+                    var selectedLabel = AnsiConsole.Prompt(prompt);
+                    var selectedInfo = modelsMap[selectedLabel];
+
+                    if (string.IsNullOrEmpty(selectedInfo.Provider)) {
+                        return "[grey]Model switch cancelled.[/]";
                     }
 
-                    sb.AppendLine("[grey]To change model, type: /model <model_name>[/]");
-                    return sb.ToString();
+                    AppState.ActiveModel = selectedInfo.ModelId;
+                    AppState.ActiveProvider = selectedInfo.Provider;
+                    return $"Model changed to: [bold green]{Markup.Escape(selectedInfo.ModelId)}[/] (Provider: {selectedInfo.Provider})";
                 }
 
                 string newModel = args.Trim();
@@ -714,6 +767,38 @@ namespace Claude4Net.Commands
                             var ollamaModels = await ollama.ListModelsAsync();
                             if (ollamaModels.Any(m => m.Equals(newModel, StringComparison.OrdinalIgnoreCase))) detectedProvider = "ollama";
                         } catch { }
+
+                        if (detectedProvider != "ollama") {
+                            try {
+                                string? lmstudioUri = AuthManager.GetApiKey("lmstudio") ?? "http://localhost:1234";
+                                var clientFactory = sp.GetRequiredService<IHttpClientFactory>();
+                                var client = clientFactory.CreateClient("lmstudio");
+                                client.Timeout = TimeSpan.FromSeconds(2);
+                                string endpoint = lmstudioUri;
+                                string? apiKey = null;
+                                int spaceIdx = endpoint.IndexOf(' ');
+                                if (spaceIdx > 0) {
+                                    apiKey = endpoint.Substring(spaceIdx + 1).Trim();
+                                    endpoint = endpoint.Substring(0, spaceIdx).Trim();
+                                }
+                                if (!string.IsNullOrEmpty(apiKey)) {
+                                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+                                }
+                                if (!endpoint.Contains("/v1")) endpoint = endpoint.TrimEnd('/') + "/v1";
+                                var response = await client.GetAsync($"{endpoint}/models");
+                                if (response.IsSuccessStatusCode) {
+                                    var jsonStr = await response.Content.ReadAsStringAsync();
+                                    var doc = System.Text.Json.JsonDocument.Parse(jsonStr);
+                                    var data = doc.RootElement.GetProperty("data");
+                                    foreach (var item in data.EnumerateArray()) {
+                                        if (item.TryGetProperty("id", out var idProp) && idProp.GetString()?.Equals(newModel, StringComparison.OrdinalIgnoreCase) == true) {
+                                            detectedProvider = "lmstudio";
+                                            break;
+                                        }
+                                    }
+                                }
+                            } catch { }
+                        }
                     }
                 }
 

@@ -15,23 +15,23 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Claude4Net.Runtime
 {
     /// <summary>
-    /// LLM 프로바이더를 생성하기 위한 팩토리 인터페이스입니다.
+    /// LLM ?�로바이?��? ?�성?�기 ?�한 ?�토�??�터?�이?�입?�다.
     /// </summary>
     public interface IProviderFactory
     {
         /// <summary>
-        /// 지정된 프로바이더 디스크립터를 생성할 수 있는지 여부를 결정합니다.
+        /// 지?�된 ?�로바이???�스?�립?��? ?�성?????�는지 ?��?�?결정?�니??
         /// </summary>
         bool CanCreate(ProviderDescriptor descriptor);
 
         /// <summary>
-        /// 디스크립터 정보를 기반으로 LLM 프로바이더 인스턴스를 생성합니다.
+        /// ?�스?�립???�보�?기반?�로 LLM ?�로바이???�스?�스�??�성?�니??
         /// </summary>
         ILLMProvider Create(ProviderDescriptor descriptor, IServiceProvider serviceProvider);
     }
 
     /// <summary>
-    /// Anthropic Claude 프로바이더 생성을 담당하는 팩토리입니다.
+    /// Anthropic Claude ?�로바이???�성???�당?�는 ?�토리입?�다.
     /// </summary>
     public class AnthropicProviderFactory : IProviderFactory
     {
@@ -49,7 +49,7 @@ namespace Claude4Net.Runtime
     }
 
     /// <summary>
-    /// Google Gemini Native 프로바이더 생성을 담당하는 팩토리입니다.
+    /// Google Gemini Native ?�로바이???�성???�당?�는 ?�토리입?�다.
     /// </summary>
     public class GeminiProviderFactory : IProviderFactory
     {
@@ -67,7 +67,7 @@ namespace Claude4Net.Runtime
     }
 
     /// <summary>
-    /// Ollama 프로바이더 생성을 담당하는 팩토리입니다.
+    /// Ollama ?�로바이???�성???�당?�는 ?�토리입?�다.
     /// </summary>
     public class OllamaProviderFactory : IProviderFactory
     {
@@ -86,14 +86,14 @@ namespace Claude4Net.Runtime
     }
 
     /// <summary>
-    /// Gemini CLI 프로바이더 생성을 담당하는 팩토리입니다.
+    /// Gemini CLI ?�로바이???�성???�당?�는 ?�토리입?�다.
     /// </summary>
     public class GeminiCliProviderFactory : IProviderFactory
     {
         public bool CanCreate(ProviderDescriptor descriptor)
         {
             if (descriptor == null) return false;
-            return descriptor.TransportKind.Equals("cli", StringComparison.OrdinalIgnoreCase);
+            return descriptor.Id.Equals("gemini-cli", StringComparison.OrdinalIgnoreCase);
         }
 
         public ILLMProvider Create(ProviderDescriptor descriptor, IServiceProvider serviceProvider)
@@ -104,7 +104,25 @@ namespace Claude4Net.Runtime
     }
 
     /// <summary>
-    /// 일반 OpenAI 호환 API 프로바이더 생성을 담당하는 팩토리입니다.
+    /// Antigravity CLI ?�로바이???�성???�당?�는 ?�토리입?�다.
+    /// </summary>
+    public class AntigravityCliProviderFactory : IProviderFactory
+    {
+        public bool CanCreate(ProviderDescriptor descriptor)
+        {
+            if (descriptor == null) return false;
+            return descriptor.Id.Equals("antigravity-cli", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public ILLMProvider Create(ProviderDescriptor descriptor, IServiceProvider serviceProvider)
+        {
+            if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
+            return serviceProvider.GetRequiredService<Claude4Net.Api.AntigravityCliProvider>();
+        }
+    }
+
+    /// <summary>
+    /// ?�반 OpenAI ?�환 API ?�로바이???�성???�당?�는 ?�토리입?�다.
     /// </summary>
     public class OpenAiCompatProviderFactory : IProviderFactory
     {
@@ -176,172 +194,5 @@ namespace Claude4Net.Runtime
             return new OpenAiCompatProvider(httpClient, toolRegistry, descriptor);
         }
     }
-
-    /// <summary>
-    /// OpenAI 규격(/v1/chat/completions)에 맞춰 작동하는 범용 OpenAI 호환 LLM 프로바이더 구현체입니다.
-    /// </summary>
-    public class OpenAiCompatProvider : ILLMProvider
-    {
-        private readonly HttpClient _httpClient;
-        private readonly IToolRegistry _toolRegistry;
-        private readonly ProviderDescriptor _descriptor;
-        private readonly List<object> _messageHistory = new();
-
-        public OpenAiCompatProvider(HttpClient httpClient, IToolRegistry toolRegistry, ProviderDescriptor descriptor)
-        {
-            _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-            _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
-            _descriptor = descriptor ?? throw new ArgumentNullException(nameof(descriptor));
-        }
-
-        public string Name => _descriptor.Id;
-
-        public ITokenCounter TokenCounter { get; } = new DefaultTokenCounter();
-
-        public int ContextLimit => _descriptor.ContextWindowSize > 0 ? _descriptor.ContextWindowSize : 200000;
-
-        public void AddMessage(object message)
-        {
-            if (message != null)
-            {
-                _messageHistory.Add(message);
-            }
-        }
-
-        public IReadOnlyList<object> GetHistory() => _messageHistory.AsReadOnly();
-
-        public void SetHistory(IEnumerable<object> history)
-        {
-            _messageHistory.Clear();
-            if (history != null)
-            {
-                _messageHistory.AddRange(history);
-            }
-        }
-
-        public async IAsyncEnumerable<LLMStreamEvent> StreamQueryAsync(
-            string prompt,
-            string? model = null,
-            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
-        {
-            string actualModel = model ?? _descriptor.DefaultModels.Large;
-            if (string.IsNullOrEmpty(actualModel))
-            {
-                actualModel = _descriptor.DefaultModels.Small;
-            }
-
-            if (!string.IsNullOrEmpty(prompt))
-            {
-                _messageHistory.Add(new { role = "user", content = prompt });
-            }
-
-            var systemPrompt = new SystemPromptBuilder().Build(_descriptor.Id);
-            var systemMsg = new { role = "system", content = systemPrompt };
-
-            var finalMessages = new List<object> { systemMsg };
-            finalMessages.AddRange(_messageHistory);
-
-            var payload = new
-            {
-                model = actualModel,
-                messages = finalMessages,
-                stream = true
-            };
-
-            string endpoint = _descriptor.Endpoint;
-            if (!endpoint.Contains("/chat/completions"))
-            {
-                string baseAddr = endpoint.TrimEnd('/');
-                endpoint = baseAddr.EndsWith("/v1") ? baseAddr + "/chat/completions" : baseAddr + "/v1/chat/completions";
-            }
-
-            var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
-            {
-                Content = JsonContent.Create(payload)
-            };
-
-            // Set Headers
-            if (_descriptor.Headers != null)
-            {
-                foreach (var header in _descriptor.Headers)
-                {
-                    request.Headers.TryAddWithoutValidation(header.Key, header.Value);
-                }
-            }
-
-            // Set Authentication
-            if (_descriptor.Auth != null && _descriptor.Auth.Mode.Equals("api-key", StringComparison.OrdinalIgnoreCase))
-            {
-                string? apiKey = null;
-                foreach (var envVar in _descriptor.Auth.EnvVars)
-                {
-                    apiKey = Environment.GetEnvironmentVariable(envVar);
-                    if (!string.IsNullOrEmpty(apiKey)) break;
-                }
-                if (string.IsNullOrEmpty(apiKey))
-                {
-                    apiKey = AuthManager.GetApiKey(_descriptor.Id);
-                }
-                if (string.IsNullOrEmpty(apiKey) && _descriptor.Auth.EnvVars.Count > 0)
-                {
-                    apiKey = AuthManager.GetApiKey(_descriptor.Auth.EnvVars[0]);
-                }
-
-                if (!string.IsNullOrEmpty(apiKey))
-                {
-                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
-                }
-            }
-
-            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-            response.EnsureSuccessStatusCode();
-
-            using var stream = await response.Content.ReadAsStreamAsync(ct);
-            using var reader = new StreamReader(stream);
-
-            var finalRes = new LLMResponse();
-
-            while (await reader.ReadLineAsync(ct) is { } line)
-            {
-                if (string.IsNullOrWhiteSpace(line)) continue;
-
-                string dataLine = line.Trim();
-                if (dataLine.StartsWith("data: "))
-                {
-                    string jsonStr = dataLine.Substring(6).Trim();
-                    if (jsonStr.Equals("[DONE]", StringComparison.OrdinalIgnoreCase))
-                    {
-                        break;
-                    }
-
-                    JsonElement chunk;
-                    try
-                    {
-                        chunk = JsonSerializer.Deserialize<JsonElement>(jsonStr);
-                    }
-                    catch
-                    {
-                        continue;
-                    }
-
-                    if (chunk.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
-                    {
-                        var choice = choices[0];
-                        if (choice.TryGetProperty("delta", out var delta) && delta.TryGetProperty("content", out var content))
-                        {
-                            string text = content.GetString() ?? "";
-                            if (!string.IsNullOrEmpty(text))
-                            {
-                                finalRes.Text += text;
-                                yield return new LLMStreamEvent { Type = LLMStreamEventType.TextDelta, Delta = text };
-                            }
-                        }
-                    }
-                }
-            }
-
-            _messageHistory.Add(new { role = "assistant", content = finalRes.Text });
-            yield return new LLMStreamEvent { Type = LLMStreamEventType.Completed, FinalResponse = finalRes };
-        }
-    }
 }
+

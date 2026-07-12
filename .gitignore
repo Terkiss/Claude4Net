@@ -37,3 +37,12 @@ ralph-queue-state.md
 *.png
 *.jpg
 *.jpeg
+
+# Local SDK and Android build artifacts
+Claude4Net.JaVaSDK/
+Claude4Net.Tests/TestResults/
+android/.gradle/
+android/local.properties
+android/**/build/
+android/**/.cxx/
+android/**/.externalNativeBuild/

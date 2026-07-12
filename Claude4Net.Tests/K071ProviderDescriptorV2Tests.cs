@@ -227,7 +227,7 @@ namespace Claude4Net.Tests
 
             var geminiCli = registry.Get("gemini-cli");
             Assert.NotNull(geminiCli);
-            Assert.Equal("Gemini CLI (Local OAuth)", geminiCli.Label);
+            Assert.Equal("Gemini CLI (파기 - 오래된 버전, antigravity-cli 권장)", geminiCli.Label);
             Assert.Equal("cli", geminiCli.TransportKind);
         }
     }
