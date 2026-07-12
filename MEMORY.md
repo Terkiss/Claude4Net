@@ -13,6 +13,7 @@
 - Generated artifacts such as `bin/`, `obj/`, test results, local Android properties, and local SDK bundles must remain ignored.
 - Several legacy C# files contain invalid or mixed encoding; comment rewrites must preserve source bytes and be performed in small, verifiable scopes.
 - Secret-pattern matches in security tests may be intentional fixtures and require context review before treating them as leaked credentials.
+- `SystemPromptBuilder` depends on `.resources/` being copied into the test/app output; removing the tracked resource fixtures breaks the real-resource regression test.
 
 ## Open Questions
 

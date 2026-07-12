@@ -11,3 +11,5 @@ Terukirdo Trajectory
 - Pushed the commit to `origin/experiment`.
 - Created the initial memory and trajectory files because they were previously absent.
 - Added `docs/Terukirdo_memory.txt` as the durable project-memory file required by AGENTS.md.
+- Reviewed the insight-based extension design and found the release gate failing because tracked `.resources/` fixtures had been deleted.
+- Restored `.resources/PandasDbTool` and `.resources/weather_search`, rebuilt so test output includes the fixtures, and verified all 651 tests plus the full release gate.

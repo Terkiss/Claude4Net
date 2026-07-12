@@ -1,0 +1,2 @@
+- `weather_search(location: "Seoul")`
+- `weather_search(location: "New York")`
