@@ -1,0 +1,40 @@
+Terukirdo Memory
+================
+
+Purpose
+-------
+This file stores durable project-level memory for the Terukirdo orchestrator.
+Use it for stable preferences, lessons, constraints, and decisions that should
+survive across tasks. Use `docs/Terukirdo_Trajectory.txt` for chronological
+events and `MEMORY.md` for the repository-facing summary.
+
+Current Status
+--------------
+- The active branch is `experiment`.
+- The latest pushed commit is `695db2b`.
+- Repository hygiene, provider updates, harness configuration, and initial
+  memory/trajectory files have been committed and pushed.
+- The working tree is clean.
+
+Stable Learnings
+----------------
+- Preserve user changes in a dirty worktree and avoid unrelated refactors.
+- Run build and test verification before committing repository-wide changes.
+- Keep generated artifacts, local credentials, and test results out of Git.
+- Review secret-pattern matches in context because security tests may contain
+  intentional fixture values.
+- Several legacy C# files have mixed or invalid encoding. Apply comment or
+  documentation rewrites in small, encoding-safe scopes and verify the build.
+
+Open Questions
+-------------
+- Decide whether the large harness and skillopt import should be split into
+  focused commits in a future cleanup.
+- Decide whether legacy C# source files should receive a dedicated encoding
+  migration with a complete test pass.
+
+Maintenance Rule
+----------------
+After meaningful implementation or verification work, append the major event
+to `docs/Terukirdo_Trajectory.txt` and refresh the status sections in this
+file and `MEMORY.md`.
