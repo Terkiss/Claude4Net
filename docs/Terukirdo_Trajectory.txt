@@ -10,3 +10,4 @@ Terukirdo Trajectory
 - Committed the repository state as `a1a5e1f` (`chore: consolidate repository harness and provider updates`).
 - Pushed the commit to `origin/experiment`.
 - Created the initial memory and trajectory files because they were previously absent.
+- Added `docs/Terukirdo_memory.txt` as the durable project-memory file required by AGENTS.md.
