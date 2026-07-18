@@ -1900,6 +1900,78 @@ namespace Claude4Net.Commands
                 }
             }},
 
+            new Command { Name = "goal", Description = "Set autonomous goal (goal <objective> | show | clear) — agent runs until objective is met", Handler = (args, sp) => {
+                string trimmed = args.Trim();
+
+                if (string.IsNullOrEmpty(trimmed) || trimmed.Equals("show", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (AppState.ActiveGoal == null)
+                    {
+                        AnsiConsole.MarkupLine("[grey]No active goal.[/]");
+                        return Task.FromResult("No active goal. Usage: !goal <objective>");
+                    }
+
+                    var g = AppState.ActiveGoal;
+                    var statusColor = g.Status switch
+                    {
+                        GoalStatus.Active => "cyan",
+                        GoalStatus.Completed => "green",
+                        GoalStatus.Stopped => "yellow",
+                        GoalStatus.Failed => "red",
+                        _ => "white"
+                    };
+
+                    var goalTable = new Table().Border(TableBorder.Rounded);
+                    goalTable.AddColumn("[bold]Property[/]");
+                    goalTable.AddColumn("[bold]Value[/]");
+                    goalTable.AddRow("Goal ID", g.Id);
+                    goalTable.AddRow("Status", $"[{statusColor}]{g.Status}[/]");
+                    goalTable.AddRow("Objective", Markup.Escape(g.Objective));
+                    goalTable.AddRow("Turn", $"{g.TurnCount}/{(g.MaxTurns > 0 ? g.MaxTurns.ToString() : "∞")}");
+                    goalTable.AddRow("No-Progress", $"{g.NoProgressCount}/{g.MaxNoProgressTurns}");
+                    goalTable.AddRow("Last Tool Calls", g.LastTurnToolCallCount.ToString());
+                    AnsiConsole.Write(new Panel(goalTable) { Header = new PanelHeader("🎯 Active Goal"), Border = BoxBorder.Rounded });
+
+                    return Task.FromResult($"Goal: {g.Status} (Turn {g.TurnCount})");
+                }
+
+                if (trimmed.Equals("clear", StringComparison.OrdinalIgnoreCase) || trimmed.Equals("stop", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (AppState.ActiveGoal != null)
+                    {
+                        string obj = AppState.ActiveGoal.Objective;
+                        GoalDispatcher.Stop();
+                        AnsiConsole.MarkupLine($"[bold yellow]Goal stopped:[/] {Markup.Escape(obj)}");
+                        return Task.FromResult("Goal cleared. Autonomous loop stopped.");
+                    }
+                    return Task.FromResult("No active goal to clear.");
+                }
+
+                // !goal <objective> — 새 목표 설정
+                int maxTurns = 25;
+                string objective = trimmed;
+
+                // --max=N 옵션 파싱
+                var maxMatch = System.Text.RegularExpressions.Regex.Match(trimmed, @"--max=(\d+)");
+                if (maxMatch.Success)
+                {
+                    if (int.TryParse(maxMatch.Groups[1].Value, out int parsed)) maxTurns = parsed;
+                    objective = trimmed.Replace(maxMatch.Value, "").Trim();
+                }
+
+                if (string.IsNullOrWhiteSpace(objective))
+                {
+                    return Task.FromResult("[red]Error:[/] Objective cannot be empty. Usage: !goal <objective>");
+                }
+
+                var goal = GoalDispatcher.Activate(objective, maxTurns);
+                AnsiConsole.MarkupLine($"[bold cyan]🎯 Goal activated (max {maxTurns} turns):[/]");
+                AnsiConsole.MarkupLine($"[italic]{Markup.Escape(objective)}[/]");
+                AnsiConsole.MarkupLine("[grey]The agent will autonomously continue until the objective is met, budget is exhausted, or you type !goal clear.[/]");
+
+                return Task.FromResult($"Goal activated: {Markup.Escape(objective)}");
+            }},
+
             new Command { Name = "exit", Description = "Exit the CLI application", Handler = (a, sp) => {
                 return Task.FromResult("System is shutting down... Goodbye!");
             }},

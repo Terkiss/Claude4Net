@@ -1,15 +1,62 @@
-Terukirdo Trajectory
-====================
+2026-07-13: Completed Terukirdo v5.3 Runtime-First Integration Improvement.
+- Migrated custom agents to .agents/agents/<name>/agent.md with YAML frontmatter.
+- Updated hooks.json and redesigned PreToolUse, PostToolUse, and Stop hooks.
+- Created JSON Schemas under .agents/schemas/ and validation policies under docs/harness/.
+- Refined skill indexer to only index top-level SKILL.md, and added pure-Python lexical search fallback.
+- Replaced verify.ps1 scripts to route to run_quality_gate.py cross-platform engine.
+- Created Terukirdo_Protocol_v5.3.md candidate and canonical handoff files.
+- Isolated self-evolution rollout in temp directory, outputting reports/patches to artifacts/self-evolution/.
+- Created safety, evidence, and documentation rules in .agents/rules/ and cleaned up AGENTS.md.
+- Verified all modifications with 19 passing tests in tests/harness/.
 
-2026-07-12
-- Read the Claude4Net repository structure and identified the CLI -> Runtime AgentLoop -> Provider -> ToolOrchestrator flow.
-- Completed repository hygiene work: removed build/analyzer warnings, added generated-artifact ignore rules, and rewrote README.md as readable UTF-8 documentation.
-- Rewrote the CLI service-registration comments in Korean; legacy provider/registry files still require a dedicated encoding-safe comment migration.
-- Verified `dotnet build Claude4Net.slnx --no-restore` with 0 warnings and 0 errors.
-- Verified targeted tests (44 passed) and the full Claude4Net test project.
-- Committed the repository state as `a1a5e1f` (`chore: consolidate repository harness and provider updates`).
-- Pushed the commit to `origin/experiment`.
-- Created the initial memory and trajectory files because they were previously absent.
-- Added `docs/Terukirdo_memory.txt` as the durable project-memory file required by AGENTS.md.
-- Reviewed the insight-based extension design and found the release gate failing because tracked `.resources/` fixtures had been deleted.
-- Restored `.resources/PandasDbTool` and `.resources/weather_search`, rebuilt so test output includes the fixtures, and verified all 651 tests plus the full release gate.
+2026-07-18: GLM (Zhipu AI) 프로바이더 추가.
+- GlmProvider.cs 신규 작성: ILLMProvider + IEmbeddingProvider 직접 구현 (독립 클래스)
+  - OpenAI 호환 SSE 스트리밍, function calling, 툴콜 누적
+  - Anthropic tool_result → OpenAI tool 응답 변환
+  - GLM 임베딩 API (/embeddings) 지원
+  - AuthManager(api_key.json) 기반 인증
+- GlmProviderFactory 추가 (ProviderFactory.cs)
+- GLM descriptor 등록 (ProviderRegistry.cs, 128K 컨텍스트)
+- SystemPromptBuilder에 GLM 전용 프로토콜 분기 추가
+- CliServiceRegistration.cs에 GlmProviderFactory DI 등록
+- CommandRegistry.cs !login 도움말에 glm 추가
+- GlmProviderTests.cs: 16개 테스트 작성 (팩토리, 히스토리, 레지스트리 통합)
+- 검증: dotnet build 0 에러, GLM 테스트 16/16 통과, 프로바이더 테스트 88/88 통과
+- 커밋: dee46c2 (push 미수행)
+- 설계 결정(주인님 확정): 클래스 1개 = 전용 프로바이더 1개. API 키는 api_key.json(!login) 사용.
+
+=========================================
+[$(date +'%Y-%m-%d %H:%M:%S')] Feature Completion: Autonomous Goal Loop (!goal)
+=========================================
+- 구현 완료: 자율 연속 실행(Autonomous Continuation) 루프 기능 (!goal 명령어)
+- 수정 내역:
+  * Claude4Net.SDK/Messaging.cs : `ChannelBroker`의 `PendingCount` 프로퍼티 원자적(Atomic) 카운팅(`_pendingCount`)으로 수정하여 특정 환경에서의 `NotSupportedException` 버그 해결.
+  * Claude4Net.Tests/GoalDispatcherTests.cs : 동기 블로킹 방식의 테스트 코드를 비동기(`await`) 방식으로 리팩토링.
+  * ad-hoc 검증 (dotnet test) 완료. (GoalDispatcher 관련 17개 테스트 통과)
+- Architecture Flow:
+!goal objective
+       │
+       ▼
+스레드 Goal 상태 생성
+status = active
+       │
+       ▼
+ 작업 턴 실행
+       │
+       ▼
+턴 종료 이벤트
+       │
+       ▼
+Runtime Dispatcher 검사
+ ├─ Goal이 active인가?
+ ├─ 현재 스레드가 idle인가?
+ ├─ 대기 중인 사용자 입력이 없는가?
+ ├─ 다른 작업이 실행 중이지 않은가?
+ ├─ 예산이 남았는가?
+ └─ 직전 자동 턴이 의미 있는 작업을 했는가?
+       │
+       ▼
+내부 continuation prompt 삽입
+       │
+       ▼
+다음  턴 실행

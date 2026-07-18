@@ -35,6 +35,8 @@ namespace Claude4Net.SDK
         bool TryWrite(InputContext context);
         /// <summary> 브로커로부터 컨텍스트를 비동기적으로 읽어옵니다. </summary>
         ValueTask<InputContext> ReadAsync(CancellationToken cancellationToken = default);
+        /// <summary> 큐에 대기 중인 입력 수. GoalDispatcher가 사용자 입력 대기 여부를 판단하는 데 사용. </summary>
+        int PendingCount => 0;
     }
 
     /// <summary>
@@ -43,6 +45,8 @@ namespace Claude4Net.SDK
     public class ChannelBroker : IInputBroker
     {
         private readonly Channel<InputContext> _channel;
+
+        private int _pendingCount;
 
         public ChannelBroker()
         {
@@ -57,13 +61,23 @@ namespace Claude4Net.SDK
         /// <summary> 채널에 입력을 추가합니다. </summary>
         public bool TryWrite(InputContext context)
         {
-            return _channel.Writer.TryWrite(context);
+            if (_channel.Writer.TryWrite(context))
+            {
+                Interlocked.Increment(ref _pendingCount);
+                return true;
+            }
+            return false;
         }
 
         /// <summary> 채널에서 입력을 대기하여 읽어옵니다. </summary>
         public async ValueTask<InputContext> ReadAsync(CancellationToken cancellationToken = default)
         {
-            return await _channel.Reader.ReadAsync(cancellationToken);
+            var result = await _channel.Reader.ReadAsync(cancellationToken);
+            Interlocked.Decrement(ref _pendingCount);
+            return result;
         }
+
+        /// <summary> 큐에 대기 중인 입력 수 </summary>
+        public int PendingCount => _pendingCount;
     }
 }

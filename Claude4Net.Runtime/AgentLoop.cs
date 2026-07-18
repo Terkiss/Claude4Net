@@ -35,6 +35,10 @@ namespace Claude4Net.Runtime
         private long _currentVersion = 0;
         private readonly OscillationDetector _oscillationDetector = new();
 
+        // ── Goal 자율 루프 추적 필드 ──
+        private string _lastResponseText = string.Empty;
+        private int _lastTurnToolCallCount = 0;
+
         /// <summary>
         /// AgentLoop의 인스턴스를 초기화합니다.
         /// </summary>
@@ -214,6 +218,35 @@ namespace Claude4Net.Runtime
                     // 7. 사고-행동-관찰 루프 실행
                     using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, context.CancellationToken);
                     await RunAsync(promptWithContext, context.Output, provider, decision.SelectedModel, context.Approval, linkedCts.Token);
+
+                    // 8. Goal 자율 연속 실행 (Autonomous Continuation)
+                    if (AppState.ActiveGoal != null && AppState.ActiveGoal.IsActive)
+                    {
+                        // 턴 결과로 Goal 상태 갱신
+                        GoalDispatcher.UpdateTurnResult(_lastTurnToolCallCount, _lastResponseText.Length);
+                        GoalDispatcher.CheckCompletionMarkers(_lastResponseText);
+
+                        if (AppState.ActiveGoal.IsActive)
+                        {
+                            // 사용자 입력이 대기 중이지 않은 경우에만 continuation 주입
+                            bool hasPendingUserInput = _broker.PendingCount > 0;
+                            if (GoalDispatcher.TryContinue(_broker, hasPendingUserInput))
+                            {
+                                // continuation 주입됨 — 다음 턴이 자동으로 실행됨
+                                continue;
+                            }
+                        }
+
+                        // Goal이 완료/정지/실패한 경우
+                        if (AppState.ActiveGoal != null)
+                        {
+                            var status = AppState.ActiveGoal.Status;
+                            var objective = AppState.ActiveGoal.Objective;
+                            AnsiConsole.MarkupLine($"[bold {(status == GoalStatus.Completed ? "green" : "yellow")}]Goal {status}:[/] {Markup.Escape(objective)}");
+                            if (status != GoalStatus.Active)
+                                AppState.ActiveGoal = null;
+                        }
+                    }
 
                     Console.Write("\n> ");
                 }
@@ -862,6 +895,7 @@ namespace Claude4Net.Runtime
                     if (turnTextBuilder.Length > 0)
                     {
                         lastTurnResponse = turnTextBuilder.ToString();
+                        _lastTurnToolCallCount = toolCalls.Count;
 
                         // If observer is NullAgentRunObserver, we are in legacy mode and need the full output write.
                         // If a real observer is present, deltas were already reported during streaming,
@@ -1095,6 +1129,10 @@ namespace Claude4Net.Runtime
             {
                 DryRunEngine.RenderReport();
             }
+
+            // Goal 자율 루프 추적: 마지막 응답 텍스트 저장
+            _lastResponseText = lastTurnResponse;
+
             await ReportAsync(new RunCompletedEvent(AppState.SessionId, sw.Elapsed));
         }
 
