@@ -106,6 +106,7 @@ public static class CliServiceRegistration
         services.AddSingleton<IProviderFactory, OllamaProviderFactory>();
         services.AddSingleton<IProviderFactory, GeminiCliProviderFactory>();
         services.AddSingleton<IProviderFactory, AntigravityCliProviderFactory>();
+        services.AddSingleton<IProviderFactory, GlmProviderFactory>();
         services.AddSingleton<IProviderFactory, OpenAiCompatProviderFactory>();
     }
 }

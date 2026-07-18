@@ -172,6 +172,43 @@ namespace Claude4Net.Runtime
 
             Register(new ProviderDescriptor
             {
+                Id = "glm",
+                Label = "Zhipu GLM (智谱清言)",
+                TransportKind = "openai-compat",
+                Endpoint = Claude4Net.Api.GlmProvider.DefaultEndpoint,
+                DefaultModels = new ProviderDefaultModels
+                {
+                    Small = Claude4Net.Api.GlmProvider.DefaultSmallModel,
+                    Large = Claude4Net.Api.GlmProvider.DefaultLargeModel
+                },
+                Capabilities = new ProviderCapabilities
+                {
+                    ToolCalling = true,
+                    Vision = true,
+                    ThoughtSignature = false,
+                    Streaming = true,
+                    Embeddings = true,
+                    Local = false
+                },
+                Auth = new ProviderAuth
+                {
+                    Mode = "api-key",
+                    EnvVars = new[] { "ZHIPUAI_API_KEY", "GLM_API_KEY" }
+                },
+                CostScore = 0.3,
+                SupportedCategories = new[]
+                {
+                    RoutingCategory.QuickFix,
+                    RoutingCategory.DeepCode,
+                    RoutingCategory.Planner,
+                    RoutingCategory.Verifier,
+                    RoutingCategory.CheapUtility
+                },
+                ContextWindowSize = Claude4Net.Api.GlmProvider.DefaultContextWindowSize
+            });
+
+            Register(new ProviderDescriptor
+            {
                 Id = "gemini-cli",
                 Label = "Gemini CLI (파기 - 오래된 버전, antigravity-cli 권장)",
                 TransportKind = "cli",

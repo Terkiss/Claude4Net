@@ -15,23 +15,23 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Claude4Net.Runtime
 {
     /// <summary>
-    /// LLM ?�로바이?��? ?�성?�기 ?�한 ?�토�??�터?�이?�입?�다.
+    /// LLM ?�로바이?��? ?�성?�기 ?�한 ?�토�??�터?�이?�입?�다.
     /// </summary>
     public interface IProviderFactory
     {
         /// <summary>
-        /// 지?�된 ?�로바이???�스?�립?��? ?�성?????�는지 ?��?�?결정?�니??
+        /// 지?�된 ?�로바이???�스?�립?��? ?�성?????�는지 ?��?�?결정?�니??
         /// </summary>
         bool CanCreate(ProviderDescriptor descriptor);
 
         /// <summary>
-        /// ?�스?�립???�보�?기반?�로 LLM ?�로바이???�스?�스�??�성?�니??
+        /// ?�스?�립???�보�?기반?�로 LLM ?�로바이???�스?�스�??�성?�니??
         /// </summary>
         ILLMProvider Create(ProviderDescriptor descriptor, IServiceProvider serviceProvider);
     }
 
     /// <summary>
-    /// Anthropic Claude ?�로바이???�성???�당?�는 ?�토리입?�다.
+    /// Anthropic Claude ?�로바이???�성???�당?�는 ?�토리입?�다.
     /// </summary>
     public class AnthropicProviderFactory : IProviderFactory
     {
@@ -49,7 +49,7 @@ namespace Claude4Net.Runtime
     }
 
     /// <summary>
-    /// Google Gemini Native ?�로바이???�성???�당?�는 ?�토리입?�다.
+    /// Google Gemini Native ?�로바이???�성???�당?�는 ?�토리입?�다.
     /// </summary>
     public class GeminiProviderFactory : IProviderFactory
     {
@@ -67,7 +67,7 @@ namespace Claude4Net.Runtime
     }
 
     /// <summary>
-    /// Ollama ?�로바이???�성???�당?�는 ?�토리입?�다.
+    /// Ollama ?�로바이???�성???�당?�는 ?�토리입?�다.
     /// </summary>
     public class OllamaProviderFactory : IProviderFactory
     {
@@ -86,7 +86,7 @@ namespace Claude4Net.Runtime
     }
 
     /// <summary>
-    /// Gemini CLI ?�로바이???�성???�당?�는 ?�토리입?�다.
+    /// Gemini CLI ?�로바이???�성???�당?�는 ?�토리입?�다.
     /// </summary>
     public class GeminiCliProviderFactory : IProviderFactory
     {
@@ -104,7 +104,7 @@ namespace Claude4Net.Runtime
     }
 
     /// <summary>
-    /// Antigravity CLI ?�로바이???�성???�당?�는 ?�토리입?�다.
+    /// Antigravity CLI ?�로바이???�성???�당?�는 ?�토리입?�다.
     /// </summary>
     public class AntigravityCliProviderFactory : IProviderFactory
     {
@@ -122,7 +122,34 @@ namespace Claude4Net.Runtime
     }
 
     /// <summary>
-    /// ?�반 OpenAI ?�환 API ?�로바이???�성???�당?�는 ?�토리입?�다.
+    /// Zhipu AI GLM 프로바이더 생성을 담당하는 팩토리입니다.
+    /// GLM은 OpenAI 호환이지만 전용 <see cref="GlmProvider"/>를 사용하여
+    /// 기본 엔드포인트·모델명을 자동 적용합니다.
+    /// </summary>
+    public class GlmProviderFactory : IProviderFactory
+    {
+        public bool CanCreate(ProviderDescriptor descriptor)
+        {
+            if (descriptor == null) return false;
+            return descriptor.Id.Equals("glm", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public ILLMProvider Create(ProviderDescriptor descriptor, IServiceProvider serviceProvider)
+        {
+            if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
+
+            var httpClientFactory = serviceProvider.GetService<IHttpClientFactory>();
+            var httpClient = httpClientFactory != null
+                ? httpClientFactory.CreateClient(descriptor.Id)
+                : new HttpClient();
+            var toolRegistry = serviceProvider.GetRequiredService<IToolRegistry>();
+
+            return new GlmProvider(httpClient, toolRegistry);
+        }
+    }
+
+    /// <summary>
+    /// 일반 OpenAI 호환 API 프로바이더 생성을 담당하는 팩토리입니다.
     /// </summary>
     public class OpenAiCompatProviderFactory : IProviderFactory
     {

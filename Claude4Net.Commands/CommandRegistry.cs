@@ -627,7 +627,7 @@ namespace Claude4Net.Commands
             // --- [?증 ?모델 관? ---
 
             /// <summary> 로그?? ?정 ?로바이??Claude, Gemini ????API ?? ?정?거???성?합?다. </summary>
-            new Command { Name = "login", Description = "Log in to a provider (gemini, claude, ollama, gemini-cli)", Handler = async (args, sp) => {
+            new Command { Name = "login", Description = "Log in to a provider (gemini, claude, glm, ollama, gemini-cli)", Handler = async (args, sp) => {
                 var parts = args.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
 
                 string provider = parts[0].ToLowerInvariant();
