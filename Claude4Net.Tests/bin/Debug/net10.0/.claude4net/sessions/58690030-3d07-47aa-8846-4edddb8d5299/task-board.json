@@ -1,0 +1,50 @@
+{
+  "SessionId": "58690030-3d07-47aa-8846-4edddb8d5299",
+  "Tasks": [
+    {
+      "Id": "T-REG-1",
+      "Title": "Test Task",
+      "Description": "Description",
+      "Status": "Planning",
+      "AssignedAgent": null,
+      "Progress": 10,
+      "Dependencies": [],
+      "ExtraData": {
+        "Phase": "Planning",
+        "Blockers": [
+          "Gate: DesignDoc ",
+          "Gate: ResourceCheck ",
+          "Review: Pending"
+        ]
+      }
+    },
+    {
+      "Id": "T1",
+      "Title": "First",
+      "Description": "",
+      "Status": "Planning",
+      "AssignedAgent": null,
+      "Progress": 0,
+      "Dependencies": [],
+      "ExtraData": {
+        "Phase": "Completed",
+        "Blockers": []
+      }
+    },
+    {
+      "Id": "T2",
+      "Title": "Second",
+      "Description": "",
+      "Status": "Planning",
+      "AssignedAgent": null,
+      "Progress": 0,
+      "Dependencies": [],
+      "ExtraData": {
+        "Phase": "Planning",
+        "Blockers": []
+      }
+    }
+  ],
+  "LastUpdatedAt": "2026-05-30T02:53:55.1376349Z",
+  "SchemaVersion": "1.0"
+}

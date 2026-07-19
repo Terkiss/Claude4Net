@@ -1,0 +1,12 @@
+{"Timestamp":"2026-05-30T02:46:35.9752717Z","AgentId":"gemini","Type":"UserPrompt","Message":"Hello","Data":null}
+{"Timestamp":"2026-05-30T02:46:36.1476631Z","AgentId":"gemini","Type":"ThinkingStart","Message":"Turn 1","Data":null}
+{"Timestamp":"2026-05-30T02:46:36.1527252Z","AgentId":"gemini","Type":"TextDelta","Message":"Hello world","Data":null}
+{"Timestamp":"2026-05-30T02:46:36.4092234Z","AgentId":"gemini","Type":"UserPrompt","Message":"test prompt","Data":null}
+{"Timestamp":"2026-05-30T02:46:36.4690807Z","AgentId":"gemini","Type":"ThinkingStart","Message":"Turn 1","Data":null}
+{"Timestamp":"2026-05-30T02:46:36.5098857Z","AgentId":"gemini","Type":"TextDelta","Message":"Final Response","Data":null}
+{"Timestamp":"2026-05-30T02:46:37.1701606Z","AgentId":"gemini","Type":"UserPrompt","Message":"test prompt","Data":null}
+{"Timestamp":"2026-05-30T02:46:37.4217736Z","AgentId":"gemini","Type":"ThinkingStart","Message":"Turn 1","Data":null}
+{"Timestamp":"2026-05-30T02:46:37.4486287Z","AgentId":"gemini","Type":"TextDelta","Message":"DeltaContent","Data":null}
+{"Timestamp":"2026-05-30T02:46:37.8314698Z","AgentId":"gemini","Type":"UserPrompt","Message":"test prompt","Data":null}
+{"Timestamp":"2026-05-30T02:46:37.8925805Z","AgentId":"gemini","Type":"ThinkingStart","Message":"Turn 1","Data":null}
+{"Timestamp":"2026-05-30T02:46:37.9067923Z","AgentId":"gemini","Type":"TextDelta","Message":"Final Response","Data":null}

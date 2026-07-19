@@ -1,0 +1,11 @@
+{
+  "SessionId": "test-session-k039-e6042b94",
+  "StartTime": "2026-05-24T13:52:54.1352875Z",
+  "Provider": "Mock",
+  "Model": "model",
+  "PermissionMode": 5,
+  "WorkspacePath": "D:\\Project\\CKP\\Test\\openclaude\\Claude4Net-App\\Claude4Net.Tests\\bin\\Debug\\net10.0\\",
+  "Status": "Active",
+  "Metadata": {},
+  "SchemaVersion": "1.0"
+}

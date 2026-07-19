@@ -183,7 +183,18 @@ namespace Claude4Net.Tests
             services.AddSingleton(mockProvider.Object);
             var serviceProvider = services.BuildServiceProvider();
 
-            var loop = new AgentLoop(mockOrchestrator.Object, serviceProvider, mockBroker.Object, mockRouter.Object);
+            var loop = new AgentLoop(
+                mockOrchestrator.Object,
+                serviceProvider,
+                mockBroker.Object,
+                mockRouter.Object,
+                new Claude4Net.Runtime.Services.RAGService(null),
+                new Claude4Net.Runtime.Services.TelemetryService(),
+                new Claude4Net.Runtime.Services.SelfHealingService(),
+                new Claude4Net.Runtime.Services.AppStateService(),
+                null, 
+                null, 
+                null);
 
             // Setup structured result from tool
             var structuredContent = new { Status = "Success", Files = new List<string> { "a.txt" } };

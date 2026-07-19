@@ -160,7 +160,7 @@ namespace Claude4Net.Tests
                         .ReturnsAsync(false); // Deny by default
 
             var services = new ServiceCollection().BuildServiceProvider();
-            var orchestrator = new ToolOrchestrator(new List<ITool>(), mockApproval.Object, services);
+            var orchestrator = ToolOrchestrator.CreateForTest(new List<ITool>(), mockApproval.Object, services);
             
             var tool = new Mock<ITool>();
             tool.Setup(t => t.Name).Returns("bash");

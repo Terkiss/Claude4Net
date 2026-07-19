@@ -1,5 +1,7 @@
 ﻿using System;
 using System.IO;
+using System.Net;
+using System.Net.Http.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR.Client;
 using Claude4Net.Dashboard;
@@ -17,6 +19,11 @@ namespace Claude4Net.Tests
         private readonly PermissionMode _originalPermissionMode;
         private readonly string _originalSessionId;
         private const int TestPort = 5082;
+        private string[] ServerArgs => new[]
+        {
+            "--DashboardAuth:TestAuth:Enabled=true",
+            $"--DashboardAuth:DataRoot={_tempWorkspace}"
+        };
 
         public K082DashboardUITests()
         {
@@ -45,16 +52,67 @@ namespace Claude4Net.Tests
         }
 
         [Fact]
+        public async Task AuthMe_WithFakeAuthHeaders_ShouldReturnCurrentDashboardUser()
+        {
+            await DashboardServer.StartAsync(ServerArgs, TestPort);
+
+            try
+            {
+                using var client = new HttpClient { BaseAddress = new Uri($"http://localhost:{TestPort}") };
+                client.DefaultRequestHeaders.Add("X-Test-Sub", "google-sub-k082");
+                client.DefaultRequestHeaders.Add("X-Test-Email", "approver@example.com");
+                client.DefaultRequestHeaders.Add("X-Test-Role", "Approver");
+
+                var user = await client.GetFromJsonAsync<DashboardUserDto>("/api/auth/me");
+
+                Assert.NotNull(user);
+                Assert.True(user.IsAuthenticated);
+                Assert.Equal("approver@example.com", user.Email);
+                Assert.Equal("Approver", user.Role);
+                Assert.True(user.CanApproveSkills);
+                Assert.False(user.CanRunRoutines);
+            }
+            finally
+            {
+                await DashboardServer.StopAsync();
+            }
+        }
+
+        [Fact]
+        public async Task ControlPlaneHub_WithoutAuth_ShouldRejectConnection()
+        {
+            await DashboardServer.StartAsync(ServerArgs, TestPort);
+
+            try
+            {
+                await using var connection = new HubConnectionBuilder()
+                    .WithUrl($"http://localhost:{TestPort}/controlPlaneHub")
+                    .Build();
+
+                await Assert.ThrowsAnyAsync<Exception>(() => connection.StartAsync());
+            }
+            finally
+            {
+                await DashboardServer.StopAsync();
+            }
+        }
+
+        [Fact]
         public async Task ControlPlaneHub_IsMappedAndAccessible_UnderControlPlaneHubUrl()
         {
             // Start the dashboard server on TestPort
-            await DashboardServer.StartAsync(Array.Empty<string>(), TestPort);
+            await DashboardServer.StartAsync(ServerArgs, TestPort);
 
             try
             {
                 // Create a connection to /controlPlaneHub
                 await using var connection = new HubConnectionBuilder()
-                    .WithUrl($"http://localhost:{TestPort}/controlPlaneHub")
+                    .WithUrl($"http://localhost:{TestPort}/controlPlaneHub", options =>
+                    {
+                        options.Headers.Add("X-Test-Sub", "google-sub-k082");
+                        options.Headers.Add("X-Test-Email", "operator@example.com");
+                        options.Headers.Add("X-Test-Role", "Operator");
+                    })
                     .Build();
 
                 await connection.StartAsync();
@@ -71,13 +129,18 @@ namespace Claude4Net.Tests
         public async Task ControlPlaneHub_InvokeMethods_ShouldReturnExpectedStructures()
         {
             // Start the dashboard server on TestPort
-            await DashboardServer.StartAsync(Array.Empty<string>(), TestPort);
+            await DashboardServer.StartAsync(ServerArgs, TestPort);
 
             try
             {
                 // Create a connection to /controlPlaneHub
                 await using var connection = new HubConnectionBuilder()
-                    .WithUrl($"http://localhost:{TestPort}/controlPlaneHub")
+                    .WithUrl($"http://localhost:{TestPort}/controlPlaneHub", options =>
+                    {
+                        options.Headers.Add("X-Test-Sub", "google-sub-k082");
+                        options.Headers.Add("X-Test-Email", "operator@example.com");
+                        options.Headers.Add("X-Test-Role", "Operator");
+                    })
                     .Build();
 
                 await connection.StartAsync();

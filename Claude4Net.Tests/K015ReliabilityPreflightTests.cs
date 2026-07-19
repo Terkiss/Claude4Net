@@ -37,7 +37,8 @@ namespace Claude4Net.Tests
             tool.Setup(t => t.ExecuteAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<System.Threading.CancellationToken>()))
                 .ReturnsAsync("should not execute");
 
-            var orchestrator = new ToolOrchestrator(new[] { tool.Object }, null, new ServiceCollection().BuildServiceProvider());
+            var services = new ServiceCollection();
+            var orchestrator = ToolOrchestrator.CreateForTest(new[] { tool.Object }, null, services.BuildServiceProvider());
             var request = new ToolUseRequest
             {
                 Id = "write-outside",
@@ -65,7 +66,8 @@ namespace Claude4Net.Tests
             tool.Setup(t => t.ExecuteAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<System.Threading.CancellationToken>()))
                 .ReturnsAsync("should not execute");
 
-            var orchestrator = new ToolOrchestrator(new[] { tool.Object }, null, new ServiceCollection().BuildServiceProvider());
+            var services = new ServiceCollection();
+            var orchestrator = ToolOrchestrator.CreateForTest(new[] { tool.Object }, null, services.BuildServiceProvider());
             var request = new ToolUseRequest
             {
                 Id = "write-workspace-no-handler",
@@ -97,7 +99,8 @@ namespace Claude4Net.Tests
             tool.Setup(t => t.ExecuteAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<System.Threading.CancellationToken>()))
                 .ReturnsAsync("executed");
 
-            var orchestrator = new ToolOrchestrator(new[] { tool.Object }, approval.Object, new ServiceCollection().BuildServiceProvider());
+            var services = new ServiceCollection();
+            var orchestrator = ToolOrchestrator.CreateForTest(new[] { tool.Object }, approval.Object, services.BuildServiceProvider());
             var request = new ToolUseRequest
             {
                 Id = "write-workspace-approved",

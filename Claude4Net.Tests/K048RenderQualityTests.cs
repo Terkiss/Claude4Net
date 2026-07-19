@@ -33,8 +33,8 @@ namespace Claude4Net.Tests
             services.AddSingleton(embeddingMock.Object);
 
             var sp = services.BuildServiceProvider();
-            var orchestratorMock = new Mock<ToolOrchestrator>(new List<ITool>(), approvalMock.Object, sp);
-            services.AddSingleton(orchestratorMock.Object);
+            // Provide real or mock orchestrator with all args
+            services.AddSingleton(ToolOrchestrator.CreateForTest(new List<ITool>(), approvalMock.Object, sp));
 
             return services.BuildServiceProvider();
         }

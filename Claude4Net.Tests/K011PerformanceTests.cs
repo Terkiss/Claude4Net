@@ -53,7 +53,7 @@ namespace Claude4Net.Tests
 
             var services = new ServiceCollection();
             var sp = services.BuildServiceProvider();
-            var orchestrator = new ToolOrchestrator(mockTools, null, sp);
+            var orchestrator = ToolOrchestrator.CreateForTest(mockTools, null, sp);
 
             var requests = mockTools.Select(t => new ToolUseRequest 
             { 

@@ -318,7 +318,7 @@ namespace Claude4Net.Tests
             services.AddSingleton(new Mock<IUserApprovalHandler>().Object);
             services.AddSingleton(new Mock<IEmbeddingProvider>().Object);
             var sp = services.BuildServiceProvider();
-            services.AddSingleton(new Mock<ToolOrchestrator>(new List<ITool>(), new Mock<IUserApprovalHandler>().Object, sp).Object);
+            services.AddSingleton(ToolOrchestrator.CreateForTest(new List<ITool>(), new Mock<IUserApprovalHandler>().Object, sp));
             return services.BuildServiceProvider();
         }
     }

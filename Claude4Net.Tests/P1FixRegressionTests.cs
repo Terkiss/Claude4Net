@@ -7,12 +7,15 @@ using System.Linq;
 using System.Collections.Generic;
 using Xunit;
 using Claude4Net.Runtime;
+using Claude4Net.Runtime.Services;
+using Claude4Net.Runtime.Handlers;
 using Claude4Net.Commands;
 using Claude4Net.SDK;
 using Claude4Net.SDK.Events;
 using Claude4Net.Api;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
+using Claude4Net.Runtime;
 
 namespace Claude4Net.Tests
 {
@@ -136,7 +139,7 @@ namespace Claude4Net.Tests
             services.AddSingleton(pipeline);
 
             var serviceProvider = services.BuildServiceProvider();
-            var orchestrator = new ToolOrchestrator(new ITool[] { new DummyTool() }, null, serviceProvider);
+            var orchestrator = ToolOrchestrator.CreateForTest(new ITool[] { new DummyTool() }, null, serviceProvider);
 
             var req = new ToolUseRequest { Id = "test-1", Name = "dummy_tool", Input = new { } };
             var result = await orchestrator.ExecuteToolAsync(req, new { });
@@ -156,7 +159,7 @@ namespace Claude4Net.Tests
             services.AddSingleton(new HookPipeline());
 
             var serviceProvider = services.BuildServiceProvider();
-            var orchestrator = new ToolOrchestrator(new ITool[] { new ErrorDummyTool() }, null, serviceProvider);
+            var orchestrator = ToolOrchestrator.CreateForTest(new ITool[] { new ErrorDummyTool() }, null, serviceProvider);
 
             var req = new ToolUseRequest { Id = "test-2", Name = "error_dummy_tool", Input = new { } };
             await orchestrator.ExecuteToolAsync(req, new { });
@@ -234,8 +237,7 @@ namespace Claude4Net.Tests
             services.AddSingleton<OllamaProvider>(sp => new Mock<OllamaProvider>(new System.Net.Http.HttpClient(), toolRegistry.Object).Object);
 
             var serviceProvider = services.BuildServiceProvider();
-            var orchestrator = new ToolOrchestrator(Enumerable.Empty<ITool>(), null, serviceProvider);
-
+            var orchestrator = ToolOrchestrator.CreateForTest(Enumerable.Empty<ITool>(), null, serviceProvider);
             string ws = Path.Combine(Path.GetTempPath(), "P1Fix-Resume-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(ws);
             AppState.CurrentCwd = ws;
@@ -251,10 +253,17 @@ namespace Claude4Net.Tests
                     Model = "claude-3-sonnet",
                     StartTime = DateTime.Now
                 });
-
-                // Drive the public input path through DummyBroker.
+            // Drive the public input path through DummyBroker.
                 var broker = new DummyBroker($"!resume {sessionId}");
-                var agent = new AgentLoop(orchestrator, serviceProvider, broker, serviceProvider.GetRequiredService<ISmartRouter>());
+                var agent = new Claude4Net.Runtime.AgentLoop(
+                    orchestrator, 
+                    serviceProvider, 
+                    broker, 
+                    serviceProvider.GetRequiredService<Claude4Net.SDK.ISmartRouter>(),
+                    new Claude4Net.Runtime.Services.RAGService(null),
+                    new Claude4Net.Runtime.Services.TelemetryService(),
+                    new Claude4Net.Runtime.Services.SelfHealingService(),
+                    new Claude4Net.Runtime.Services.AppStateService());
 
                 using var cts = new CancellationTokenSource();
 

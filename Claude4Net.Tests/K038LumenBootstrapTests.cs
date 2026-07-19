@@ -11,16 +11,16 @@ public class K038LumenBootstrapTests
     [Fact]
     public void CliOptions_Parse_BasicOptions()
     {
-        // Arrange
-        var args = new[] { "--dashboard", "--smoke-exit", "--legacy-cli" };
+        var args = new[] { "--smoke-exit", "--provider", "gemini", "--model", "test-model" };
 
         // Act
         var options = CliOptions.Parse(args);
 
         // Assert
-        Assert.True(options.StartDashboard);
         Assert.True(options.SmokeExit);
-        Assert.True(options.LegacyCli);
+        Assert.Equal("gemini", options.Provider);
+        Assert.Equal("test-model", options.Model);
+        Assert.Null(options.ValidationError);
     }
 
     [Fact]

@@ -70,7 +70,7 @@ namespace Claude4Net.Tests
 
             var services = new ServiceCollection();
             var sp = services.BuildServiceProvider();
-            var orchestrator = new ToolOrchestrator(new List<ITool>(), null, sp);
+            var orchestrator = ToolOrchestrator.CreateForTest(new List<ITool>(), null, sp);
 
             using var registry = new McpRegistry();
 

@@ -7,6 +7,7 @@ using Moq;
 using Claude4Net.SDK;
 using Claude4Net.SDK.Events;
 using Claude4Net.Runtime;
+using Claude4Net.Runtime.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Claude4Net.Tests
@@ -57,11 +58,12 @@ namespace Claude4Net.Tests
             AppState.CurrentCwd = _ws1;
             AppState.SessionId = "test-session";
 
-            var agent = new AgentLoop(
+            var agent = AgentLoop.CreateForTest(
                 mockOrchestrator.Object,
                 serviceProvider,
                 mockBroker.Object,
-                mockRouter.Object);
+                mockRouter.Object,
+                new AppStateService());
 
             // Act 1: Run in Workspace 1
             var mockOutput = new Mock<IOutputHandler>();

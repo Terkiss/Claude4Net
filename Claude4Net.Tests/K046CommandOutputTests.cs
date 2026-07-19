@@ -55,8 +55,7 @@ namespace Claude4Net.Tests
             var sp = services.BuildServiceProvider();
 
             // Provide real or mock orchestrator with all args
-            var orchestratorMock = new Mock<ToolOrchestrator>(new List<ITool>(), approvalMock.Object, sp);
-            services.AddSingleton(orchestratorMock.Object);
+            services.AddSingleton(ToolOrchestrator.CreateForTest(new List<ITool>(), approvalMock.Object, sp));
 
             return services.BuildServiceProvider();
         }

@@ -8,6 +8,7 @@ using Claude4Net.Cli.Ui.Events;
 using Claude4Net.Cli.Ui.Approval;
 using Claude4Net.SDK;
 using Claude4Net.Runtime;
+using Claude4Net.Runtime.Services;
 using Claude4Net.Dashboard;
 using Claude4Net.Api;
 using Microsoft.Extensions.DependencyInjection;
@@ -333,14 +334,22 @@ namespace Claude4Net.Cli.Ui
             while (!token.IsCancellationRequested)
             {
                 var broadcaster = DashboardServer.Services?.GetService<IAgentEventBroadcaster>();
+                
+                // DI에서 AgentLoop를 생성하되, 현재 인스턴스의 _observer를 수동으로 설정하거나
+                // 매번 새로운 인스턴스를 만들 때 필요한 서비스들을 직접 생성자에 넘깁니다.
+                // LumenUI 전용 옵저버를 넘겨야 하므로 여기서는 수동 주입 방식을 사용합니다.
                 var agent = new AgentLoop(
                     _serviceProvider.GetRequiredService<ToolOrchestrator>(),
                     _serviceProvider,
                     _broker,
                     _router,
-                    _serviceProvider.GetRequiredService<IEmbeddingProvider>(),
+                    _serviceProvider.GetRequiredService<RAGService>(),
+                    _serviceProvider.GetRequiredService<TelemetryService>(),
+                    _serviceProvider.GetRequiredService<Claude4Net.Runtime.Services.ISelfHealingService>(),
+                    _serviceProvider.GetRequiredService<Claude4Net.SDK.IAppState>(),
+                    _serviceProvider.GetService<IEmbeddingProvider>(),
                     broadcaster,
-                    _observer); // Constructor injection preferred over SetObserver
+                    _observer);
 
                 try
                 {

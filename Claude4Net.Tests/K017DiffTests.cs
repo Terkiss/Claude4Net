@@ -7,6 +7,7 @@ using Claude4Net.SDK;
 using Claude4Net.Tools;
 using Moq;
 using System.Collections.Generic;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Claude4Net.Tests
 {
@@ -79,7 +80,7 @@ namespace Claude4Net.Tests
                        .ReturnsAsync(true);
 
             var tool = new FileWriteTool();
-            var orchestrator = new ToolOrchestrator(new[] { tool }, mockHandler.Object, new Mock<IServiceProvider>().Object);
+            var orchestrator = ToolOrchestrator.CreateForTest(new[] { tool }, mockHandler.Object, new ServiceCollection().BuildServiceProvider());
 
             string filePath = Path.Combine(_tempWorkspace, "test.txt");
             var request = new ToolUseRequest
@@ -108,7 +109,7 @@ namespace Claude4Net.Tests
                        .ReturnsAsync(false);
 
             var tool = new FileWriteTool();
-            var orchestrator = new ToolOrchestrator(new[] { tool }, mockHandler.Object, new Mock<IServiceProvider>().Object);
+            var orchestrator = ToolOrchestrator.CreateForTest(new[] { tool }, mockHandler.Object, new ServiceCollection().BuildServiceProvider());
 
             string filePath = Path.Combine(_tempWorkspace, "denied.txt");
             var request = new ToolUseRequest
@@ -132,7 +133,7 @@ namespace Claude4Net.Tests
         {
             // Arrange
             var tool = new FileWriteTool();
-            var orchestrator = new ToolOrchestrator(new[] { tool }, null, new Mock<IServiceProvider>().Object);
+            var orchestrator = ToolOrchestrator.CreateForTest(new[] { tool }, null, new ServiceCollection().BuildServiceProvider());
 
             string filePath = Path.Combine(_tempWorkspace, "no-handler.txt");
             var request = new ToolUseRequest

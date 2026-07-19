@@ -49,7 +49,7 @@ namespace Claude4Net.Tests
 
             var writeTool = new FileWriteTool();
             var coreTools = new List<ITool> { writeTool };
-            var orchestrator = new ToolOrchestrator(coreTools, null, serviceProvider);
+            var orchestrator = ToolOrchestrator.CreateForTest(coreTools, null, serviceProvider);
 
             var request = new ToolUseRequest
             {
@@ -90,7 +90,7 @@ namespace Claude4Net.Tests
             var writeTool = new FileWriteTool();
             var readTool = new FileReadTool();
             var coreTools = new List<ITool> { writeTool, readTool };
-            var orchestrator = new ToolOrchestrator(coreTools, null, serviceProvider);
+            var orchestrator = ToolOrchestrator.CreateForTest(coreTools, null, serviceProvider);
 
             // Write virtually first
             var writeRequest = new ToolUseRequest

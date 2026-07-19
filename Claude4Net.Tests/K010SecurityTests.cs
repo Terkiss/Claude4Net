@@ -51,7 +51,7 @@ namespace Claude4Net.Tests
 
                 var services = new ServiceCollection();
                 var sp = services.BuildServiceProvider();
-                var orchestrator = new ToolOrchestrator(new[] { mockTool.Object }, null, sp);
+                var orchestrator = ToolOrchestrator.CreateForTest(new[] { mockTool.Object }, null, sp);
 
                 // 2. Act: Execute sensitive tool
                 var request = new ToolUseRequest { Id = "test-1", Name = "sensitive_test_tool", Input = new Dictionary<string, object> { ["path"] = "test.txt" } };

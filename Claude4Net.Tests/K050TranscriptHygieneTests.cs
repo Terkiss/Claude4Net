@@ -89,12 +89,12 @@ namespace Claude4Net.Tests
             var mockObserver = new Mock<IAgentRunObserver>();
 
             // Correctly instantiate ToolOrchestrator
-            var orchestrator = new ToolOrchestrator(Enumerable.Empty<ITool>(), null, mockServiceProvider.Object);
+            var orchestrator = ToolOrchestrator.CreateForTest(Enumerable.Empty<ITool>(), null, mockServiceProvider.Object);
 
             // Set AppState
             AppState.CurrentCwd = AppContext.BaseDirectory;
 
-            var agent = new AgentLoop(orchestrator, mockServiceProvider.Object, mockBroker.Object, mockRouter.Object, null, null, mockObserver.Object);
+            var agent = AgentLoop.CreateForTest(orchestrator, mockServiceProvider.Object, mockBroker.Object, mockRouter.Object, new Claude4Net.Runtime.Services.AppStateService(), observer: mockObserver.Object);
 
             // Mock LLM provider
             var mockProvider = new Mock<ILLMProvider>();
@@ -169,10 +169,10 @@ namespace Claude4Net.Tests
             var mockServiceProvider = new Mock<IServiceProvider>();
             var mockBroker = new Mock<IInputBroker>();
             var mockRouter = new Mock<ISmartRouter>();
-            var orchestrator = new ToolOrchestrator(Enumerable.Empty<ITool>(), null, mockServiceProvider.Object);
+            var orchestrator = ToolOrchestrator.CreateForTest(Enumerable.Empty<ITool>(), null, mockServiceProvider.Object);
 
             // Legacy mode: Default constructor uses NullAgentRunObserver
-            var agent = new AgentLoop(orchestrator, mockServiceProvider.Object, mockBroker.Object, mockRouter.Object);
+            var agent = AgentLoop.CreateForTest(orchestrator, mockServiceProvider.Object, mockBroker.Object, mockRouter.Object, new Claude4Net.Runtime.Services.AppStateService());
 
             var mockProvider = new Mock<ILLMProvider>();
             mockProvider.Setup(p => p.Name).Returns("Mock");
@@ -200,10 +200,10 @@ namespace Claude4Net.Tests
             var mockBroker = new Mock<IInputBroker>();
             var mockRouter = new Mock<ISmartRouter>();
             var mockObserver = new Mock<IAgentRunObserver>();
-            var orchestrator = new ToolOrchestrator(Enumerable.Empty<ITool>(), null, mockServiceProvider.Object);
+            var orchestrator = ToolOrchestrator.CreateForTest(Enumerable.Empty<ITool>(), null, mockServiceProvider.Object);
 
             // Observer mode: Inject non-null observer
-            var agent = new AgentLoop(orchestrator, mockServiceProvider.Object, mockBroker.Object, mockRouter.Object, null, null, mockObserver.Object);
+            var agent = AgentLoop.CreateForTest(orchestrator, mockServiceProvider.Object, mockBroker.Object, mockRouter.Object, new Claude4Net.Runtime.Services.AppStateService(), observer: mockObserver.Object);
 
             var mockProvider = new Mock<ILLMProvider>();
             mockProvider.Setup(p => p.Name).Returns("Mock");

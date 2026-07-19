@@ -134,12 +134,12 @@ namespace Claude4Net.Tests
 
             bool result = GoalDispatcher.TryContinue(broker, false);
 
-            Assert.True(result);
-            // continuation이 큐에 주입되었는지 확인
-            Assert.Equal(1, broker.PendingCount);
+            // TryWrite가 성공해야 함
+            Assert.True(result, "TryContinue should return true when all conditions are met");
 
-            // 큐에서 읽어서 내용 확인
+            // continuation이 큐에서 읽히는지 확인 (PendingCount 대신 ReadAsync로 검증)
             var context = await broker.ReadAsync(CancellationToken.None);
+            Assert.NotNull(context);
             Assert.Contains("AUTONOMOUS CONTINUATION", context.Text);
             Assert.Contains("do work", context.Text);
         }

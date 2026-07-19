@@ -1,12 +1,16 @@
 using System;
 using System.Net.Http;
+using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
 using Claude4Net.SDK;
 using Claude4Net.Runtime;
 using Claude4Net.Api;
 using Claude4Net.Tools;
 using Claude4Net.Commands;
+using Claude4Net.Runtime.Handlers;
 using Claude4Net.Discord;
+using Claude4Net.Dashboard;
+using RuntimeServices = Claude4Net.Runtime.Services;
 
 namespace Claude4Net.Cli.Bootstrap;
 
@@ -25,11 +29,21 @@ public static class CliServiceRegistration
         // 외부 API 호출에 사용하는 HTTP 클라이언트
         services.AddHttpClient();
 
-        // 런타임 서비스
+        // 런타임 인프라 서비스
         services.AddSingleton<ProviderRegistry>(sp => ProviderRegistry.CreateWithDefaults());
         services.AddSingleton<HookPipeline>();
         services.AddSingleton<AuditTrailService>(sp => new AuditTrailService(maxEntries: 100));
         services.AddSingleton<MemoryStrategyManager>(sp => MemoryStrategyManager.CreateWithDefaults());
+        
+        // --- 리팩토링 신규 서비스 (Core Infrastructure) ---
+        services.AddSingleton<RuntimeServices.RAGService>();
+        services.AddSingleton<RuntimeServices.TelemetryService>();
+        services.AddSingleton<RuntimeServices.AppStateService>();
+        services.AddSingleton<Claude4Net.SDK.IAppState>(sp => sp.GetRequiredService<RuntimeServices.AppStateService>());
+        services.AddSingleton<RuntimeServices.ISelfHealingService, RuntimeServices.SelfHealingService>();
+        services.AddSingleton<RuntimeServices.ToolSecurityService>();
+        services.AddSingleton<RuntimeServices.PluginLoader>();
+        services.AddSingleton<IToolRegistry, RuntimeServices.ToolRegistry>(sp => new RuntimeServices.ToolRegistry(sp.GetServices<ITool>()));
 
         // 메시징 서비스
         services.AddSingleton<IInputBroker, ChannelBroker>();
@@ -37,7 +51,7 @@ public static class CliServiceRegistration
         // Discord 연동
         services.AddSingleton<DiscordListenerService>();
 
-        // 도구 레지스트리와 도구 서비스
+        // 도구 구현체 등록
         services.AddSingleton<LspClient>();
         services.AddSingleton<ITool, LspTool>();
         services.AddSingleton<ITool, BashTool>();
@@ -50,7 +64,7 @@ public static class CliServiceRegistration
         services.AddSingleton<ISmartRouter, SmartRouter>();
         services.AddSingleton<IUserApprovalHandler, CliUserApprovalHandler>();
 
-        // 스킬 레지스트리
+        // 스킬 관리 서비스
         services.AddSingleton<SkillRegistryService>(sp =>
         {
             string ws = AppState.CurrentCwd ?? AppState.SystemBaseDir;
@@ -63,11 +77,21 @@ public static class CliServiceRegistration
             return new SkillProposalService(registry);
         });
 
-        services.AddSingleton<ToolOrchestrator>(sp => new ToolOrchestrator(
-            sp.GetServices<ITool>(),
-            sp.GetService<IUserApprovalHandler>(),
-            sp));
-        services.AddSingleton<IToolRegistry>(sp => sp.GetRequiredService<ToolOrchestrator>());
+        // ToolOrchestrator 등록
+        services.AddSingleton<ToolOrchestrator>();
+
+        services.AddTransient<AgentLoop>(sp => new AgentLoop(
+            sp.GetRequiredService<ToolOrchestrator>(),
+            sp,
+            sp.GetRequiredService<IInputBroker>(),
+            sp.GetRequiredService<ISmartRouter>(),
+            sp.GetRequiredService<RuntimeServices.RAGService>(),
+            sp.GetRequiredService<RuntimeServices.TelemetryService>(),
+            sp.GetRequiredService<RuntimeServices.ISelfHealingService>(),
+            sp.GetRequiredService<Claude4Net.SDK.IAppState>(),
+            sp.GetService<IEmbeddingProvider>(),
+            DashboardServer.Services?.GetService<IAgentEventBroadcaster>(),
+            null));
 
         // LLM provider 등록
         services.AddSingleton<AnthropicClient>(sp =>

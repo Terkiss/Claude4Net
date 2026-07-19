@@ -37,8 +37,8 @@ public class K055LumenApprovalFrameTests
         services.AddSingleton<ILumenTerminalRenderer>(new Mock<ILumenTerminalRenderer>().Object);
 
         var sp = services.BuildServiceProvider();
-        var orchestratorMock = new Mock<ToolOrchestrator>(new List<ITool>(), approvalMock.Object, sp);
-        services.AddSingleton(orchestratorMock.Object);
+        var orchestrator = ToolOrchestrator.CreateForTest(new List<ITool>(), approvalMock.Object, sp);
+        services.AddSingleton(orchestrator);
 
         return services.BuildServiceProvider();
     }

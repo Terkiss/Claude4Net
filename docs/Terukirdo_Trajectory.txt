@@ -60,3 +60,19 @@ Runtime Dispatcher 검사
        │
        ▼
 다음  턴 실행
+
+=========================================
+[$(date +'%Y-%m-%d %H:%M:%S')] Large Scale Refactoring: Core and Command Decoupling
+=========================================
+- 구현 완료: AgentLoop 및 CommandRegistry 모듈화 및 책임 분리
+- 리팩토링 상세 내역:
+  * Claude4Net.Commands/CommandRegistry.cs : 비대한 명령어 로직을 도메인별 핸들러로 위임 (~2000 LOC -> 98 LOC).
+  * Claude4Net.Runtime/AgentLoop.cs : RAG, Telemetry, System Command 처리 로직을 외부 서비스 및 핸들러로 분리하여 복잡도 감소.
+  * 신규 서비스 추가:
+    - Claude4Net.Runtime/Services/RAGService.cs : 임베딩 검색, 키워드 추출, 대화 기록 저장 엔진.
+    - Claude4Net.Runtime/Services/TelemetryService.cs : 실행 궤적(Trajectories) 관리 및 통계 분석 엔진.
+  * 명령어 핸들러 이동 (Modularization):
+    - Claude4Net.Runtime/Handlers/ 디렉토리로 핸들러 로직 이동 및 네임스페이스 통합 (System, File, Provider, AgentGoal, SpecVerify).
+- 검증:
+  * 전체 솔루션 클린 빌드 (dotnet build --no-incremental) 성공.
+  * GoalDispatcher 관련 기능 테스트 (17개) 정상 통과.

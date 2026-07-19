@@ -48,7 +48,7 @@ namespace Claude4Net.Tests
             serviceProviderMock.Setup(s => s.GetService(typeof(OllamaProvider))).Returns(providerMock.Object);
             serviceProviderMock.Setup(s => s.GetService(typeof(ClaudeService))).Returns(providerMock.Object);
 
-            var loop = new AgentLoop(orchestratorMock.Object, serviceProviderMock.Object, brokerMock.Object, routerMock.Object, observer: observerMock.Object);
+            var loop = AgentLoop.CreateForTest(orchestratorMock.Object, serviceProviderMock.Object, brokerMock.Object, routerMock.Object, new Claude4Net.Runtime.Services.AppStateService(), observer: observerMock.Object);
 
             var outputMock = new Mock<IOutputHandler>();
             

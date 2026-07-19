@@ -100,7 +100,7 @@ namespace Claude4Net.Tests
             toolMock.Setup(t => t.GetPreviewAsync(It.IsAny<string>()))
                     .ReturnsAsync(new FileDiffPreview { DiffContent = "Patch content" });
 
-            var orchestrator = new ToolOrchestrator(new[] { toolMock.Object }, null, spMock.Object);
+            var orchestrator = ToolOrchestrator.CreateForTest(new[] { toolMock.Object }, null, spMock.Object);
 
             string fileName = "write-test.txt";
             await File.WriteAllTextAsync(Path.Combine(_tempWorkspace, fileName), "Old");
@@ -143,7 +143,7 @@ namespace Claude4Net.Tests
             toolMock.Setup(t => t.ExecuteAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<System.Threading.CancellationToken>()))
                     .ReturnsAsync(new { status = "success" });
 
-            var orchestrator = new ToolOrchestrator(new[] { toolMock.Object }, null, spMock.Object);
+            var orchestrator = ToolOrchestrator.CreateForTest(new[] { toolMock.Object }, null, spMock.Object);
 
             string fileName = "edit-test.txt";
             await File.WriteAllTextAsync(Path.Combine(_tempWorkspace, fileName), "Line 1\nLine 2");

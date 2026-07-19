@@ -3,7 +3,11 @@ using System.Collections.Generic;
 using Xunit;
 using Claude4Net.SDK;
 using Claude4Net.SDK.Events;
-using Claude4Net.Runtime;
+using FailurePattern = Claude4Net.Runtime.Services.FailurePattern;
+using ErrorClassifier = Claude4Net.Runtime.Services.ErrorClassifier;
+using RefinedErrorCategory = Claude4Net.Runtime.Services.RefinedErrorCategory;
+using RecoveryPrescription = Claude4Net.Runtime.Services.RecoveryPrescription;
+using SelfHealingService = Claude4Net.Runtime.Services.SelfHealingService;
 
 namespace Claude4Net.Tests
 {
@@ -14,19 +18,19 @@ namespace Claude4Net.Tests
         public void ErrorClassifier_ShouldRefineCategoriesCorrectly()
         {
             // Json Schema Mismatch
-            var jsonErrorCat = Claude4Net.Runtime.ErrorClassifier.Classify("tool", "JSON Schema mismatch: required parameter 'name' is missing.");
+            var jsonErrorCat = ErrorClassifier.Classify("tool", "JSON Schema mismatch: required parameter 'name' is missing.");
             Assert.Equal(RefinedErrorCategory.JsonSchemaMismatch, jsonErrorCat);
 
             // Rate Limit
-            var rateLimitCat = Claude4Net.Runtime.ErrorClassifier.Classify("claude", "Rate limit exceeded. Too many requests. HTTP 429.");
+            var rateLimitCat = ErrorClassifier.Classify("claude", "Rate limit exceeded. Too many requests. HTTP 429.");
             Assert.Equal(RefinedErrorCategory.RateLimit, rateLimitCat);
 
             // Context Limit Over
-            var contextLimitCat = Claude4Net.Runtime.ErrorClassifier.Classify("gemini", "Maximum tokens exceeded. Context limit reached.");
+            var contextLimitCat = ErrorClassifier.Classify("gemini", "Maximum tokens exceeded. Context limit reached.");
             Assert.Equal(RefinedErrorCategory.ContextLimitOver, contextLimitCat);
 
             // Symlink Escape Violation
-            var symlinkCat = Claude4Net.Runtime.ErrorClassifier.Classify("bash", "Security Exception: Symlink escape path detected. Access outside workspace denied.");
+            var symlinkCat = ErrorClassifier.Classify("bash", "Security Exception: Symlink escape path detected. Access outside workspace denied.");
             Assert.Equal(RefinedErrorCategory.SymlinkEscapeViolation, symlinkCat);
         }
 
@@ -63,32 +67,31 @@ namespace Claude4Net.Tests
         [Fact]
         public void SelfHealingService_ClassifyPattern_ShouldTriggerOnRecoveryPrescribedEvent()
         {
-            var service = SelfHealingService.Instance;
+            var service = new SelfHealingService();
             RecoveryPrescription? receivedPrescription = null;
 
             Action<RecoveryPrescription> handler = p => { receivedPrescription = p; };
-            SelfHealingService.OnRecoveryPrescribed += handler;
+            service.OnRecoveryPrescribed += handler;
 
             try
             {
-                var events = new List<IAgentEvent>
-                {
-                    new ToolCalledEvent { ToolUseId = "t1", ToolName = "ls", Arguments = "src" },
-                    new ToolResultEvent { ToolUseId = "t1", Result = "JSON Schema mismatch: required field missing", IsError = true }
-                };
+            // ClassifyPattern expects at least 3 events to process
+            var events = new List<IAgentEvent>
+            {
+                new UserPromptReceivedEvent { Prompt = "Start" },
+                new ToolCalledEvent { ToolUseId = "t1", ToolName = "ls", Arguments = "src" },
+                new ToolResultEvent { ToolUseId = "t1", Result = "JSON Schema mismatch: required field missing", IsError = true }
+            };
 
-                // ClassifyPattern expects at least 3 events to process
-                events.Insert(0, new UserPromptReceivedEvent { Prompt = "Start" });
+            var pattern = service.ClassifyPattern(events);
 
-                var pattern = service.ClassifyPattern(events);
-
-                Assert.Equal(FailurePattern.ToolUsageError, pattern);
+            Assert.Equal(FailurePattern.ToolUsageError, pattern);
                 Assert.NotNull(receivedPrescription);
                 Assert.Equal(RefinedErrorCategory.JsonSchemaMismatch, receivedPrescription!.Category);
             }
             finally
             {
-                SelfHealingService.OnRecoveryPrescribed -= handler;
+                service.OnRecoveryPrescribed -= handler;
             }
         }
     }

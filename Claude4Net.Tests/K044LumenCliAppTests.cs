@@ -31,8 +31,7 @@ namespace Claude4Net.Tests
             var sp = services.BuildServiceProvider();
 
             // Provide real or mock orchestrator with all args
-            var orchestratorMock = new Mock<ToolOrchestrator>(new List<ITool>(), approvalMock.Object, sp);
-            services.AddSingleton(orchestratorMock.Object);
+            services.AddSingleton(ToolOrchestrator.CreateForTest(new List<ITool>(), approvalMock.Object, sp));
 
             return services.BuildServiceProvider();
         }
@@ -115,28 +114,18 @@ namespace Claude4Net.Tests
         }
 
         [Fact]
-        public void LegacyCli_Path_RemainsAvailable()
+        public void InteractiveUi_DoesNotRequireAnOptInFlag()
         {
-            // By default, UseLumen is false, so it uses legacy path
             var options = Claude4Net.Cli.Bootstrap.CliOptions.Parse(new string[0]);
-            Assert.False(options.UseLumen);
-            Assert.False(options.LegacyCli);
-        }
-
-        [Fact]
-        public void LumenCli_Path_IsOptIn()
-        {
-            var options = Claude4Net.Cli.Bootstrap.CliOptions.Parse(new[] { "--lumen" });
-            Assert.True(options.UseLumen);
+            Assert.Null(options.ValidationError);
         }
 
         [Fact]
         public void PipedInput_Path_DoesNotUseLumenComposer()
         {
             // Piped input path in Program.cs uses CliOutputHandler, not LumenCliApp.
-            // This is a structural check.
             var options = Claude4Net.Cli.Bootstrap.CliOptions.Parse(new string[0]);
-            Assert.False(options.LegacyCli); // Default is Lumen if not legacy, BUT only for interactive
+            Assert.Null(options.ValidationError);
         }
 
         [Fact]

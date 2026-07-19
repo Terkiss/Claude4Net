@@ -13,11 +13,55 @@ using Claude4Net.Dashboard;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Net;
+using Microsoft.Extensions.Configuration;
 
 namespace Claude4Net.Tests
 {
     public class K028DashboardTests
     {
+        [Fact]
+        public void DashboardServer_ResolvePort_UsesConfiguredPort()
+        {
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Dashboard:Port"] = "5123"
+                })
+                .Build();
+
+            Assert.Equal(5123, DashboardServer.ResolvePort(configuration, null));
+        }
+
+        [Theory]
+        [InlineData("0")]
+        [InlineData("65536")]
+        [InlineData("not-a-port")]
+        public void DashboardServer_ResolvePort_RejectsInvalidConfiguredPort(string value)
+        {
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Dashboard:Port"] = value
+                })
+                .Build();
+
+            var error = Assert.Throws<InvalidOperationException>(() => DashboardServer.ResolvePort(configuration, null));
+            Assert.Contains("1 to 65535", error.Message);
+        }
+
+        [Fact]
+        public void DashboardServer_ResolvePort_EnvironmentOverridesConfiguration()
+        {
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Dashboard:Port"] = "5123"
+                })
+                .Build();
+
+            Assert.Equal(6123, DashboardServer.ResolvePort(configuration, "6123"));
+        }
+
         [Fact]
         public async Task SignalR_EventBroadcast_CallsClientsAll()
         {
@@ -75,7 +119,7 @@ namespace Claude4Net.Tests
         public async Task DashboardServer_StartAsync_ThrowsOnPortConflict()
         {
             // Arrange: Occupy port 5001 beforehand
-            int testPort = 5001;
+            int testPort = GetFreePort();
             var listener = new TcpListener(IPAddress.Loopback, testPort);
             listener.Start();
 
@@ -94,7 +138,7 @@ namespace Claude4Net.Tests
         public async Task DashboardServer_StartupAndRoute_ShouldNotHaveAmbiguity()
         {
             // Arrange: Real startup test on port 5002
-            int testPort = 5002;
+            int testPort = GetFreePort();
             try
             {
                 await DashboardServer.StartAsync(Array.Empty<string>(), testPort);
@@ -110,6 +154,15 @@ namespace Claude4Net.Tests
             {
                 await DashboardServer.StopAsync();
             }
+        }
+
+        private static int GetFreePort()
+        {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            listener.Stop();
+            return port;
         }
     }
 }

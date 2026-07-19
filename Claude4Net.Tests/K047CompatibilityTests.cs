@@ -15,26 +15,38 @@ namespace Claude4Net.Tests
     public class K047CompatibilityTests
     {
         [Fact]
-        public void CliOptions_Parse_HandlesAllRequiredFlags()
+        public void CliOptions_Parse_HandlesRetainedFlags()
         {
             // Arrange
             string[] args = {
-                "--dashboard",
                 "--permission-mode", "ReadOnly",
                 "--smoke-exit",
-                "--legacy-cli",
-                "--lumen"
+                "--provider", "gemini",
+                "--model", "test-model"
             };
 
             // Act
             var options = CliOptions.Parse(args);
 
             // Assert
-            Assert.True(options.StartDashboard);
             Assert.Equal("ReadOnly", options.PermissionModeArg);
             Assert.True(options.SmokeExit);
-            Assert.True(options.LegacyCli);
-            Assert.True(options.UseLumen);
+            Assert.Equal("gemini", options.Provider);
+            Assert.Equal("test-model", options.Model);
+            Assert.Null(options.ValidationError);
+        }
+
+        [Theory]
+        [InlineData("--dashboard")]
+        [InlineData("--legacy-cli")]
+        [InlineData("--lumen")]
+        public void CliOptions_Parse_RemovedUiFlags_ReturnsMigrationError(string flag)
+        {
+            var options = CliOptions.Parse(new[] { flag });
+
+            Assert.Contains(flag, options.ValidationError);
+            Assert.Contains("Dashboard and Lumen now start automatically", options.ValidationError);
+            Assert.Contains("Legacy UI has been removed", options.ValidationError);
         }
 
         [Fact]
