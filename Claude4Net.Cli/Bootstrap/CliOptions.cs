@@ -64,6 +64,11 @@ public sealed class CliOptions
     public int ApiPort { get; set; } = 7836;
 
     /// <summary>
+    /// Authentication API Key for the API server (Optional, auto-generated if omitted).
+    /// </summary>
+    public string? ApiKey { get; set; }
+
+    /// <summary>
     /// Validation or migration error message if invalid/deprecated arguments are supplied.
     /// </summary>
     public string? ValidationError { get; set; }
@@ -147,6 +152,10 @@ public sealed class CliOptions
                 {
                     options.ApiPort = port;
                 }
+            }
+            else if ((arg.Equals("--api-key", StringComparison.OrdinalIgnoreCase) || arg.Equals("-k", StringComparison.OrdinalIgnoreCase)) && i + 1 < args.Length)
+            {
+                options.ApiKey = args[++i];
             }
             else
             {

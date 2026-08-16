@@ -18,3 +18,10 @@
 - Enhanced REPL /usage command with live context window capacity gauge, visual progress bar, component token breakdown, and 80% compression threshold indicator.
 - Added dynamic model context window resolution for Gemini (Pro: 2M, Flash: 1M, 1.0: 32K), GLM (Long: 1M, Default: 128K), and Claude (200K).
 - Added OpenAiApiServerTests with 11 unit/integration tests; full test suite verified with 702 passed, 0 failed.
+
+2026-08-16: OpenAI API Server High-Level Expansion (Strict Auth, CORS, Embeddings, Hybrid Tool Calls).
+- Implemented Strict Bearer Token Auth & x-api-key authentication with automatic token generation (`c4n-sk-...`) or user specified token via CLI `--api-key / -k` and REPL `/api on [port] [apiKey]`.
+- Added complete CORS policy handling (`OPTIONS` preflight pass-through and headers) for external web clients (Open WebUI, LibreChat, Continue.dev).
+- Implemented `POST /v1/embeddings` endpoint with multi-provider fallback and deterministic 1536-dimensional L2-normalized unit vector generator.
+- Added OpenAI-standard `tools` and `tool_calls` parameter parsing and schema formatting for both SSE streaming and non-streaming responses.
+- Expanded `OpenAiApiServerTests` with strict auth, embeddings, tool calls, and CORS tests. Full test suite (706/706 tests) passed with 100% success rate.

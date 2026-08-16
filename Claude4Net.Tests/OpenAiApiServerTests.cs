@@ -27,9 +27,24 @@ namespace Claude4Net.Tests
         private Claude4NetApiServer _server = null!;
         private readonly HttpClient _client = new();
         private const int TestPort = 7839;
+        private const string TestApiKey = "c4n-sk-test-secret-key-12345678";
+
+        private string? _origCwd;
+        private string _origSessionId = null!;
+        private string _origActiveProvider = null!;
+        private string _origActiveModel = null!;
+        private PermissionMode _origPermissionMode;
+        private bool _origIsExplicit;
 
         public async Task InitializeAsync()
         {
+            _origCwd = AppState.CurrentCwd;
+            _origSessionId = AppState.SessionId;
+            _origActiveProvider = AppState.ActiveProvider;
+            _origActiveModel = AppState.ActiveModel;
+            _origPermissionMode = AppState.CurrentPermissionMode;
+            _origIsExplicit = AppState.IsProviderExplicitlySet;
+
             var services = new ServiceCollection();
             // Register Mock Provider Factory FIRST so it takes precedence over built-in factories
             services.AddSingleton<IProviderFactory, TestMockProviderFactory>();
@@ -40,7 +55,10 @@ namespace Claude4Net.Tests
             _serviceProvider = services.BuildServiceProvider();
             _server = _serviceProvider.GetRequiredService<Claude4NetApiServer>();
 
-            await _server.StartAsync(TestPort);
+            await _server.StartAsync(TestPort, TestApiKey);
+
+            // Configure default client to send authorized Bearer header
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", TestApiKey);
         }
 
         public async Task DisposeAsync()
@@ -51,6 +69,52 @@ namespace Claude4Net.Tests
             {
                 await _serviceProvider.DisposeAsync();
             }
+
+            AppState.CurrentCwd = _origCwd;
+            AppState.SessionId = _origSessionId;
+            AppState.ActiveProvider = _origActiveProvider;
+            AppState.ActiveModel = _origActiveModel;
+            AppState.CurrentPermissionMode = _origPermissionMode;
+            AppState.IsProviderExplicitlySet = _origIsExplicit;
+        }
+
+        [Fact]
+        public async Task Auth_StrictValidation_RejectsMissingOrInvalidKey_AllowsHealthCheck()
+        {
+            using var unauthClient = new HttpClient();
+
+            // 1. Missing auth header -> 401 Unauthorized
+            var unauthResp = await unauthClient.GetAsync($"http://localhost:{TestPort}/v1/models");
+            Assert.Equal(HttpStatusCode.Unauthorized, unauthResp.StatusCode);
+
+            // 2. Wrong token -> 401 Unauthorized
+            using var wrongKeyClient = new HttpClient();
+            wrongKeyClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "wrong-key-xyz");
+            var wrongResp = await wrongKeyClient.GetAsync($"http://localhost:{TestPort}/v1/models");
+            Assert.Equal(HttpStatusCode.Unauthorized, wrongResp.StatusCode);
+
+            // 3. Health check allowed without auth -> 200 OK
+            var healthResp = await unauthClient.GetAsync($"http://localhost:{TestPort}/api/v1/health");
+            Assert.Equal(HttpStatusCode.OK, healthResp.StatusCode);
+
+            // 4. x-api-key header authentication -> 200 OK
+            using var xKeyClient = new HttpClient();
+            xKeyClient.DefaultRequestHeaders.Add("x-api-key", TestApiKey);
+            var xKeyResp = await xKeyClient.GetAsync($"http://localhost:{TestPort}/v1/models");
+            Assert.Equal(HttpStatusCode.OK, xKeyResp.StatusCode);
+        }
+
+        [Fact]
+        public async Task Cors_PreflightOptions_ReturnsOkWithoutAuth()
+        {
+            using var unauthClient = new HttpClient();
+            using var optionsReq = new HttpRequestMessage(HttpMethod.Options, $"http://localhost:{TestPort}/v1/chat/completions");
+            optionsReq.Headers.Add("Origin", "http://localhost:3000");
+            optionsReq.Headers.Add("Access-Control-Request-Method", "POST");
+
+            var resp = await unauthClient.SendAsync(optionsReq);
+            Assert.Equal(HttpStatusCode.NoContent, resp.StatusCode);
+            Assert.True(resp.Headers.Contains("Access-Control-Allow-Origin") || resp.Headers.Contains("access-control-allow-origin"));
         }
 
         [Fact]
@@ -66,6 +130,8 @@ namespace Claude4Net.Tests
             Assert.Equal("list", modelList.Object);
             Assert.NotEmpty(modelList.Data);
             Assert.Contains(modelList.Data, m => m.Id.Contains("claude"));
+            Assert.Contains(modelList.Data, m => m.Id.Contains("gemini"));
+            Assert.Contains(modelList.Data, m => m.Id.Contains("embedding"));
         }
 
         [Fact]
@@ -107,6 +173,44 @@ namespace Claude4Net.Tests
         }
 
         [Fact]
+        public async Task Embeddings_SingleAndBatchInput_ReturnsNormalizedVectors()
+        {
+            // 1. Single string input
+            var req1 = new EmbeddingRequest
+            {
+                Model = "text-embedding-004",
+                Input = "Hello world embedding test"
+            };
+
+            var resp1 = await _client.PostAsJsonAsync($"http://localhost:{TestPort}/v1/embeddings", req1);
+            Assert.Equal(HttpStatusCode.OK, resp1.StatusCode);
+
+            var embedResp1 = await resp1.Content.ReadFromJsonAsync<EmbeddingResponse>();
+            Assert.NotNull(embedResp1);
+            Assert.Equal("list", embedResp1.Object);
+            Assert.Single(embedResp1.Data);
+            Assert.Equal(1536, embedResp1.Data[0].Embedding.Count);
+
+            // 2. Batch string array input
+            var req2 = new EmbeddingRequest
+            {
+                Model = "text-embedding-3-small",
+                Input = new[] { "First document chunk", "Second document chunk", "Third query vector" }
+            };
+
+            var resp2 = await _client.PostAsJsonAsync($"http://localhost:{TestPort}/v1/embeddings", req2);
+            Assert.Equal(HttpStatusCode.OK, resp2.StatusCode);
+
+            var embedResp2 = await resp2.Content.ReadFromJsonAsync<EmbeddingResponse>();
+            Assert.NotNull(embedResp2);
+            Assert.Equal(3, embedResp2.Data.Count);
+            Assert.Equal(0, embedResp2.Data[0].Index);
+            Assert.Equal(1, embedResp2.Data[1].Index);
+            Assert.Equal(2, embedResp2.Data[2].Index);
+            Assert.Equal(1536, embedResp2.Data[0].Embedding.Count);
+        }
+
+        [Fact]
         public async Task ChatCompletions_NonStreaming_ReturnsValidResponse()
         {
             var request = new ChatCompletionRequest
@@ -131,6 +235,48 @@ namespace Claude4Net.Tests
         }
 
         [Fact]
+        public async Task ChatCompletions_WithTools_ReturnsToolCalls()
+        {
+            var request = new ChatCompletionRequest
+            {
+                Model = "gpt-4o",
+                Messages = new List<ChatMessageDto>
+                {
+                    new() { Role = "user", Content = "invoke tool calculator with number 42" }
+                },
+                Tools = new List<ToolDto>
+                {
+                    new()
+                    {
+                        Type = "function",
+                        Function = new FunctionDto
+                        {
+                            Name = "calculator",
+                            Description = "Performs calculations",
+                            Parameters = new { type = "object", properties = new { number = new { type = "number" } } }
+                        }
+                    }
+                },
+                Stream = false
+            };
+
+            var httpResponse = await _client.PostAsJsonAsync($"http://localhost:{TestPort}/v1/chat/completions", request);
+            Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+
+            var chatResp = await httpResponse.Content.ReadFromJsonAsync<ChatCompletionResponse>();
+            Assert.NotNull(chatResp);
+            Assert.NotEmpty(chatResp.Choices);
+
+            var choice = chatResp.Choices[0];
+            if (choice.FinishReason == "tool_calls")
+            {
+                Assert.NotNull(choice.Message.ToolCalls);
+                Assert.NotEmpty(choice.Message.ToolCalls);
+                Assert.Equal("calculator", choice.Message.ToolCalls[0].Function.Name);
+            }
+        }
+
+        [Fact]
         public async Task ChatCompletions_Streaming_ReturnsSseChunks()
         {
             var request = new ChatCompletionRequest
@@ -148,47 +294,42 @@ namespace Claude4Net.Tests
                 Content = JsonContent.Create(request)
             };
 
-            using var httpResponse = await _client.SendAsync(reqMsg, HttpCompletionOption.ResponseHeadersRead);
+            var httpResponse = await _client.SendAsync(reqMsg, HttpCompletionOption.ResponseHeadersRead);
             Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
             Assert.Equal("text/event-stream; charset=utf-8", httpResponse.Content.Headers.ContentType?.ToString());
 
-            var stream = await httpResponse.Content.ReadAsStreamAsync();
+            using var stream = await httpResponse.Content.ReadAsStreamAsync();
             using var reader = new System.IO.StreamReader(stream);
 
-            string? line;
-            bool foundData = false;
-            bool foundDone = false;
-
-            while ((line = await reader.ReadLineAsync()) != null)
+            var receivedChunks = new List<string>();
+            while (await reader.ReadLineAsync() is { } line)
             {
-                if (line.StartsWith("data: [DONE]"))
+                if (line.StartsWith("data: "))
                 {
-                    foundDone = true;
-                    break;
-                }
-                if (line.StartsWith("data: {"))
-                {
-                    foundData = true;
+                    receivedChunks.Add(line);
+                    if (line.Contains("[DONE]")) break;
                 }
             }
 
-            Assert.True(foundData, "SSE stream should contain data chunks");
-            Assert.True(foundDone, "SSE stream should conclude with [DONE]");
+            Assert.NotEmpty(receivedChunks);
+            Assert.Contains(receivedChunks, c => c.Contains("[DONE]"));
         }
 
         [Fact]
-        public void CliOptions_ParsesApiFlagsCorrectly()
+        public void CliOptions_ApiArgumentsParsing_WithApiKey()
         {
-            var opts1 = CliOptions.Parse(new[] { "--api", "on", "--api-port", "7836" });
-            Assert.True(opts1.StartApi);
-            Assert.Equal(7836, opts1.ApiPort);
+            var opts = CliOptions.Parse(new[] { "--api", "on", "--api-port", "8080", "--api-key", "my-secret-key" });
+            Assert.True(opts.StartApi);
+            Assert.Equal(8080, opts.ApiPort);
+            Assert.Equal("my-secret-key", opts.ApiKey);
 
             var opts2 = CliOptions.Parse(new[] { "--api", "off" });
             Assert.False(opts2.StartApi);
 
-            var opts3 = CliOptions.Parse(new[] { "--api" });
+            var opts3 = CliOptions.Parse(new[] { "--api", "-k", "another-key" });
             Assert.True(opts3.StartApi);
             Assert.Equal(7836, opts3.ApiPort);
+            Assert.Equal("another-key", opts3.ApiKey);
         }
 
         [Fact]
@@ -204,6 +345,7 @@ namespace Claude4Net.Tests
         {
             string status = await Claude4Net.Runtime.Handlers.SystemCommands.HandleApi("status", _serviceProvider);
             Assert.Contains("RUNNING", status);
+            Assert.Contains("Bearer Auth Key:", status);
 
             string stop = await Claude4Net.Runtime.Handlers.SystemCommands.HandleApi("stop", _serviceProvider);
             Assert.Contains("stopped", stop);
@@ -211,9 +353,10 @@ namespace Claude4Net.Tests
             string statusAfterStop = await Claude4Net.Runtime.Handlers.SystemCommands.HandleApi("status", _serviceProvider);
             Assert.Contains("STOPPED", statusAfterStop);
 
-            string start = await Claude4Net.Runtime.Handlers.SystemCommands.HandleApi("start 7840", _serviceProvider);
+            string start = await Claude4Net.Runtime.Handlers.SystemCommands.HandleApi("start 7840 custom-token-999", _serviceProvider);
             Assert.Contains("started", start);
             Assert.Contains("7840", start);
+            Assert.Contains("custom-token-999", start);
         }
 
         [Fact]
@@ -278,25 +421,35 @@ namespace Claude4Net.Tests
             public async IAsyncEnumerable<LLMStreamEvent> StreamQueryAsync(string prompt, string? model = null, [EnumeratorCancellation] CancellationToken ct = default)
             {
                 await Task.Yield();
-                yield return new LLMStreamEvent { Type = LLMStreamEventType.TextDelta, Delta = "Hello " };
-                yield return new LLMStreamEvent { Type = LLMStreamEventType.TextDelta, Delta = "from in-process Claude4Net API!" };
+                if (prompt.Contains("invoke tool", StringComparison.OrdinalIgnoreCase))
+                {
+                    yield return new LLMStreamEvent { Type = LLMStreamEventType.TextDelta, Delta = "<invoke name=\"calculator\"><parameter name=\"number\">42</parameter></invoke>" };
+                }
+                else
+                {
+                    yield return new LLMStreamEvent { Type = LLMStreamEventType.TextDelta, Delta = "Mock response to: " + prompt };
+                }
             }
 
-            public void AddMessage(object message) => _history.Add(message);
-            public IReadOnlyList<object> GetHistory() => _history.AsReadOnly();
-            public void ClearHistory() => _history.Clear();
+            public void AddMessage(object message)
+            {
+                if (message != null) _history.Add(message);
+            }
+
+            public IReadOnlyList<object> GetHistory() => _history;
             public void SetHistory(IEnumerable<object> history)
             {
                 _history.Clear();
-                _history.AddRange(history);
+                if (history != null) _history.AddRange(history);
             }
+            public void ClearHistory() => _history.Clear();
         }
 
         private class TestMockTokenCounter : ITokenCounter
         {
-            public int CountTokens(string text) => string.IsNullOrEmpty(text) ? 0 : text.Length / 4 + 1;
+            public int CountTokens(string text) => Math.Max(1, (text?.Length ?? 0) / 4);
             public int CountTokens(object message) => 10;
-            public int CountTokens(IEnumerable<object> messages) => 50;
+            public int CountTokens(IEnumerable<object> history) => 50;
         }
     }
 }

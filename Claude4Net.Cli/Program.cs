@@ -61,8 +61,9 @@ if (options.StartApi)
     var apiServer = serviceProvider.GetRequiredService<Claude4Net.Runtime.ApiServer.Claude4NetApiServer>();
     try
     {
-        await apiServer.StartAsync(options.ApiPort);
+        await apiServer.StartAsync(options.ApiPort, options.ApiKey);
         AnsiConsole.MarkupLine($"[bold green][[OK]] In-Process OpenAI API Server started at http://localhost:{options.ApiPort}[/]");
+        AnsiConsole.MarkupLine($"[grey]      Bearer Auth Key:[/] [cyan]{Markup.Escape(apiServer.ApiKey)}[/]");
     }
     catch (Exception ex)
     {

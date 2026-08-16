@@ -15,7 +15,6 @@ using Claude4Net.SDK.Events;
 using Claude4Net.Api;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
-using Claude4Net.Runtime;
 
 namespace Claude4Net.Tests
 {

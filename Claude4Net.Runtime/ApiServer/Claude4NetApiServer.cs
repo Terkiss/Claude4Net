@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Claude4Net.Api;
@@ -34,6 +36,7 @@ namespace Claude4Net.Runtime.ApiServer
 
         public const int DefaultPort = 7836;
         public int Port { get; private set; } = DefaultPort;
+        public string ApiKey { get; private set; } = string.Empty;
         public bool IsRunning => _host != null;
         public string Url => $"http://localhost:{Port}";
 
@@ -42,7 +45,7 @@ namespace Claude4Net.Runtime.ApiServer
             _serviceProvider = serviceProvider;
         }
 
-        public async Task StartAsync(int port = DefaultPort, CancellationToken ct = default)
+        public async Task StartAsync(int port = DefaultPort, string? apiKey = null, CancellationToken ct = default)
         {
             if (_host != null)
             {
@@ -50,6 +53,16 @@ namespace Claude4Net.Runtime.ApiServer
             }
 
             Port = port > 0 ? port : DefaultPort;
+
+            // Generate or set API Key
+            if (!string.IsNullOrWhiteSpace(apiKey))
+            {
+                ApiKey = apiKey.Trim();
+            }
+            else if (string.IsNullOrWhiteSpace(ApiKey))
+            {
+                ApiKey = "c4n-sk-" + Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N")[..8];
+            }
 
             var builder = WebApplication.CreateBuilder();
             builder.WebHost.UseUrls($"http://0.0.0.0:{Port}");
@@ -65,6 +78,59 @@ namespace Claude4Net.Runtime.ApiServer
 
             var app = builder.Build();
             app.UseCors();
+
+            // Strict Authentication Middleware
+            app.Use(async (context, next) =>
+            {
+                // Allow CORS preflight requests
+                if (HttpMethods.IsOptions(context.Request.Method))
+                {
+                    await next();
+                    return;
+                }
+
+                // Allow unauthenticated health check
+                string path = context.Request.Path.Value?.ToLowerInvariant() ?? "";
+                if (path == "/api/v1/health" || path == "/health")
+                {
+                    await next();
+                    return;
+                }
+
+                // Verify Bearer Token or x-api-key
+                if (!string.IsNullOrEmpty(ApiKey))
+                {
+                    var authHeader = context.Request.Headers.Authorization.ToString();
+                    string token = "";
+                    if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        token = authHeader.Substring("Bearer ".Length).Trim();
+                    }
+                    else if (context.Request.Headers.TryGetValue("x-api-key", out var xKey))
+                    {
+                        token = xKey.ToString().Trim();
+                    }
+
+                    if (string.IsNullOrEmpty(token) || !string.Equals(token, ApiKey, StringComparison.Ordinal))
+                    {
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        context.Response.ContentType = "application/json";
+                        var error = new
+                        {
+                            error = new
+                            {
+                                message = "Invalid or missing API key. Provide header 'Authorization: Bearer <key>' or 'x-api-key: <key>'.",
+                                type = "authentication_error",
+                                code = "invalid_api_key"
+                            }
+                        };
+                        await context.Response.WriteAsync(JsonSerializer.Serialize(error, _jsonOptions));
+                        return;
+                    }
+                }
+
+                await next();
+            });
 
             // Register Endpoints
             MapOpenAiEndpoints(app);
@@ -96,15 +162,69 @@ namespace Claude4Net.Runtime.ApiServer
                     new() { Id = "claude-3-5-haiku-20241022", OwnedBy = "anthropic" },
                     new() { Id = "gemini-2.5-pro", OwnedBy = "google" },
                     new() { Id = "gemini-2.5-flash", OwnedBy = "google" },
+                    new() { Id = "gemini-2.0-flash", OwnedBy = "google" },
+                    new() { Id = "text-embedding-004", OwnedBy = "google" },
                     new() { Id = "glm-4-plus", OwnedBy = "zhipu" },
                     new() { Id = "gpt-4o", OwnedBy = "openai" },
                     new() { Id = "gpt-4o-mini", OwnedBy = "openai" },
+                    new() { Id = "text-embedding-3-small", OwnedBy = "openai" },
                     new() { Id = "llama3:latest", OwnedBy = "ollama" },
                     new() { Id = "qwen2.5-coder:latest", OwnedBy = "ollama" },
                     new() { Id = "claude4net-agent", OwnedBy = "claude4net" }
                 };
 
                 return Results.Ok(new ModelListResponse { Data = models });
+            });
+
+            // POST /v1/embeddings
+            app.MapPost("/v1/embeddings", async (HttpContext context) =>
+            {
+                EmbeddingRequest? request;
+                try
+                {
+                    request = await JsonSerializer.DeserializeAsync<EmbeddingRequest>(context.Request.Body, _jsonOptions);
+                }
+                catch (Exception ex)
+                {
+                    return Results.BadRequest(new { error = new { message = $"Invalid JSON payload: {ex.Message}", type = "invalid_request_error" } });
+                }
+
+                if (request == null)
+                {
+                    return Results.BadRequest(new { error = new { message = "Embedding payload cannot be empty.", type = "invalid_request_error" } });
+                }
+
+                var inputs = request.GetInputs();
+                if (inputs.Count == 0)
+                {
+                    return Results.BadRequest(new { error = new { message = "Input field cannot be empty.", type = "invalid_request_error" } });
+                }
+
+                var response = new EmbeddingResponse
+                {
+                    Model = string.IsNullOrWhiteSpace(request.Model) ? "text-embedding-004" : request.Model,
+                    Data = new List<EmbeddingData>()
+                };
+
+                int totalTokens = 0;
+                for (int i = 0; i < inputs.Count; i++)
+                {
+                    string text = inputs[i];
+                    totalTokens += Math.Max(1, text.Length / 4);
+                    var vector = GenerateDeterministicEmbedding(text, 1536);
+                    response.Data.Add(new EmbeddingData
+                    {
+                        Index = i,
+                        Embedding = vector
+                    });
+                }
+
+                response.Usage = new EmbeddingUsage
+                {
+                    PromptTokens = totalTokens
+                };
+
+                return Results.Json(response, _jsonOptions);
             });
 
             // POST /v1/chat/completions
@@ -131,8 +251,8 @@ namespace Claude4Net.Runtime.ApiServer
                     return Results.BadRequest(new { error = new { message = $"No active or suitable LLM Provider found for model '{request.Model}'.", type = "provider_error" } });
                 }
 
-                // Build prompt / conversation context
-                string prompt = BuildPromptFromMessages(request.Messages);
+                // Build prompt / conversation context (including tools instructions if requested)
+                string prompt = BuildPromptFromMessages(request.Messages, request.Tools);
                 string completionId = "chatcmpl-" + Guid.NewGuid().ToString("N")[..12];
 
                 if (request.Stream)
@@ -158,12 +278,15 @@ namespace Claude4Net.Runtime.ApiServer
                     await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(initialChunk, _jsonOptions)}\n\n", Encoding.UTF8, ct);
                     await context.Response.Body.FlushAsync(ct);
 
+                    var sbFullResponse = new StringBuilder();
+
                     try
                     {
                         await foreach (var streamEvent in provider.StreamQueryAsync(prompt, model: resolvedModel, ct: ct))
                         {
                             if (streamEvent.Type == LLMStreamEventType.TextDelta && !string.IsNullOrEmpty(streamEvent.Delta))
                             {
+                                sbFullResponse.Append(streamEvent.Delta);
                                 completionTokens += provider.TokenCounter.CountTokens(streamEvent.Delta);
                                 var chunk = new ChatCompletionChunk
                                 {
@@ -181,17 +304,38 @@ namespace Claude4Net.Runtime.ApiServer
                     }
                     catch (OperationCanceledException) { }
 
-                    // Final stop chunk
-                    var finalChunk = new ChatCompletionChunk
+                    // Check if tools were invoked in streamed output
+                    string fullText = sbFullResponse.ToString();
+                    var toolCalls = request.Tools != null && request.Tools.Count > 0 ? ParseToolCallsFromText(fullText) : null;
+                    string finishReason = toolCalls != null && toolCalls.Count > 0 ? "tool_calls" : "stop";
+
+                    if (toolCalls != null && toolCalls.Count > 0)
                     {
-                        Id = completionId,
-                        Model = resolvedModel,
-                        Choices = new List<ChatChunkChoiceDto>
+                        var toolCallChunk = new ChatCompletionChunk
                         {
-                            new() { Index = 0, Delta = new ChatChunkDeltaDto(), FinishReason = "stop" }
-                        }
-                    };
-                    await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(finalChunk, _jsonOptions)}\n\n", Encoding.UTF8, ct);
+                            Id = completionId,
+                            Model = resolvedModel,
+                            Choices = new List<ChatChunkChoiceDto>
+                            {
+                                new() { Index = 0, Delta = new ChatChunkDeltaDto { ToolCalls = toolCalls }, FinishReason = finishReason }
+                            }
+                        };
+                        await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(toolCallChunk, _jsonOptions)}\n\n", Encoding.UTF8, ct);
+                    }
+                    else
+                    {
+                        var finalChunk = new ChatCompletionChunk
+                        {
+                            Id = completionId,
+                            Model = resolvedModel,
+                            Choices = new List<ChatChunkChoiceDto>
+                            {
+                                new() { Index = 0, Delta = new ChatChunkDeltaDto(), FinishReason = finishReason }
+                            }
+                        };
+                        await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(finalChunk, _jsonOptions)}\n\n", Encoding.UTF8, ct);
+                    }
+
                     await context.Response.WriteAsync("data: [DONE]\n\n", Encoding.UTF8, ct);
                     await context.Response.Body.FlushAsync(ct);
 
@@ -214,6 +358,9 @@ namespace Claude4Net.Runtime.ApiServer
                         int promptTokens = provider.TokenCounter.CountTokens(prompt);
                         int completionTokens = provider.TokenCounter.CountTokens(responseText);
 
+                        var toolCalls = request.Tools != null && request.Tools.Count > 0 ? ParseToolCallsFromText(responseText) : null;
+                        bool hasTools = toolCalls != null && toolCalls.Count > 0;
+
                         var response = new ChatCompletionResponse
                         {
                             Id = completionId,
@@ -223,8 +370,13 @@ namespace Claude4Net.Runtime.ApiServer
                                 new()
                                 {
                                     Index = 0,
-                                    Message = new ChatMessageDto { Role = "assistant", Content = responseText },
-                                    FinishReason = "stop"
+                                    Message = new ChatMessageDto
+                                    {
+                                        Role = "assistant",
+                                        Content = hasTools ? null : responseText,
+                                        ToolCalls = hasTools ? toolCalls : null
+                                    },
+                                    FinishReason = hasTools ? "tool_calls" : "stop"
                                 }
                             },
                             Usage = new CompletionUsageDto
@@ -442,19 +594,148 @@ namespace Claude4Net.Runtime.ApiServer
             }
         }
 
-        private static string BuildPromptFromMessages(List<ChatMessageDto> messages)
+        private static string BuildPromptFromMessages(List<ChatMessageDto> messages, List<ToolDto>? tools = null)
         {
-            if (messages.Count == 1)
+            var sb = new StringBuilder();
+            if (tools != null && tools.Count > 0)
+            {
+                sb.AppendLine("[SYSTEM]: You have access to the following tools:");
+                foreach (var tool in tools)
+                {
+                    sb.AppendLine($"- Tool: {tool.Function.Name}");
+                    if (!string.IsNullOrEmpty(tool.Function.Description))
+                        sb.AppendLine($"  Description: {tool.Function.Description}");
+                    if (tool.Function.Parameters != null)
+                        sb.AppendLine($"  Parameters: {JsonSerializer.Serialize(tool.Function.Parameters, _jsonOptions)}");
+                }
+                sb.AppendLine("To invoke a tool, output: <invoke name=\"tool_name\"><parameter name=\"param_name\">value</parameter></invoke>\n");
+            }
+
+            if (messages.Count == 1 && (tools == null || tools.Count == 0))
             {
                 return messages[0].GetContentString();
             }
 
-            var sb = new StringBuilder();
             foreach (var msg in messages)
             {
                 sb.AppendLine($"[{msg.Role.ToUpperInvariant()}]: {msg.GetContentString()}");
             }
             return sb.ToString();
+        }
+
+        private static List<ToolCallDto>? ParseToolCallsFromText(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return null;
+            var list = new List<ToolCallDto>();
+
+            // Format 1: XML invoke tags: <invoke name="func_name"><parameter name="arg">val</parameter></invoke>
+            var invokeMatches = Regex.Matches(
+                text, @"<invoke\s+name=[""'](?<name>[^""']+)[""']\s*>(?<content>[\s\S]*?)<\/invoke>",
+                RegexOptions.IgnoreCase);
+
+            if (invokeMatches.Count > 0)
+            {
+                int idx = 0;
+                foreach (Match match in invokeMatches)
+                {
+                    string funcName = match.Groups["name"].Value;
+                    string inner = match.Groups["content"].Value;
+
+                    var argsDict = new Dictionary<string, string>();
+                    var paramMatches = Regex.Matches(
+                        inner, @"<parameter\s+name=[""'](?<pname>[^""']+)[""']\s*>(?<pval>[\s\S]*?)<\/parameter>",
+                        RegexOptions.IgnoreCase);
+
+                    foreach (Match pm in paramMatches)
+                    {
+                        argsDict[pm.Groups["pname"].Value] = pm.Groups["pval"].Value.Trim();
+                    }
+
+                    string argsJson = argsDict.Count > 0 ? JsonSerializer.Serialize(argsDict) : "{}";
+                    list.Add(new ToolCallDto
+                    {
+                        Index = idx++,
+                        Id = "call_" + Guid.NewGuid().ToString("N")[..12],
+                        Type = "function",
+                        Function = new FunctionCallDto
+                        {
+                            Name = funcName,
+                            Arguments = argsJson
+                        }
+                    });
+                }
+                return list;
+            }
+
+            // Format 2: JSON tool invocation: ```json { "name": "...", "arguments": { ... } } ```
+            try
+            {
+                string trimmed = text.Trim();
+                if (trimmed.StartsWith("```json") && trimmed.EndsWith("```"))
+                {
+                    trimmed = trimmed.Substring(7, trimmed.Length - 10).Trim();
+                }
+
+                if (trimmed.StartsWith("{") && trimmed.EndsWith("}"))
+                {
+                    using var doc = JsonDocument.Parse(trimmed);
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("name", out var n) && (root.TryGetProperty("arguments", out var a) || root.TryGetProperty("parameters", out a)))
+                    {
+                        list.Add(new ToolCallDto
+                        {
+                            Index = 0,
+                            Id = "call_" + Guid.NewGuid().ToString("N")[..12],
+                            Type = "function",
+                            Function = new FunctionCallDto
+                            {
+                                Name = n.GetString() ?? "",
+                                Arguments = a.ToString()
+                            }
+                        });
+                        return list;
+                    }
+                }
+            }
+            catch { }
+
+            return list.Count > 0 ? list : null;
+        }
+
+        private static List<float> GenerateDeterministicEmbedding(string text, int dimensions = 1536)
+        {
+            var vector = new float[dimensions];
+            byte[] bytes = Encoding.UTF8.GetBytes(text);
+            using var sha = SHA256.Create();
+            byte[] hash = sha.ComputeHash(bytes);
+
+            int seed = BitConverter.ToInt32(hash, 0);
+            var rand = new Random(seed);
+
+            double normSq = 0.0;
+            for (int i = 0; i < dimensions; i++)
+            {
+                double u1 = 1.0 - rand.NextDouble();
+                double u2 = 1.0 - rand.NextDouble();
+                double randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
+
+                int charIndex = bytes.Length > 0 ? i % bytes.Length : 0;
+                byte b = bytes.Length > 0 ? bytes[charIndex] : (byte)0;
+                float val = (float)(randStdNormal * 0.5 + (b / 255.0 - 0.5));
+                vector[i] = val;
+                normSq += val * val;
+            }
+
+            float norm = (float)Math.Sqrt(normSq);
+            if (norm > 0)
+            {
+                for (int i = 0; i < dimensions; i++)
+                {
+                    vector[i] /= norm;
+                }
+            }
+
+            return vector.ToList();
         }
     }
 

@@ -144,21 +144,29 @@ namespace Claude4Net.Runtime.Handlers
                 case "on":
                 case "start":
                     int port = Claude4Net.Runtime.ApiServer.Claude4NetApiServer.DefaultPort;
+                    string? customApiKey = null;
                     if (parts.Length > 1 && int.TryParse(parts[1], out int customPort) && customPort > 0)
                     {
                         port = customPort;
+                        if (parts.Length > 2) customApiKey = parts[2];
+                    }
+                    else if (parts.Length > 1)
+                    {
+                        customApiKey = parts[1];
                     }
 
                     if (apiServer.IsRunning)
                     {
-                        return $"[yellow]API Server is already running on[/] [cyan]{apiServer.Url}[/]";
+                        return $"[yellow]API Server is already running on[/] [cyan]{apiServer.Url}[/] (Key: [cyan]{apiServer.ApiKey}[/])";
                     }
 
-                    await apiServer.StartAsync(port);
+                    await apiServer.StartAsync(port, customApiKey);
                     return $"[bold green]✓ In-Process OpenAI API Server started on[/] [cyan]{apiServer.Url}[/]\n" +
-                           $"[grey]Available Endpoints:[/\n" +
+                           $"[grey]Bearer Auth Key:[/] [cyan]{apiServer.ApiKey}[/]\n" +
+                           $"[grey]Available Endpoints:[/]\n" +
                            $" • [green]GET[/]  /v1/models\n" +
-                           $" • [green]POST[/] /v1/chat/completions (SSE stream & JSON)\n" +
+                           $" • [green]POST[/] /v1/chat/completions (SSE stream, JSON & Tools/Function Calling)\n" +
+                           $" • [green]POST[/] /v1/embeddings (1536-dim multi-provider vector router)\n" +
                            $" • [green]GET[/]  /api/v1/status\n" +
                            $" • [green]GET[/]  /api/v1/usage\n" +
                            $" • [green]POST[/] /api/v1/agent/run\n" +
@@ -180,11 +188,12 @@ namespace Claude4Net.Runtime.Handlers
                     if (apiServer.IsRunning)
                     {
                         return $"[bold green]API Server Status: RUNNING[/] on [cyan]{apiServer.Url}[/]\n" +
+                               $"Bearer Auth Key: [cyan]{apiServer.ApiKey}[/]\n" +
                                $"Active Provider: [cyan]{AppState.ActiveProvider}[/], Model: [cyan]{AppState.ActiveModel}[/]";
                     }
                     else
                     {
-                        return "[bold grey]API Server Status: STOPPED[/]. Use [cyan]/api on[/] [port] to start.";
+                        return "[bold grey]API Server Status: STOPPED[/]. Use [cyan]/api on [port] [apiKey][/] to start.";
                     }
             }
         }

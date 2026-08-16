@@ -23,6 +23,14 @@ namespace Claude4Net.Runtime.ApiServer.Models
 
         [JsonPropertyName("top_p")]
         public double? TopP { get; set; }
+
+        [JsonPropertyName("tools")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<ToolDto>? Tools { get; set; }
+
+        [JsonPropertyName("tool_choice")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public object? ToolChoice { get; set; }
     }
 
     public class ChatMessageDto
@@ -34,7 +42,16 @@ namespace Claude4Net.Runtime.ApiServer.Models
         public object? Content { get; set; }
 
         [JsonPropertyName("name")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? Name { get; set; }
+
+        [JsonPropertyName("tool_calls")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<ToolCallDto>? ToolCalls { get; set; }
+
+        [JsonPropertyName("tool_call_id")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? ToolCallId { get; set; }
 
         public string GetContentString()
         {
@@ -122,6 +139,146 @@ namespace Claude4Net.Runtime.ApiServer.Models
         [JsonPropertyName("content")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? Content { get; set; }
+
+        [JsonPropertyName("tool_calls")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<ToolCallDto>? ToolCalls { get; set; }
+    }
+
+    public class ToolDto
+    {
+        [JsonPropertyName("type")]
+        public string Type { get; set; } = "function";
+
+        [JsonPropertyName("function")]
+        public FunctionDto Function { get; set; } = new();
+    }
+
+    public class FunctionDto
+    {
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = string.Empty;
+
+        [JsonPropertyName("description")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Description { get; set; }
+
+        [JsonPropertyName("parameters")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public object? Parameters { get; set; }
+    }
+
+    public class ToolCallDto
+    {
+        [JsonPropertyName("index")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public int? Index { get; set; }
+
+        [JsonPropertyName("id")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Id { get; set; }
+
+        [JsonPropertyName("type")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Type { get; set; } = "function";
+
+        [JsonPropertyName("function")]
+        public FunctionCallDto Function { get; set; } = new();
+    }
+
+    public class FunctionCallDto
+    {
+        [JsonPropertyName("name")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Name { get; set; }
+
+        [JsonPropertyName("arguments")]
+        public string Arguments { get; set; } = string.Empty;
+    }
+
+    public class EmbeddingRequest
+    {
+        [JsonPropertyName("model")]
+        public string Model { get; set; } = "text-embedding-004";
+
+        [JsonPropertyName("input")]
+        public object Input { get; set; } = string.Empty;
+
+        [JsonPropertyName("user")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? User { get; set; }
+
+        public List<string> GetInputs()
+        {
+            var list = new List<string>();
+            if (Input == null) return list;
+            if (Input is string s)
+            {
+                list.Add(s);
+            }
+            else if (Input is System.Text.Json.JsonElement elem)
+            {
+                if (elem.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    list.Add(elem.GetString() ?? "");
+                }
+                else if (elem.ValueKind == System.Text.Json.JsonValueKind.Array)
+                {
+                    foreach (var item in elem.EnumerateArray())
+                    {
+                        if (item.ValueKind == System.Text.Json.JsonValueKind.String)
+                            list.Add(item.GetString() ?? "");
+                        else
+                            list.Add(item.ToString());
+                    }
+                }
+            }
+            else if (Input is IEnumerable<string> strEnum)
+            {
+                list.AddRange(strEnum);
+            }
+            else
+            {
+                list.Add(Input.ToString() ?? "");
+            }
+            return list;
+        }
+    }
+
+    public class EmbeddingResponse
+    {
+        [JsonPropertyName("object")]
+        public string Object { get; set; } = "list";
+
+        [JsonPropertyName("data")]
+        public List<EmbeddingData> Data { get; set; } = new();
+
+        [JsonPropertyName("model")]
+        public string Model { get; set; } = string.Empty;
+
+        [JsonPropertyName("usage")]
+        public EmbeddingUsage Usage { get; set; } = new();
+    }
+
+    public class EmbeddingData
+    {
+        [JsonPropertyName("object")]
+        public string Object { get; set; } = "embedding";
+
+        [JsonPropertyName("index")]
+        public int Index { get; set; }
+
+        [JsonPropertyName("embedding")]
+        public List<float> Embedding { get; set; } = new();
+    }
+
+    public class EmbeddingUsage
+    {
+        [JsonPropertyName("prompt_tokens")]
+        public int PromptTokens { get; set; }
+
+        [JsonPropertyName("total_tokens")]
+        public int TotalTokens => PromptTokens;
     }
 
     public class CompletionUsageDto

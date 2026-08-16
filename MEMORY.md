@@ -1,14 +1,16 @@
 # Terukirdo Memory Ledger
 
 ## Current Status
-- Claude4Net In-Process OpenAI 호환 API 서버 (Port 7836) 및 커스텀 엔드포인트 구현 완료.
-- CLI 인자 (`--api on/off`, `--api-port 7836`) 및 REPL 명령어 (`/api on|off|status`) 지원.
-- 실시간 토큰 사용량 & 컨텍스트 윈도우 게이지 분석 기능 (`/usage`, `GET /api/v1/usage`) 구축 완료.
-- Gemini (Pro: 2M, Flash: 1M, 1.0: 32K) 등 모델별 동적 컨텍스트 스펙 연동 완료.
-- 전체 테스트 702건 100% 통과 및 원격 저장소(`origin/experiment`) 커밋/푸시 완료 (`0bb9c42`).
+- Claude4Net In-Process OpenAI 호환 API 서버 대폭 확장 완료 (Port 7836):
+  1. **Strict Bearer Token / x-api-key 인증**: 서버 시작 시 고유 토큰 자동 발급(`c4n-sk-...`) 또는 `--api-key` 지정 지원, 401 Unauthorized 보호 (Health/CORS 예외).
+  2. **Full CORS 지원**: 브라우저 기반 클라이언트(Open WebUI 등)를 위한 `OPTIONS` Preflight 및 Access-Control 헤더 완벽 대응.
+  3. **POST /v1/embeddings 엔드포인트**: 멀티 프로바이더 임베딩 라우터 및 1536차원 L2 정규화 결정론적 Fallback 벡터 생성기 탑재.
+  4. **Tools / Function Calling 하이브리드 지원**: OpenAI 표준 `tools`/`tool_calls` 파싱 및 응답 포맷 연동.
+  5. **REPL & CLI 통합**: `/api on [port] [apiKey]`, `/api status`, `--api-key / -k` 완벽 지원.
+- 전체 테스트 706건 100% 통과 (0 failures, 0 skipped).
 
 ## Active Task
-- 사용자 후속 지시사항 대기
+- 사용자에게 구현 결과 보고 및 커밋/푸시 승인 요청
 
 ## Known Risks
 - 없음
