@@ -56,6 +56,20 @@ if (options.StartDashboard)
 
 var serviceProvider = services.BuildServiceProvider();
 
+if (options.StartApi)
+{
+    var apiServer = serviceProvider.GetRequiredService<Claude4Net.Runtime.ApiServer.Claude4NetApiServer>();
+    try
+    {
+        await apiServer.StartAsync(options.ApiPort);
+        AnsiConsole.MarkupLine($"[bold green][[OK]] In-Process OpenAI API Server started at http://localhost:{options.ApiPort}[/]");
+    }
+    catch (Exception ex)
+    {
+        AnsiConsole.MarkupLine($"[bold red][[ERROR]] API Server failed to start:[/] [yellow]{Markup.Escape(ex.Message)}[/]");
+    }
+}
+
 // Handle Permission Mode
 if (options.PermissionModeArg != null)
 {

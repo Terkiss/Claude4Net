@@ -55,7 +55,14 @@ namespace Claude4Net.Api
         public ITokenCounter TokenCounter { get; } = new DefaultTokenCounter();
 
         /// <summary>컨텍스트 윈도우 크기</summary>
-        public int ContextLimit => DefaultContextWindowSize;
+        public int ContextLimit => ResolveGlmContextLimit(AppState.ActiveModel);
+
+        public static int ResolveGlmContextLimit(string? model)
+        {
+            if (string.IsNullOrWhiteSpace(model)) return DefaultContextWindowSize;
+            if (model.Contains("long", StringComparison.OrdinalIgnoreCase)) return 1_000_000;
+            return DefaultContextWindowSize;
+        }
 
         // ──────────────────────────────────────────────
         // 메시지 히스토리 관리

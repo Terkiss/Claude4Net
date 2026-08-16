@@ -30,7 +30,8 @@ namespace Claude4Net.Commands
         private static readonly List<Command> _commands = new()
         {
             // --- [시스템/관리] ---
-            new Command { Name = "usage", Description = "Show API token usage, costs, and latency metrics", Handler = SystemCommands.HandleUsage },
+            new Command { Name = "usage", Description = "Show API token usage, costs, and live context window capacity", Handler = SystemCommands.HandleUsage },
+            new Command { Name = "api", Description = "Control in-process OpenAI API Server (api on [port] | off | status)", Handler = SystemCommands.HandleApi },
             new Command { Name = "help", Description = "Show help", Handler = SystemCommands.HandleHelp },
             new Command { Name = "yolo", Description = "ROOT ACCESS - Bypass all permissions", Handler = SystemCommands.HandleYolo },
             new Command { Name = "doctor", Description = "Run system health check and diagnostics", Handler = SystemCommands.HandleDoctor },

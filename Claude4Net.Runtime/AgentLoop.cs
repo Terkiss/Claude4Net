@@ -577,7 +577,7 @@ namespace Claude4Net.Runtime
                         args,
                         _serviceProvider,
                         v => _currentVersion = v,
-                        p => { });
+                        p => _resumedProvider = p);
                     await context.Output.WriteAsync(resumeResult);
                     return true;
 
@@ -640,6 +640,16 @@ namespace Claude4Net.Runtime
                 case "status":
                     string statusResult = await SystemCommands.HandleStatus(args, _serviceProvider);
                     await context.Output.WriteAsync(statusResult);
+                    return true;
+
+                case "usage":
+                    string usageResult = await SystemCommands.HandleUsage(args, _serviceProvider);
+                    await context.Output.WriteAsync(usageResult);
+                    return true;
+
+                case "api":
+                    string apiResult = await SystemCommands.HandleApi(args, _serviceProvider);
+                    await context.Output.WriteAsync(apiResult);
                     return true;
 
                 case "login":

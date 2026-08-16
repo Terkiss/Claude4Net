@@ -1,21 +1,23 @@
 # Terukirdo Memory Ledger
 
 ## Current Status
-- Claude4Net-App 프로젝트: 다국어(English, 한국어, 日本語) GitHub README 체계 구축 완료.
-- `backup-20260816` 백업 브랜치 생성 및 원격(`origin`) 백업 완료.
-- 현재 작업 위치는 `experiment` 브랜치이며, 빌드 0 에러 유지 중.
+- Claude4Net In-Process OpenAI 호환 API 서버 (Port 7836) 및 커스텀 엔드포인트 구현 완료.
+- CLI 인자 (`--api on/off`, `--api-port 7836`) 및 REPL 명령어 (`/api on|off|status`) 지원.
+- 실시간 토큰 사용량 & 컨텍스트 윈도우 게이지 분석 기능 (`/usage`, `GET /api/v1/usage`) 구축 완료.
+- 전체 테스트 700건 100% 통과 (0건 실패).
+- 현재 작업 위치는 `experiment` 브랜치.
 
 ## Active Task
-- 사용자 후속 요청 대기
+- 사용자 후속 요청 대기 및 커밋 준비
 
 ## Known Risks
-- 명령어 핸들러 이동으로 인한 외부 플러그인 호환성 (네임스페이스 변경: `Claude4Net.Runtime.Handlers`)
+- 없음
 
 ## Open Questions
 - 없음
 
 ## Next Steps
-- 주인님의 후속 지시사항에 따른 추가 기능 개발 또는 테스트 진행.
+- 주인님의 확인 및 커밋/푸시 승인 요청.
 
 ## Key Technical Learnings
 - **Actionable Insight**: When creating or editing workspace project files using `write_to_file`, do not supply `ArtifactMetadata` because it enforces the artifact directory path restriction.

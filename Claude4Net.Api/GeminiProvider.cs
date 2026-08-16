@@ -47,9 +47,22 @@ namespace Claude4Net.Api
         public ITokenCounter TokenCounter { get; } = new DefaultTokenCounter();
 
         /// <summary>
-        /// Gets the maximum context window size for this provider (1M tokens for Gemini 1.5).
+        /// Gets the maximum context window size dynamically resolved from the active model.
+        /// Gemini Pro (1.5 / 2.0 / 2.5): 2,000,000 (2M) tokens
+        /// Gemini Flash (1.5 / 2.0 / 2.5 / 8B): 1,000,000 (1M) tokens
+        /// Gemini 1.0 Pro: 32,768 tokens
         /// </summary>
-        public int ContextLimit => 1000000;
+        public int ContextLimit => ResolveGeminiContextLimit(AppState.ActiveModel);
+
+        public static int ResolveGeminiContextLimit(string? model)
+        {
+            if (string.IsNullOrWhiteSpace(model)) return 1_000_000;
+            string lower = model.ToLowerInvariant();
+            if (lower.Contains("1.0") || lower == "gemini-pro") return 32_768;
+            if (lower.Contains("pro")) return 2_000_000;
+            if (lower.Contains("flash")) return 1_000_000;
+            return 1_000_000;
+        }
 
         /// <summary>
         /// Appends a message to the conversation history, converting from Anthropic format to Gemini format.

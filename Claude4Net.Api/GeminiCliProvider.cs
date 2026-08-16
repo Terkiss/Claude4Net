@@ -33,17 +33,17 @@ namespace Claude4Net.Api
         public virtual string Name => "gemini-cli";
 
         /// <summary>
-        /// ?�당 ?�공?�용 ?�큰 카운?��? 가?�옵?�다.
+        /// ?당 ?공?용 ?큰 카운?? 가?옵?다.
         /// </summary>
         public ITokenCounter TokenCounter { get; } = new DefaultTokenCounter();
 
         /// <summary>
-        /// ?�당 ?�공?�의 ?�재 모델 컨텍?�트 ?�한??가?�옵?�다. (Gemini 1.5 기�? 1M)
+        /// Gets the maximum context window size dynamically resolved from the active model.
         /// </summary>
-        public int ContextLimit => 1000000;
+        public int ContextLimit => GeminiProvider.ResolveGeminiContextLimit(AppState.ActiveModel);
 
         /// <summary>
-        /// ?�???�스?�리??메시지�?추�??�니??
+        /// ????스?리??메시지?추??니??
         /// </summary>
         /// <param name="message">메시지 객체</param>
         public void AddMessage(object message)

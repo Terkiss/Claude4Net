@@ -75,7 +75,118 @@ namespace Claude4Net.Commands.Handlers
             );
 
             AnsiConsole.Write(table);
-            return $"Total Calls: {model.TotalCalls}, Input Tokens: {model.TotalInputTokens}, Output Tokens: {model.TotalOutputTokens}, Total Cost: ${model.TotalCost:F5}, Latency EMA: {model.LatencyEma:F1} ms";
+
+            // --- Active Context Window Breakdown ---
+            var providerRegistry = sp.GetService<ProviderRegistry>();
+            ILLMProvider? activeProvider = null;
+            if (providerRegistry != null && !string.IsNullOrWhiteSpace(AppState.ActiveProvider))
+            {
+                try { activeProvider = providerRegistry.CreateProvider(AppState.ActiveProvider, sp); } catch { }
+            }
+            int limit = activeProvider?.ContextLimit ?? (AppState.ActiveModel.Contains("gemini", StringComparison.OrdinalIgnoreCase)
+                ? Claude4Net.Api.GeminiProvider.ResolveGeminiContextLimit(AppState.ActiveModel)
+                : 200000);
+            int historyTokens = 0;
+            int historyCount = 0;
+
+            if (activeProvider != null)
+            {
+                var history = activeProvider.GetHistory()?.ToList() ?? new List<object>();
+                historyCount = history.Count;
+                historyTokens = activeProvider.TokenCounter.CountTokens(history);
+            }
+
+            int estimatedSystemTokens = 3500;
+            int estimatedToolTokens = 3200;
+            int totalActiveContext = historyTokens + estimatedSystemTokens + estimatedToolTokens;
+            double percent = limit > 0 ? Math.Min(100.0, (double)totalActiveContext / limit * 100.0) : 0.0;
+            int filledBars = Math.Clamp((int)(percent / 5.0), 0, 20);
+            string gauge = new string('█', filledBars) + new string('░', 20 - filledBars);
+            string gaugeColor = percent > 80.0 ? "red" : (percent > 60.0 ? "yellow" : "green");
+
+            var contextPanel = new Panel(
+                new Markup(
+                    $"• [bold]Active Model:[/] [cyan]{Markup.Escape(AppState.ActiveModel)}[/] (Max Limit: [cyan]{limit:N0}[/] tokens)\n" +
+                    $"• [bold]Current Context:[/] [bold {gaugeColor}]{totalActiveContext:N0}[/] / {limit:N0} tokens ({percent:F1}%)\n" +
+                    $"• [bold]Context Gauge:[/] [{gaugeColor}][[{gauge}]][/] {percent:F1}%\n" +
+                    $"• [bold]Compression Threshold:[/] {limit * 0.8:N0} tokens (Auto-compression triggers at 80%)\n\n" +
+                    $"[bold underline]Context Components Breakdown:[/]\n" +
+                    $"  - Conversation Turns ({historyCount} msgs): [cyan]{historyTokens:N0}[/] tokens\n" +
+                    $"  - System Instructions & Rules: ~[cyan]{estimatedSystemTokens:N0}[/] tokens\n" +
+                    $"  - Registered Tool Schemas: ~[cyan]{estimatedToolTokens:N0}[/] tokens\n" +
+                    $"  - Free Headroom Remaining: [green]{Math.Max(0, limit - totalActiveContext):N0}[/] tokens"
+                )
+            )
+            {
+                Header = new PanelHeader("[bold yellow]🧠 Live Context Window Status[/]"),
+                Border = BoxBorder.Rounded
+            };
+
+            AnsiConsole.Write(contextPanel);
+
+            return $"Total Calls: {model.TotalCalls}, Input Tokens: {model.TotalInputTokens:N0}, Output Tokens: {model.TotalOutputTokens:N0}, Context: {totalActiveContext:N0}/{limit:N0} ({percent:F1}%)";
+        }
+
+        public static async Task<string> HandleApi(string a, IServiceProvider sp)
+        {
+            var apiServer = sp.GetService<Claude4Net.Runtime.ApiServer.Claude4NetApiServer>();
+            if (apiServer == null)
+            {
+                return "[red]API Server service is not registered in runtime.[/]";
+            }
+
+            string trimmed = (a ?? string.Empty).Trim().ToLowerInvariant();
+            var parts = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            string action = parts.Length > 0 ? parts[0] : "status";
+
+            switch (action)
+            {
+                case "on":
+                case "start":
+                    int port = Claude4Net.Runtime.ApiServer.Claude4NetApiServer.DefaultPort;
+                    if (parts.Length > 1 && int.TryParse(parts[1], out int customPort) && customPort > 0)
+                    {
+                        port = customPort;
+                    }
+
+                    if (apiServer.IsRunning)
+                    {
+                        return $"[yellow]API Server is already running on[/] [cyan]{apiServer.Url}[/]";
+                    }
+
+                    await apiServer.StartAsync(port);
+                    return $"[bold green]✓ In-Process OpenAI API Server started on[/] [cyan]{apiServer.Url}[/]\n" +
+                           $"[grey]Available Endpoints:[/\n" +
+                           $" • [green]GET[/]  /v1/models\n" +
+                           $" • [green]POST[/] /v1/chat/completions (SSE stream & JSON)\n" +
+                           $" • [green]GET[/]  /api/v1/status\n" +
+                           $" • [green]GET[/]  /api/v1/usage\n" +
+                           $" • [green]POST[/] /api/v1/agent/run\n" +
+                           $" • [green]GET[/]  /api/v1/tools\n" +
+                           $" • [green]GET[/]  /api/v1/skills";
+
+                case "off":
+                case "stop":
+                    if (!apiServer.IsRunning)
+                    {
+                        return "[yellow]API Server is not currently running.[/]";
+                    }
+
+                    await apiServer.StopAsync();
+                    return "[bold yellow]In-Process OpenAI API Server has been stopped.[/]";
+
+                case "status":
+                default:
+                    if (apiServer.IsRunning)
+                    {
+                        return $"[bold green]API Server Status: RUNNING[/] on [cyan]{apiServer.Url}[/]\n" +
+                               $"Active Provider: [cyan]{AppState.ActiveProvider}[/], Model: [cyan]{AppState.ActiveModel}[/]";
+                    }
+                    else
+                    {
+                        return "[bold grey]API Server Status: STOPPED[/]. Use [cyan]/api on[/] [port] to start.";
+                    }
+            }
         }
 
         public static Task<string> HandleHelp(string a, IServiceProvider sp)

@@ -54,6 +54,16 @@ public sealed class CliOptions
     public string? Model { get; set; }
 
     /// <summary>
+    /// Whether to start the in-process OpenAI-compatible API server.
+    /// </summary>
+    public bool StartApi { get; set; }
+
+    /// <summary>
+    /// Port for the in-process API server (Default: 7836).
+    /// </summary>
+    public int ApiPort { get; set; } = 7836;
+
+    /// <summary>
     /// Validation or migration error message if invalid/deprecated arguments are supplied.
     /// </summary>
     public string? ValidationError { get; set; }
@@ -119,6 +129,24 @@ public sealed class CliOptions
             else if (arg.Equals("--model", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
             {
                 options.Model = args[++i];
+            }
+            else if (arg.Equals("--api", StringComparison.OrdinalIgnoreCase))
+            {
+                if (i + 1 < args.Length && (args[i + 1].Equals("on", StringComparison.OrdinalIgnoreCase) || args[i + 1].Equals("off", StringComparison.OrdinalIgnoreCase)))
+                {
+                    options.StartApi = args[++i].Equals("on", StringComparison.OrdinalIgnoreCase);
+                }
+                else
+                {
+                    options.StartApi = true;
+                }
+            }
+            else if (arg.Equals("--api-port", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                if (int.TryParse(args[++i], out int port) && port > 0)
+                {
+                    options.ApiPort = port;
+                }
             }
             else
             {

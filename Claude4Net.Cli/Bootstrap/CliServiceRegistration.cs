@@ -44,6 +44,7 @@ public static class CliServiceRegistration
         services.AddSingleton<RuntimeServices.ToolSecurityService>();
         services.AddSingleton<RuntimeServices.PluginLoader>();
         services.AddSingleton<IToolRegistry, RuntimeServices.ToolRegistry>(sp => new RuntimeServices.ToolRegistry(sp.GetServices<ITool>()));
+        services.AddSingleton<Claude4Net.Runtime.ApiServer.Claude4NetApiServer>();
 
         // 메시징 서비스
         services.AddSingleton<IInputBroker, ChannelBroker>();
