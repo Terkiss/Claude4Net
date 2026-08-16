@@ -4,11 +4,11 @@
 - Claude4Net In-Process OpenAI 호환 API 서버 (Port 7836) 및 커스텀 엔드포인트 구현 완료.
 - CLI 인자 (`--api on/off`, `--api-port 7836`) 및 REPL 명령어 (`/api on|off|status`) 지원.
 - 실시간 토큰 사용량 & 컨텍스트 윈도우 게이지 분석 기능 (`/usage`, `GET /api/v1/usage`) 구축 완료.
-- 전체 테스트 700건 100% 통과 (0건 실패).
-- 현재 작업 위치는 `experiment` 브랜치.
+- Gemini (Pro: 2M, Flash: 1M, 1.0: 32K) 등 모델별 동적 컨텍스트 스펙 연동 완료.
+- 전체 테스트 702건 100% 통과 및 원격 저장소(`origin/experiment`) 커밋/푸시 완료 (`0bb9c42`).
 
 ## Active Task
-- 사용자 후속 요청 대기 및 커밋 준비
+- 사용자 후속 지시사항 대기
 
 ## Known Risks
 - 없음
