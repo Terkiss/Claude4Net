@@ -1,3 +1,0 @@
-{"Timestamp":"2026-05-30T02:52:51.0734892Z","AgentId":"gemini","Type":"UserPrompt","Message":"test prompt","Data":null}
-{"Timestamp":"2026-05-30T02:52:51.1061294Z","AgentId":"gemini","Type":"ThinkingStart","Message":"Turn 1","Data":null}
-{"Timestamp":"2026-05-30T02:52:51.1069399Z","AgentId":"gemini","Type":"TextDelta","Message":"Final Response","Data":null}

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -27,6 +27,11 @@ namespace Claude4Net.Runtime
             _coreTools = coreTools.ToList();
             _approvalHandler = approvalHandler;
             _serviceProvider = serviceProvider;
+        }
+
+        public static ToolOrchestrator CreateForTest(IEnumerable<ITool> coreTools, IUserApprovalHandler? approvalHandler, IServiceProvider serviceProvider)
+        {
+            return new ToolOrchestrator(coreTools, approvalHandler, serviceProvider);
         }
 
         public void ReloadDynamicPlugins(string directoryPath)

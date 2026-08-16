@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EvidenceBundle",
+  "type": "object",
+  "properties": {
+    "task_id": { "type": "string" },
+    "state": { "type": "string" },
+    "repository": { "type": "string" },
+    "git": {
+      "type": "object",
+      "properties": {
+        "branch": { "type": "string" },
+        "head_commit": { "type": "string" },
+        "staged": { "type": "array", "items": { "type": "string" } },
+        "unstaged": { "type": "array", "items": { "type": "string" } },
+        "untracked": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["branch", "head_commit", "staged", "unstaged", "untracked"]
+    },
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "command": { "type": "string" },
+          "exit_code": { "type": "integer" },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "FAIL",
+              "SKIPPED_NO_COMMAND",
+              "SKIPPED_NOT_APPLICABLE",
+              "BLOCKED_ENVIRONMENT",
+              "NOT_RUN"
+            ]
+          },
+          "output_summary": { "type": "string" }
+        },
+        "required": ["command", "exit_code", "status"]
+      }
+    },
+    "changed_files": { "type": "array", "items": { "type": "string" } },
+    "acceptance_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "status": { "type": "string", "enum": ["PASS", "FAIL", "NOT_RUN"] },
+          "evidence": { "type": "string" }
+        },
+        "required": ["id", "status"]
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "finding.schema.json"
+      }
+    },
+    "unverified_items": { "type": "array", "items": { "type": "string" } },
+    "residual_risks": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": [
+    "task_id",
+    "state",
+    "repository",
+    "git",
+    "commands",
+    "changed_files",
+    "acceptance_results",
+    "findings",
+    "unverified_items",
+    "residual_risks"
+  ]
+}

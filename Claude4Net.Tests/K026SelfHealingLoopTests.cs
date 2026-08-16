@@ -8,6 +8,7 @@ using Claude4Net.Runtime.Services;
 using Claude4Net.SDK;
 using Claude4Net.SDK.Events;
 using Moq;
+using SelfHealingService = Claude4Net.Runtime.Services.SelfHealingService;
 using FailurePattern = Claude4Net.SDK.FailurePattern;
 using RuntimeFailurePattern = Claude4Net.Runtime.Services.FailurePattern;
 

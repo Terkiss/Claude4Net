@@ -169,14 +169,7 @@ if (Console.IsInputRedirected)
             };
         }
 
-        var broadcaster = DashboardServer.Services?.GetService<IAgentEventBroadcaster>();
-        var agent = new AgentLoop(
-            serviceProvider.GetRequiredService<ToolOrchestrator>(),
-            serviceProvider,
-            broker,
-            router,
-            serviceProvider.GetRequiredService<IEmbeddingProvider>(),
-            broadcaster);
+        var agent = serviceProvider.GetRequiredService<AgentLoop>();
 
         try
         {
@@ -304,14 +297,7 @@ else
         // [Consumer] Main loop to execute AgentLoop from broker messages
         while (!mainCts.Token.IsCancellationRequested)
         {
-            var broadcaster = DashboardServer.Services?.GetService<IAgentEventBroadcaster>();
-            var agent = new AgentLoop(
-                serviceProvider.GetRequiredService<ToolOrchestrator>(),
-                serviceProvider,
-                broker,
-                serviceProvider.GetRequiredService<ISmartRouter>(),
-                serviceProvider.GetRequiredService<IEmbeddingProvider>(),
-                broadcaster);
+            var agent = serviceProvider.GetRequiredService<AgentLoop>();
 
             try
             {

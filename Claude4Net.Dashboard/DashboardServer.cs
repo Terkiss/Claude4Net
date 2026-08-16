@@ -14,6 +14,27 @@ public class DashboardServer
     public static IServiceProvider? Services => _host?.Services;
     public const int DefaultPort = 5000;
 
+    public static int ResolvePort(Microsoft.Extensions.Configuration.IConfiguration? configuration, string? environmentPort = null)
+    {
+        string? raw = environmentPort;
+        if (string.IsNullOrWhiteSpace(raw) && configuration != null)
+        {
+            raw = configuration["Dashboard:Port"];
+        }
+
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return DefaultPort;
+        }
+
+        if (int.TryParse(raw, out int port) && port >= 1 && port <= 65535)
+        {
+            return port;
+        }
+
+        throw new InvalidOperationException($"Invalid Dashboard Port: '{raw}'. Port must be an integer between 1 to 65535.");
+    }
+
     public static async Task StartAsync(string[] args, int port = DefaultPort)
     {
         try

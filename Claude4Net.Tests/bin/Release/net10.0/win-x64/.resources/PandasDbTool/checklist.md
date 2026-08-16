@@ -1,3 +1,0 @@
-- [ ] Check if table exists before querying.
-- [ ] Verify column names in the target DataFrame.
-- [ ] Ensure the file path is within allowed boundaries.

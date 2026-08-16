@@ -19,6 +19,9 @@ config.local.json
 .idea/
 .vscode/
 *.swp
+__pycache__/
+*.py[cod]
+.pytest_cache/
 
 # Docs
 [Dd]ocuments/
@@ -41,6 +44,8 @@ ralph-queue-state.md
 # Local SDK and Android build artifacts
 Claude4Net.JaVaSDK/
 Claude4Net.Tests/TestResults/
+TestResults/
+*.bak
 android/.gradle/
 android/local.properties
 android/**/build/

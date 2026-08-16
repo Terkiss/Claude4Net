@@ -1,7 +1,8 @@
-﻿using Xunit;
+using Xunit;
 using Claude4Net.SDK;
 using Claude4Net.Runtime;
 using Claude4Net.Runtime.Services;
+using SelfHealingService = Claude4Net.Runtime.Services.SelfHealingService;
 using System.IO;
 using System;
 

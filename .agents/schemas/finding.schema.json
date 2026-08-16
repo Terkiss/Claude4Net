@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Finding",
+  "type": "object",
+  "properties": {
+    "id": { 
+      "type": "string", 
+      "pattern": "^P[1-3]-[A-Z]{3,4}-[0-9]{3}$" 
+    },
+    "severity": { "type": "string", "enum": ["P1", "P2", "P3"] },
+    "category": { "type": "string", "enum": ["SEC", "DATA", "ARCH", "TEST", "SCOPE", "DOC", "CODE"] },
+    "file": { "type": "string" },
+    "location": { "type": "string" },
+    "evidence": { "type": "string" },
+    "impact": { "type": "string" },
+    "required_action": { "type": "string" },
+    "blocking": { "type": "boolean" },
+    "status": { "type": "string", "enum": ["open", "resolved", "waived"] },
+    "introduced_in_attempt": { "type": "integer" },
+    "resolved_in_attempt": { "type": "integer" }
+  },
+  "required": [
+    "id",
+    "severity",
+    "category",
+    "file",
+    "evidence",
+    "required_action",
+    "blocking",
+    "status",
+    "introduced_in_attempt"
+  ]
+}

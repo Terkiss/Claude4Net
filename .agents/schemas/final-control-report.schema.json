@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FinalControlReport",
+  "type": "object",
+  "properties": {
+    "task_id": { "type": "string" },
+    "controller": { "type": "string", "enum": ["universal-final-controller", "final-approach-control"] },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "VERIFIED FOR FINAL CONTROL",
+        "APPROVED FOR COMMIT ONLY",
+        "CONDITIONAL — RECHECK REQUIRED",
+        "REWORK REQUIRED",
+        "REJECTED — EVIDENCE INSUFFICIENT"
+      ]
+    },
+    "evidence_level": { "type": "string", "enum": ["none", "low", "medium", "high"] },
+    "git_state": {
+      "type": "object",
+      "properties": {
+        "staged_only": { "type": "boolean" },
+        "working_tree_clean": { "type": "boolean" }
+      },
+      "required": ["staged_only", "working_tree_clean"]
+    },
+    "required_gates": { "type": "array", "items": { "type": "string" } },
+    "open_findings": { "type": "integer" },
+    "remaining_risks": { "type": "array", "items": { "type": "string" } },
+    "commit_permission": { "type": "string", "enum": ["granted", "denied", "force_ask"] },
+    "push_permission": { "type": "string", "enum": ["denied"] }
+  },
+  "required": [
+    "task_id",
+    "controller",
+    "verdict",
+    "evidence_level",
+    "git_state",
+    "required_gates",
+    "open_findings",
+    "remaining_risks",
+    "commit_permission",
+    "push_permission"
+  ]
+}

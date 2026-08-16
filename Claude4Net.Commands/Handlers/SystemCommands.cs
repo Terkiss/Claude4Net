@@ -312,16 +312,16 @@ namespace Claude4Net.Commands.Handlers
                 .ToList();
             var visible = showAll ? env : env.Take(defaultLimit);
 
-            sb.AppendLine($"[bold cyan]Environment Variables ({(showAll ? "All" : $"Top {defaultLimit}")}):[/]");
+            sb.AppendLine($"[bold cyan]Environment Variables ({(showAll ? "All Values Source-Guarded" : $"Top {defaultLimit}")}):[/]");
             foreach(var de in visible)
             {
                 string key = de.Key?.ToString() ?? "";
                 string val = de.Value?.ToString() ?? "";
-                string displayVal = SourceGuard.MaskValue(val);
+                string displayVal = SourceGuard.MaskValue(val, key);
                 sb.AppendLine($"  [bold]{key.PadRight(30)}[/] = {displayVal}");
             }
             if (!showAll && env.Count > defaultLimit)
-                sb.AppendLine($"[grey]... and {env.Count - defaultLimit} more. Use 'env all' to show all.[/]");
+                sb.AppendLine($"[grey]... and {env.Count - defaultLimit} more. Use /env all to show all.[/]");
 
             return Task.FromResult(sb.ToString());
         }

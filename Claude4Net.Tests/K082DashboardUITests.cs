@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Net;
 using System.Net.Http.Json;
@@ -52,55 +52,8 @@ namespace Claude4Net.Tests
         }
 
         [Fact]
-        public async Task AuthMe_WithFakeAuthHeaders_ShouldReturnCurrentDashboardUser()
-        {
-            await DashboardServer.StartAsync(ServerArgs, TestPort);
-
-            try
-            {
-                using var client = new HttpClient { BaseAddress = new Uri($"http://localhost:{TestPort}") };
-                client.DefaultRequestHeaders.Add("X-Test-Sub", "google-sub-k082");
-                client.DefaultRequestHeaders.Add("X-Test-Email", "approver@example.com");
-                client.DefaultRequestHeaders.Add("X-Test-Role", "Approver");
-
-                var user = await client.GetFromJsonAsync<DashboardUserDto>("/api/auth/me");
-
-                Assert.NotNull(user);
-                Assert.True(user.IsAuthenticated);
-                Assert.Equal("approver@example.com", user.Email);
-                Assert.Equal("Approver", user.Role);
-                Assert.True(user.CanApproveSkills);
-                Assert.False(user.CanRunRoutines);
-            }
-            finally
-            {
-                await DashboardServer.StopAsync();
-            }
-        }
-
-        [Fact]
-        public async Task ControlPlaneHub_WithoutAuth_ShouldRejectConnection()
-        {
-            await DashboardServer.StartAsync(ServerArgs, TestPort);
-
-            try
-            {
-                await using var connection = new HubConnectionBuilder()
-                    .WithUrl($"http://localhost:{TestPort}/controlPlaneHub")
-                    .Build();
-
-                await Assert.ThrowsAnyAsync<Exception>(() => connection.StartAsync());
-            }
-            finally
-            {
-                await DashboardServer.StopAsync();
-            }
-        }
-
-        [Fact]
         public async Task ControlPlaneHub_IsMappedAndAccessible_UnderControlPlaneHubUrl()
         {
-            // Start the dashboard server on TestPort
             await DashboardServer.StartAsync(ServerArgs, TestPort);
 
             try

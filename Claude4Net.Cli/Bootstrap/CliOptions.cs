@@ -54,6 +54,11 @@ public sealed class CliOptions
     public string? Model { get; set; }
 
     /// <summary>
+    /// Validation or migration error message if invalid/deprecated arguments are supplied.
+    /// </summary>
+    public string? ValidationError { get; set; }
+
+    /// <summary>
     /// Remaining non-option arguments.
     /// </summary>
     public string[] RemainingArgs { get; set; } = Array.Empty<string>();
@@ -73,6 +78,7 @@ public sealed class CliOptions
             if (arg.Equals("--dashboard", StringComparison.OrdinalIgnoreCase))
             {
                 options.StartDashboard = true;
+                options.ValidationError = $"{arg}: Dashboard and Lumen now start automatically. Legacy UI has been removed.";
             }
             else if (arg.Equals("--smoke-exit", StringComparison.OrdinalIgnoreCase))
             {
@@ -81,10 +87,12 @@ public sealed class CliOptions
             else if (arg.Equals("--legacy-cli", StringComparison.OrdinalIgnoreCase))
             {
                 options.LegacyCli = true;
+                options.ValidationError = $"{arg}: Dashboard and Lumen now start automatically. Legacy UI has been removed.";
             }
             else if (arg.Equals("--lumen", StringComparison.OrdinalIgnoreCase))
             {
                 options.UseLumen = true;
+                options.ValidationError = $"{arg}: Dashboard and Lumen now start automatically. Legacy UI has been removed.";
             }
             else if (arg.Equals("--yolo", StringComparison.OrdinalIgnoreCase))
             {

@@ -1,39 +1,46 @@
 {
-  "hooks": {
+  "terukirdo-safety-policy": {
+    "enabled": true,
     "PreToolUse": [
       {
-        "matcher": "Bash|apply_patch|Edit|Write",
+        "matcher": "run_command|write_to_file|replace_file_content|multi_replace_file_content",
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NoProfile -Command \"python .agents/hooks/pre_tool_use_policy.py\"",
+            "command": "python .agents/hooks/pre_tool_use_policy.py",
             "timeout": 30,
-            "statusMessage": "Checking harness policy"
+            "statusMessage": "Checking harness safety policy"
           }
         ]
       }
-    ],
+    ]
+  },
+  "terukirdo-post-review": {
+    "enabled": true,
     "PostToolUse": [
       {
-        "matcher": "Bash|apply_patch|Edit|Write",
+        "matcher": "run_command|write_to_file|replace_file_content|multi_replace_file_content",
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NoProfile -Command \"python .agents/hooks/post_tool_use_review.py\"",
+            "command": "python .agents/hooks/post_tool_use_review.py",
             "timeout": 30,
-            "statusMessage": "Reviewing harness risk"
+            "statusMessage": "Reviewing execution risk and syntax"
           }
         ]
       }
-    ],
+    ]
+  },
+  "terukirdo-stop-gate": {
+    "enabled": true,
     "Stop": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NoProfile -Command \"python .agents/hooks/stop_quality_gate.py\"",
+            "command": "python .agents/hooks/stop_quality_gate.py",
             "timeout": 30,
-            "statusMessage": "Running final harness quality gate"
+            "statusMessage": "Running final quality gate check"
           }
         ]
       }

@@ -1,0 +1,107 @@
+[
+  {
+    "filepath": ".agents/skills/agent-tool-builder/SKILL.md",
+    "filename": "SKILL.md",
+    "name": "agent-tool-builder",
+    "description": "Tools are how AI agents interact with the world. A well-designed tool is the difference between an agent that works and one that hallucinates, fails silently, or costs 10x more tokens than necessary.  This skill covers tool design from schema to error handling. JSON Schema best practices, description writing that actually helps the LLM, validation, and the emerging MCP standard that's becoming the lingua franca for AI tools.  Key insight: Tool descriptions are more important than tool implementa",
+    "content_hash": "f58f0e30d92e51a3575efbcc603a09fd"
+  },
+  {
+    "filepath": ".agents/skills/clean-code/SKILL.md",
+    "filename": "SKILL.md",
+    "name": "clean-code",
+    "description": "Pragmatic coding standards - concise, direct, no over-engineering, no unnecessary comments",
+    "content_hash": "457a0f860f8883865a95bb119a7e9fc8"
+  },
+  {
+    "filepath": ".agents/skills/cluedoc/SKILL.md",
+    "filename": "SKILL.md",
+    "name": "cluedoc",
+    "description": "Automatically document a codebase as a set of interlinked, visual \"papers\". Use proactively after making code changes to keep the docs in .cluedoc/ in sync — updating the papers for features that were added, changed, or removed — without being asked. Also use when the user explicitly wants to generate or fully re-sync documentation for a repository (monorepo or single-package). Run the `init` command (e.g. \"/cluedoc init\") to bootstrap a new repository: it writes a shallow starter tree of papers and wires a sync-trigger block into the repo's agent-instructions file. Additionally, whenever the user asks a question about how the system works and .cluedoc/ papers exist, append a short \"Reading Guide\" to the answer pointing at the most relevant existing papers to read.",
+    "content_hash": "7f1ef2496ec96776257a8ecbd4279499"
+  },
+  {
+    "filepath": ".agents/skills/code-reviewer/SKILL.md",
+    "filename": "SKILL.md",
+    "name": "code-reviewer",
+    "description": "Elite code review expert specializing in modern AI-powered code",
+    "content_hash": "2ea6081e2f26bb40acfd4acacb45a14c"
+  },
+  {
+    "filepath": ".agents/skills/design-ui/SKILL.md",
+    "filename": "SKILL.md",
+    "name": "design-ui",
+    "description": "Design or review app UX/UI changes, including screens, flows, layouts, buttons, interaction states, loading/empty/error/disabled states, accessibility, navigation, responsive behavior, visual verification, and design-system alignment. Use when user-visible UI/UX behavior may change or needs review; do not use for code-only changes with no visual, interaction, or accessibility impact.",
+    "content_hash": "363f0fe171820e78c58d9d949c8c5859"
+  },
+  {
+    "filepath": ".agents/skills/implement-feature/SKILL.md",
+    "filename": "SKILL.md",
+    "name": "implement-feature",
+    "description": "Implement project code, features, bug fixes, refactors, configuration changes, dependencies, state management, API calls, and UI code while following existing project patterns. Use when requirements are clear enough to edit code; do not use for product planning, UX-only review, architecture decisions, test-only work, or release readiness unless code changes are required.",
+    "content_hash": "d57cab59ce4d71ac9f3fb30fb2a015fa"
+  },
+  {
+    "filepath": ".agents/skills/mcp-builder/SKILL.md",
+    "filename": "SKILL.md",
+    "name": "mcp-builder",
+    "description": "MCP (Model Context Protocol) server building principles.",
+    "content_hash": "3865916369d43b46cca58a7891fed19a"
+  },
+  {
+    "filepath": ".agents/skills/operate-app/SKILL.md",
+    "filename": "SKILL.md",
+    "name": "operate-app",
+    "description": "Handle app/project operations, monitoring, incidents, alerts, logs, support issues, user feedback loops, post-release follow-up, production impact, rollback handoff, and support-driven product follow-up. Use when diagnosing or organizing operational facts and next actions; do not use for ordinary feature implementation, test writing, or planned release preparation without operational feedback.",
+    "content_hash": "75d3e7d3ba2532e2b2244138c66b6683"
+  },
+  {
+    "filepath": ".agents/skills/plan-architecture/SKILL.md",
+    "filename": "SKILL.md",
+    "name": "plan-architecture",
+    "description": "Plan or review app/project architecture, module boundaries, API contracts, data models, authentication, authorization, privacy, storage, migrations, security, dependency boundaries, and ADRs. Use when implementation depends on technical structure, API/data/auth decisions, or high-risk privacy/security choices; do not use for straightforward code edits that fit existing architecture.",
+    "content_hash": "f91bde5fb10f39712f391c5f4b945fb5"
+  },
+  {
+    "filepath": ".agents/skills/plan-product/SKILL.md",
+    "filename": "SKILL.md",
+    "name": "plan-product",
+    "description": "Plan or refine app/project product direction, including problem definition, target users, user journeys, MVP scope, out-of-scope items, success metrics, roadmap, open questions, options, prioritization, and handoff decisions. Use before design or implementation when product intent, scope, users, or success criteria are unclear; do not use for straightforward code, test, UI, or release tasks with clear requirements.",
+    "content_hash": "4cdc370d5ffceec97582f85155b9621b"
+  },
+  {
+    "filepath": ".agents/skills/prepare-release/SKILL.md",
+    "filename": "SKILL.md",
+    "name": "prepare-release",
+    "description": "Prepare or review app/project release, deploy, build signing, store/distribution delivery, rollout, rollback, smoke tests, release checklist, monitoring, production configuration, release tooling paths, service deployment paths, and approval readiness. Use for planned release or production-impacting work; do not use for ordinary implementation, verification, or post-release incident handling unless release readiness or rollback is involved.",
+    "content_hash": "3fd01b32886fbd99658e1aa308336a26"
+  },
+  {
+    "filepath": ".agents/skills/prompt-engineering-patterns/SKILL.md",
+    "filename": "SKILL.md",
+    "name": "prompt-engineering-patterns",
+    "description": "Master advanced prompt engineering techniques to maximize LLM performance, reliability, and controllability in production. Use when optimizing prompts, improving LLM outputs, or designing production prompt templates.",
+    "content_hash": "213f515e191aee0218d0f508ca7e8085"
+  },
+  {
+    "filepath": ".agents/skills/self-evolution/SKILL.md",
+    "filename": "SKILL.md",
+    "name": "self-evolution",
+    "description": "Nightly background maintenance skill that uses SkillOpt to automatically harvest logs, evaluate, and optimize agent skills in .agents/skills/. Must only be triggered upon explicit user permission.",
+    "content_hash": "334fddc09754dabd9225b076f8e6fe14"
+  },
+  {
+    "filepath": ".agents/skills/ui-visual-validator/SKILL.md",
+    "filename": "SKILL.md",
+    "name": "ui-visual-validator",
+    "description": "Rigorous visual validation expert specializing in UI testing,",
+    "content_hash": "e706a4a88bc6e8954a9b94b9c0226efc"
+  },
+  {
+    "filepath": ".agents/skills/verify-change/SKILL.md",
+    "filename": "SKILL.md",
+    "name": "verify-change",
+    "description": "Add, update, or run project verification, including unit tests, UI component tests, integration tests, snapshot/golden tests, mocks, CI checks, project-specific static analysis, project-specific tests, regression checks, failure triage, and coverage. Use when behavior changes, tests are requested, CI fails, or completion depends on evidence; do not use as the primary skill for designing product/UI/architecture or implementing code unless verification work is needed.",
+    "content_hash": "86df70fcef23387e98a7b1f04652193a"
+  }
+]

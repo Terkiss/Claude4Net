@@ -1,4 +1,0 @@
-{"Type":"SessionStarted","Payload":{"EventType":"SessionStarted","WorkspacePath":"D:\\Project\\CKP\\Test\\openclaude\\Claude4Net-App\\Claude4Net.Tests\\bin\\Debug\\net10.0\\","Provider":"Mock","Model":"model","EventId":"d9896246-5985-4f0d-bb08-893531ad6bab","Timestamp":"2026-05-30T02:53:55.1138276Z","Version":1}}
-{"Type":"UserPromptReceived","Payload":{"EventType":"UserPromptReceived","Prompt":"test prompt","EventId":"dd6bd5a6-3d4e-4205-89d9-68ab697200e4","Timestamp":"2026-05-30T02:53:55.1172338Z","Version":2}}
-{"Type":"AgentThought","Payload":{"EventType":"AgentThought","Thought":"Final Response","EventId":"68dfb799-c9bb-45af-9cd6-20f629602b77","Timestamp":"2026-05-30T02:53:55.1362831Z","Version":3}}
-{"Type":"FinalResponseGenerated","Payload":{"EventType":"FinalResponseGenerated","Response":"Final Response","EventId":"8628bbeb-0be3-4d32-ab9b-4106445cedeb","Timestamp":"2026-05-30T02:53:55.1365864Z","Version":4}}

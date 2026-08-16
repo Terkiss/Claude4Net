@@ -1,115 +1,170 @@
 #!/usr/bin/env python3
-"""Pre-tool policy check for the Antigravity harness.
-
-The hook is intentionally small and conservative. It blocks obvious destructive
-or production-impacting shell commands unless the user/session has explicitly
-opted in with HARNESS_ALLOW_HIGH_RISK=1. For non-shell tools it performs only a
-lightweight secret-pattern check on the hook payload.
-"""
-
-from __future__ import annotations
-
-import json
-import os
-import re
 import sys
-from typing import Any
+import re
+import shlex
+import os
+from pathlib import Path
+from common import load_input, respond_json, log_stderr, normalize_path, find_repo_root, check_secret_in_content
 
+# Absolute Deny Command list
+DENY_CMD_REGEX = [
+    (r"\brm\s+-[^;\n]*r[^;\n]*f\s+/\b", "destructive root deletion (rm -rf /)"),
+    (r"\bterraform\s+destroy\b", "destructive infrastructure destroy (terraform destroy)"),
+    (r"(?i)\bFormat-Volume\b", "destructive disk formatting (Format-Volume)"),
+    (r"\bdotnet\s+ef\s+database\s+drop\b", "destructive database drop (dotnet ef database drop)"),
+    (r"(?i)\bDrop-Database\b", "destructive database drop (Drop-Database)"),
+]
 
-ALLOW_ENV = "HARNESS_ALLOW_HIGH_RISK"
+# Force Ask Command list
+FORCE_ASK_CMD_REGEX = [
+    (r"\bterraform\s+apply\b", "Terraform infrastructure mutation"),
+    (r"\bkubectl\s+(apply|delete|rollout|scale)\b", "Kubernetes production-impacting operation"),
+    (r"\bfirebase\s+deploy\b", "Firebase production deploy"),
+    (r"\bgcloud\s+app\s+deploy\b", "Google Cloud production deploy"),
+    (r"\bfastlane\s+(deliver|supply|pilot|deploy)\b", "Fastlane mobile release action"),
+    (r"\b(npm|yarn|pnpm)\s+install\b", "package dependency installation"),
+    (r"\bpip\s+install\b", "python package installation"),
+    (r"\bflutter\s+pub\s+(add|get)\b", "Flutter package dependency action"),
+]
 
-BLOCK_PATTERNS: tuple[tuple[str, str], ...] = (
-    (r"\brm\s+-[^;\n]*r[^;\n]*f\b", "recursive forced delete"),
-    (r"\bgit\s+reset\s+--hard\b", "hard git reset"),
-    (r"\bgit\s+clean\b", "git clean removes untracked files"),
-    (r"\bgit\s+checkout\s+--\b", "checkout path can discard user changes"),
-    (r"\bfirebase\s+deploy\b", "Firebase deploy is production-impacting"),
-    (r"\bfastlane\s+(deliver|supply|pilot|deploy)\b", "Fastlane release action"),
-    (r"\bgcloud\s+app\s+deploy\b", "GCP deploy is production-impacting"),
-    (r"\bkubectl\s+(apply|delete|rollout|scale)\b", "Kubernetes production-impacting action"),
-    (r"\bterraform\s+(apply|destroy)\b", "Terraform mutates infrastructure"),
-    (r"\bsupabase\s+db\s+(reset|push)\b", "database mutation"),
-    # Windows / .NET dangerous patterns
-    (r"(?i)\bDrop-Database\b", "EF Core Drop-Database is destructive"),
-    (r"(?i)\bRemove-Migration\b", "EF Core Remove-Migration alters history"),
-    (r"\bdotnet\s+ef\s+database\s+drop\b", "dotnet ef database drop is destructive"),
-    (r"(?i)\bFormat-Volume\b", "Format-Volume destroys disk data"),
-    (r"(?i)\bClear-Content\b", "Clear-Content truncates files"),
-    (r"(?i)\bRemove-Item\s+-[^;\n]*Recurse[^;\n]*Force\b", "Recursive force delete in PowerShell"),
-)
-
-SECRET_PATTERNS: tuple[tuple[str, str], ...] = (
-    (r"(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*['\"][^'\"]{12,}", "possible secret literal"),
-    (r"AIza[0-9A-Za-z\-_]{20,}", "possible Google API key"),
-    (r"sk-[A-Za-z0-9_\-]{20,}", "possible API key"),
-)
-
-
-def load_payload() -> Any:
-    raw = sys.stdin.read()
-    if not raw.strip():
-        return {}
+def check_command_line(cmd: str, repo_root_str: str) -> tuple[str, str]:
+    for pattern, description in DENY_CMD_REGEX:
+        if re.search(pattern, cmd):
+            return "deny", f"Destructive command detected: {description}"
+            
     try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        return {"raw": raw}
+        tokens = shlex.split(cmd)
+    except Exception:
+        tokens = cmd.split()
+        
+    if not tokens:
+        return "allow", ""
+        
+    main_cmd = os.path.basename(tokens[0]).lower()
+    
+    if main_cmd == "git":
+        git_args = [t.lower() for t in tokens[1:]]
+        if "reset" in git_args and "--hard" in git_args:
+            return "deny", "Destructive git operation: git reset --hard is strictly denied."
+        if "clean" in git_args:
+            if "-n" in git_args or "--dry-run" in git_args:
+                return "allow", ""
+            if "-f" in git_args or "-fd" in git_args or "-fdx" in git_args or "-fx" in git_args:
+                return "deny", "Destructive git operation: git clean with force (-f) is strictly denied."
+        if "checkout" in git_args and "--" in git_args:
+            return "deny", "Destructive git operation: git checkout -- can discard uncommitted user changes and is denied."
+        if "commit" in git_args:
+            return "force_ask", "Commit operation requires user review and approval."
+            
+    if main_cmd == "rm" or main_cmd == "remove-item":
+        args_lower = [t.lower() for t in tokens[1:]]
+        has_recursive = any(x in args_lower for x in ["-r", "-rf", "-fr", "-recurse"])
+        has_force = any(x in args_lower for x in ["-f", "-rf", "-fr", "-force"])
+        
+        for token in tokens[1:]:
+            if token.startswith("-"):
+                continue
+            normalized_target = normalize_path(token)
+            if normalized_target in ["/", "c:/", "d:/"]:
+                return "deny", "Attempted root filesystem deletion."
+            if normalized_target == normalize_path(repo_root_str):
+                return "deny", "Attempted deletion of the repository root directory."
+            if ".git" in normalized_target.split("/"):
+                return "deny", "Attempted deletion or modification of the .git system directory."
 
+    if "supabase" in tokens and "db" in tokens and any(x in tokens for x in ["reset", "push"]):
+        return "force_ask", "Database mutation (supabase db reset/push) requires user approval."
+        
+    for pattern, description in FORCE_ASK_CMD_REGEX:
+        if re.search(pattern, cmd):
+            return "force_ask", f"Production-impacting command: {description} requires explicit confirmation."
+            
+    return "allow", ""
 
-def iter_strings(value: Any) -> list[str]:
-    found: list[str] = []
-    if isinstance(value, str):
-        found.append(value)
-    elif isinstance(value, dict):
-        for item in value.values():
-            found.extend(iter_strings(item))
-    elif isinstance(value, list):
-        for item in value:
-            found.extend(iter_strings(item))
-    return found
+def check_file_write(tool_name: str, args: dict, repo_root_str: str, allowed_prefixes: list) -> tuple[str, str]:
+    target_file = args.get("TargetFile") or args.get("AbsolutePath")
+    if not target_file:
+        return "allow", ""
+        
+    target_path = Path(target_file)
+    if not target_path.is_absolute():
+        target_path = Path(repo_root_str) / target_path
+    normalized_target = normalize_path(str(target_path))
+    
+    if ".git/" in normalized_target or "/.git" in normalized_target:
+        return "deny", "Direct modification of .git internals is strictly denied."
+        
+    file_name = os.path.basename(normalized_target).lower()
+    if file_name in [".env", "secrets", "credentials"]:
+        content = args.get("CodeContent") or args.get("ReplacementContent") or ""
+        if check_secret_in_content(content):
+            return "deny", f"Writing literal secrets directly to {file_name} is strictly denied."
+        return "force_ask", f"Writing/modifying sensitive file {file_name} requires explicit user approval."
 
+    is_allowed_path = False
+    for prefix in allowed_prefixes:
+        if normalized_target.startswith(prefix):
+            is_allowed_path = True
+            break
+    if not is_allowed_path:
+        return "deny", f"Workspace escape blocked. Path {target_file} is outside authorized directories."
 
-def extract_command(payload: Any) -> str:
-    if isinstance(payload, dict):
-        for key in ("command", "cmd"):
-            value = payload.get(key)
-            if isinstance(value, str):
-                return value
-        tool_input = payload.get("tool_input")
-        if isinstance(tool_input, dict):
-            for key in ("command", "cmd"):
-                value = tool_input.get(key)
-                if isinstance(value, str):
-                    return value
-    return ""
+    if not normalized_target.endswith(".md"):
+        content = args.get("CodeContent") or args.get("ReplacementContent") or ""
+        if "ReplacementChunks" in args:
+            for chunk in args["ReplacementChunks"]:
+                content += chunk.get("ReplacementContent", "")
+                
+        reason = check_secret_in_content(content)
+        if reason:
+            return "deny", f"Literal secret detected in code content: {reason}."
 
+    return "allow", ""
 
 def main() -> int:
-    payload = load_payload()
-    command = extract_command(payload)
+    try:
+        payload = load_input()
+    except Exception as e:
+        respond_json({"decision": "force_ask", "reason": f"Harness internal parse error: {e}"})
+        return 0
 
-    if command and os.environ.get(ALLOW_ENV) != "1":
-        for pattern, reason in BLOCK_PATTERNS:
-            if re.search(pattern, command):
-                print(
-                    f"[harness-policy] Blocked {reason}. "
-                    f"Confirm the risk, use the matching skill verification script, "
-                    f"or set {ALLOW_ENV}=1 for an explicit one-off override.",
-                    file=sys.stderr,
-                )
-                return 2
+    tool_call = payload.get("toolCall", {})
+    tool_name = tool_call.get("name")
+    args = tool_call.get("args", {})
+    
+    repo_root = find_repo_root()
+    repo_root_str = normalize_path(str(repo_root))
+    
+    allowed_prefixes = [repo_root_str]
+    workspace_paths = payload.get("workspacePaths", [])
+    for path in workspace_paths:
+        allowed_prefixes.append(normalize_path(path))
+        
+    conversation_id = payload.get("conversationId")
+    if conversation_id:
+        app_data_path = normalize_path(f"C:/Users/dl200/.gemini/antigravity-cli/brain/{conversation_id}")
+        allowed_prefixes.append(app_data_path)
+        
+    log_stderr(f"Evaluating tool call '{tool_name}'")
 
-    payload_text = "\n".join(iter_strings(payload))
-    for pattern, reason in SECRET_PATTERNS:
-        if re.search(pattern, payload_text):
-            print(
-                f"[harness-policy] Blocked {reason} in tool payload. "
-                "Move secrets to local env/config and avoid committing or logging them.",
-                file=sys.stderr,
-            )
-            return 2
-
+    try:
+        if tool_name == "run_command":
+            cmd = args.get("CommandLine", "")
+            decision, reason = check_command_line(cmd, repo_root_str)
+            respond_json({"decision": decision, "reason": reason})
+        elif tool_name in ["write_to_file", "replace_file_content", "multi_replace_file_content"]:
+            decision, reason = check_file_write(tool_name, args, repo_root_str, allowed_prefixes)
+            respond_json({"decision": decision, "reason": reason})
+        else:
+            respond_json({"decision": "allow", "reason": ""})
+    except Exception as exc:
+        log_stderr(f"Error evaluating hook: {exc}")
+        if tool_name in ["run_command", "write_to_file", "replace_file_content", "multi_replace_file_content"]:
+            respond_json({"decision": "deny", "reason": f"Harness check exception: {exc}."})
+        else:
+            respond_json({"decision": "force_ask", "reason": f"Harness check exception: {exc}."})
+            
     return 0
 
-
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()

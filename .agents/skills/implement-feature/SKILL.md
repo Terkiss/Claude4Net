@@ -43,6 +43,7 @@ description: Implement project code, features, bug fixes, refactors, configurati
 6. UI 변경이면 상태와 visual verification 필요성을 확인한다.
 7. 변경 종류에 맞는 검증을 실행하거나, 실행 불가 사유와 대체 검증을 남긴다.
 8. 완료 전 `.agents/skills/implement-feature/scripts/verify.ps1`을 실행하거나, 실행하지 못한 이유를 남긴다.
+9. task type이 `refactor`이면, 규모에 관계없이 최소 First Reviewer 단계를 거쳐 의도 오판(예: 의도된 코드를 보안 이슈로 오판하여 삭제)을 방지한다.
 
 ## Decision Rules
 
@@ -51,6 +52,7 @@ description: Implement project code, features, bug fixes, refactors, configurati
 - 사용자의 기존 변경을 되돌리지 않는다.
 - 동작이 바뀌면 테스트를 갱신하거나 검증 필요성을 명시한다.
 - 인증, 권한, 결제, 개인정보, 데이터 삭제, migration, 배포 설정 변경은 high-risk로 보고 `AGENTS.md`의 Risk Policy와 Safety Policy를 따른다.
+- 기존 코드에서 하드코딩된 API 키, 시크릿, 기본값을 발견해도 즉시 제거하지 않는다. 사용자가 의도적으로 배치한 것일 수 있으므로 반드시 사용자에게 의도를 확인(FORCE_ASK)한 후 처리한다.
 - 관련 검증 또는 실행하지 못한 이유 없이 기능 작업을 완료로 보고하지 않는다.
 
 ## Documentation Updates

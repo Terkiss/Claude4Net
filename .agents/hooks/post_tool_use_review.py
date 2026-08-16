@@ -1,16 +1,11 @@
 #!/usr/bin/env python3
-"""Post-tool lightweight risk review for the Antigravity harness."""
-
-from __future__ import annotations
-
-import json
-import subprocess
 import sys
+import subprocess
+import json
 from pathlib import Path
-from typing import Any
+from common import load_input, respond_json, log_stderr, normalize_path, find_repo_root
 
-
-HIGH_RISK_PATH_HINTS = (
+HIGH_RISK_PATH_HINTS = [
     "firebase.json",
     ".firebaserc",
     "google-services.json",
@@ -28,34 +23,22 @@ HIGH_RISK_PATH_HINTS = (
     "migration",
     "release",
     "rollback",
-)
+]
 
-
-def repo_root() -> Path:
+def check_python_file_syntax(filepath: Path) -> str:
+    if filepath.suffix != ".py":
+        return ""
     try:
-        out = subprocess.check_output(
-            ["git", "rev-parse", "--show-toplevel"],
-            stderr=subprocess.DEVNULL,
-            text=True,
-        ).strip()
-        if out:
-            return Path(out)
-    except Exception:
-        pass
-    return Path.cwd()
+        import ast
+        content = filepath.read_text(encoding="utf-8")
+        ast.parse(content, filename=filepath.name)
+        return ""
+    except SyntaxError as e:
+        return f"Python syntax error in {filepath.name}: {e}"
+    except Exception as e:
+        return f"Failed to check syntax for {filepath.name}: {e}"
 
-
-def load_payload() -> Any:
-    raw = sys.stdin.read()
-    if not raw.strip():
-        return {}
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        return {"raw": raw}
-
-
-def changed_paths(root: Path) -> list[str]:
+def get_git_status_porcelain(root: Path) -> list[str]:
     try:
         output = subprocess.check_output(
             ["git", "status", "--porcelain"],
@@ -63,43 +46,57 @@ def changed_paths(root: Path) -> list[str]:
             stderr=subprocess.DEVNULL,
             text=True,
         )
+        paths = []
+        for line in output.splitlines():
+            if not line.strip():
+                continue
+            path = line[3:].strip()
+            if " -> " in path:
+                path = path.split(" -> ", 1)[1]
+            paths.append(path)
+        return paths
     except Exception:
         return []
 
-    paths: list[str] = []
-    for line in output.splitlines():
-        if not line.strip():
-            continue
-        path = line[3:].strip()
-        if " -> " in path:
-            path = path.split(" -> ", 1)[1]
-        paths.append(path)
-    return paths
-
-
 def main() -> int:
-    _ = load_payload()
-    root = repo_root()
-    changed = changed_paths(root)
+    try:
+        payload = load_input()
+    except Exception as e:
+        log_stderr(f"Post Hook payload error: {e}")
+        respond_json({})
+        return 0
+
+    root = find_repo_root()
+    tool_call = payload.get("toolCall", {})
+    args = tool_call.get("args", {})
+    target_path_str = args.get("TargetFile") or args.get("AbsolutePath") or ""
     
-    risky = [
-        path
-        for path in changed
-        if any(hint.lower() in path.lower() for hint in HIGH_RISK_PATH_HINTS)
-    ]
+    analyzed_paths = []
+    if target_path_str:
+        analyzed_paths.append(normalize_path(target_path_str))
+    else:
+        changed = get_git_status_porcelain(root)
+        analyzed_paths = [normalize_path(str(root / p)) for p in changed]
 
-    if risky:
-        print("[harness-review] High-risk path changes detected:", file=sys.stderr)
-        for path in risky[:20]:
-            print(f"  - {path}", file=sys.stderr)
-        print(
-            "[harness-review] Confirm AGENTS.md risk classification and run the relevant "
-            "skill verification script before completion.",
-            file=sys.stderr,
-        )
+    warnings = []
+    for path_str in analyzed_paths:
+        path = Path(path_str)
+        for hint in HIGH_RISK_PATH_HINTS:
+            if hint.lower() in path.name.lower():
+                warnings.append(f"Modification to sensitive/config path: {path.name}")
+                break
+        if path.is_file():
+            syntax_err = check_python_file_syntax(path)
+            if syntax_err:
+                warnings.append(syntax_err)
 
+    if warnings:
+        log_stderr("[post-tool-review] WARNINGS:")
+        for w in warnings:
+            log_stderr(f"  - {w}")
+            
+    respond_json({})
     return 0
 
-
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()

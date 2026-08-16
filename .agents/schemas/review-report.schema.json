@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ReviewReport",
+  "type": "object",
+  "properties": {
+    "task_id": { "type": "string" },
+    "reviewer_role": { "type": "string", "enum": ["first-reviewer", "tech-expert"] },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "PASS WITH P3",
+        "ARCHITECTURALLY ACCEPTABLE",
+        "REWORK REQUIRED",
+        "EXPLORATION ONLY",
+        "UNABLE TO VERIFY"
+      ]
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "finding.schema.json"
+      }
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "status": { "type": "string", "enum": ["PASS", "FAIL", "NOT_RUN"] }
+        },
+        "required": ["id", "status"]
+      }
+    },
+    "commands_reviewed": { "type": "array", "items": { "type": "string" } },
+    "evidence_gaps": { "type": "array", "items": { "type": "string" } },
+    "scope_violations": { "type": "array", "items": { "type": "string" } },
+    "residual_risks": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": [
+    "task_id",
+    "reviewer_role",
+    "verdict",
+    "findings",
+    "acceptance_criteria",
+    "commands_reviewed",
+    "evidence_gaps",
+    "scope_violations",
+    "residual_risks"
+  ]
+}
