@@ -5,7 +5,8 @@
 </p>
 
 <p align="center">
-  <strong>Next-Generation .NET 10 Autonomous AI Agent Runtime & Observability Platform</strong>
+  <strong>Next-Generation .NET 10 Autonomous AI Agent Runtime & Observability Platform</strong><br>
+  <em>Engineered for Deterministic Tool Execution, Resilient Self-Healing, and Seamless Multi-LLM Orchestration</em>
 </p>
 
 <p align="center">
@@ -16,26 +17,37 @@
   <a href="https://modelcontextprotocol.io/"><img src="https://img.shields.io/badge/MCP-Supported-orange?style=for-the-badge" alt="MCP Ready"></a>
 </p>
 
+<p align="center">
+  <a href="README.md">🇺🇸 <strong>English</strong></a> •
+  <a href="README.ko.md">🇰🇷 <strong>한국어</strong></a> •
+  <a href="README.ja.md">🇯🇵 <strong>日本語</strong></a>
+</p>
+
 ---
 
 ## 📖 Overview
 
 **Claude4Net** is an enterprise-grade, high-performance local AI agent runtime built on **.NET 10** and **C# 13**. It bridges leading Large Language Models (LLMs) with local execution environments through an event-sourced architecture, robust safety guardrails, native Model Context Protocol (MCP) support, semantic RAG, and an interactive Blazor Web Dashboard.
 
-Whether running as an interactive CLI companion, orchestrating autonomous multi-step goals (`!goal`), or operating as a background automation service, Claude4Net delivers deterministic tool orchestration with strict security boundaries and self-healing intelligence.
+Whether running as an interactive CLI pair programmer, orchestrating autonomous multi-step goals (`!goal`), or operating as a background automation service, Claude4Net delivers deterministic tool orchestration with strict security boundaries and self-healing intelligence.
+
+> [!TIP]
+> **Zero-Configuration Local Start**: Claude4Net works out-of-the-box with local **Ollama** models for 100% offline, zero-data-egress developer assistance.
 
 ---
 
 ## ✨ Key Highlights
 
-- 🧠 **Multi-Provider LLM Matrix**: Seamlessly switch between Anthropic Claude, Google Gemini (API & CLI), Zhipu GLM, Ollama (Local LLM), OpenAI-compatible gateways, and Antigravity CLI.
-- 🎯 **Autonomous Goal Execution (`!goal`)**: Goal-driven loop with adaptive self-correction, progress tracking, and idempotent approval gates.
-- 🛡️ **Defensive Security & Approval Engine**: Path safety validation, dangerous command interceptors, fine-grained permission levels, and dry-run execution modes.
-- 🔌 **Native Protocol Support (MCP & LSP)**: First-class integration for Model Context Protocol (stdio/IPC) and Language Server Protocol for deep codebase semantic navigation.
-- 📊 **Real-time Observability Dashboard**: ASP.NET Core & Blazor-powered control plane for live session streaming, checkpoint rewind, provider metrics, and telemetry inspection.
-- 🩺 **Autonomous Self-Healing Loop**: Real-time error classification, semantic failure triage, reflection capture, and actionable remediation strategies.
-- 💾 **Event-Sourced Session Persistence**: Deterministic session replay, state snapshots, rewind capabilities, and structured trajectory logging.
-- ⚡ **Extensible Plugin Engine**: Modular plugin architecture (`Claude4Net.MyPlugins`) allowing dynamic tool registration and custom pipeline interceptors.
+| Feature | Description | Highlight |
+| :--- | :--- | :--- |
+| 🧠 **Multi-Provider Matrix** | Anthropic Claude, Gemini, GLM-4, Ollama, OpenAI-compatible, Antigravity CLI | Instant hot-swapping via `/provider <name>` |
+| 🎯 **Autonomous Goal Loop** | Goal-driven loop (`!goal`) with adaptive correction and progress tracking | Unattended complex multi-step execution |
+| 🛡️ **Defensive Guardrails** | Path safety validation, destructive command interceptors, dry-run simulation | Enterprise safety & zero accidental data loss |
+| 🔌 **Native Protocols** | Stdio MCP (Model Context Protocol) & LSP (Language Server Protocol) | Standardized tool ecosystem & code intelligence |
+| 📊 **Blazor Control Plane** | ASP.NET Core & Blazor WebAssembly dashboard with live SignalR streaming | Real-time session monitoring & checkpoint rewind |
+| 🩺 **Self-Healing Loop** | Error classifier, semantic reflection capture, and auto-patching engine | Autonomous diagnosis & test-driven remediation |
+| 💾 **Event Sourcing** | Deterministic session replay, trajectory inspection, and rewind capabilities | Complete reproducibility & audit trails |
+| ⚡ **Modular Plugins** | Extensible plugin architecture (`Claude4Net.MyPlugins`) for custom tools | Clean dependency injection & pipeline hooks |
 
 ---
 
@@ -43,13 +55,13 @@ Whether running as an interactive CLI companion, orchestrating autonomous multi-
 
 ```mermaid
 flowchart TB
-    subgraph UI_Layer ["Surface & Interface Layer"]
+    subgraph UI_Layer ["🖥️ Surface & Interface Layer"]
         CLI["💻 Interactive CLI (Spectre.Console)"]
         DASH["📊 Blazor Web Dashboard (ASP.NET Core)"]
         DISCORD["🤖 Discord Bot Integration"]
     end
 
-    subgraph Runtime_Core ["Claude4Net Core Runtime"]
+    subgraph Runtime_Core ["⚙️ Claude4Net Core Runtime"]
         AGENT_LOOP["🔄 AgentLoop (Execution Engine)"]
         GOAL_DISP["🎯 GoalDispatcher (!goal)"]
         CMD_REG["⌨️ CommandRegistry & Handlers"]
@@ -59,7 +71,7 @@ flowchart TB
         TELEMETRY["📈 Telemetry & Event Store"]
     end
 
-    subgraph Provider_Layer ["LLM Provider Abstraction Layer"]
+    subgraph Provider_Layer ["🌐 LLM Provider Abstraction Layer"]
         PROV_REG["ProviderRegistry & Factory"]
         CLAUDE["Anthropic Claude"]
         GEMINI["Google Gemini / CLI"]
@@ -69,7 +81,7 @@ flowchart TB
         AGY["Antigravity CLI"]
     end
 
-    subgraph Tool_Layer ["Tool Execution & Protocol Layer"]
+    subgraph Tool_Layer ["🛠️ Tool Execution & Protocol Layer"]
         TOOL_ORCH["⚙️ ToolOrchestrator"]
         FILES["📁 File System Tools (Read/Write/Edit)"]
         BASH["⚡ Shell Execution (Bash/PS)"]
@@ -200,12 +212,8 @@ Claude4Net uses a zero-leak secure credentials store via `api_key.json` and inte
 > !login openai sk-...
 ```
 
-You can view current provider registration and active credentials with:
-
-```bash
-> /providers
-> /status
-```
+> [!NOTE]
+> Environment variables can still be used as automated fallbacks, but the secure interactive keystore takes precedence.
 
 ---
 
@@ -219,7 +227,7 @@ Claude4Net provides a rich set of Slash (`/`) and Bang (`!`) commands organized 
 | :--- | :--- |
 | `/help` | Display comprehensive command list and usage hints |
 | `/status` | View runtime health, active provider, token metrics, and memory status |
-| `/session [new|list|switch <id>]` | Manage multi-agent chat sessions |
+| `/session [new\|list\|switch <id>]` | Manage multi-agent chat sessions |
 | `/resume <sessionId>` | Reconnect to and restore a previous execution session |
 | `/plan` | Toggle **Dry-Run Mode** (validates tool execution without disk mutations) |
 | `/clear` | Clear the current terminal buffer |
@@ -248,6 +256,9 @@ Claude4Net provides a rich set of Slash (`/`) and Bang (`!`) commands organized 
 
 ## 🛡️ Safety, Approval & Guardrails
 
+<details>
+<summary><b>Click to expand Defensive Security Details</b></summary>
+
 Claude4Net is designed with security-first execution boundaries:
 
 1. **Path Safety**: Path traversal attacks (`../`, symlink escapes) outside the workspace root are automatically blocked.
@@ -255,14 +266,21 @@ Claude4Net is designed with security-first execution boundaries:
 3. **Idempotent Approvals**: Tool approvals can be verified, cached, and validated per-operation to prevent redundant prompt fatigue while maintaining safety.
 4. **Dry-Run Simulation**: In `/plan` mode, file modifications and shell executions are mocked and diffed before touching real storage.
 
+</details>
+
 ---
 
 ## 🩺 Self-Healing & Reflection Architecture
+
+<details>
+<summary><b>Click to expand Self-Healing Loop Details</b></summary>
 
 When tool execution encounters errors (compilation failures, shell errors, API timeouts):
 1. **Error Classification**: The `ErrorClassifier` categorizes the incident into structural, runtime, syntax, or permission errors.
 2. **Reflection Generation**: `SelfHealingService` captures the failed trajectory, generates a remediation prompt, and consults the reflection index.
 3. **Autonomous Patching**: The agent applies surgical code edits, verifies changes with tests, and updates the durable memory ledger.
+
+</details>
 
 ---
 

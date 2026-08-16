@@ -1,10 +1,9 @@
 # Terukirdo Memory Ledger
 
 ## Current Status
-- Claude4Net-App 프로젝트: 대규모 리팩토링 및 GitHub README.md 상세화 완료.
-- `README.md` 현대적 레이아웃, 아키텍처 다이어그램, 프로바이더 매트릭스, CLI 명령어 레퍼런스 작성 완료.
-- `feature/embedded-terminal` 브랜치 정리 및 `experiment` 브랜치 원격 push 동기화 완료.
-- 전체 빌드 0 에러 및 클린 아키텍처 유지.
+- Claude4Net-App 프로젝트: 다국어(English, 한국어, 日本語) GitHub README 체계 구축 완료.
+- `README.md`, `README.ko.md`, `README.ja.md` 상호 네비게이션 및 상세 문서화 완료.
+- `experiment` 브랜치에서 안정적으로 개발 진행 중. 전체 빌드 0 에러 유지.
 
 ## Active Task
 - 사용자 후속 요청 대기
