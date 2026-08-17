@@ -155,25 +155,93 @@ namespace Claude4Net.Runtime.ApiServer
             // GET /v1/models
             app.MapGet("/v1/models", () =>
             {
-                var models = new List<ModelCardDto>
+                var models = GetRegisteredModelCards();
+                return Results.Ok(new ModelListResponse { Data = models });
+            });
+
+            // GET /v1/models/{modelId}
+            app.MapGet("/v1/models/{modelId}", (string modelId) =>
+            {
+                var models = GetRegisteredModelCards();
+                var found = models.FirstOrDefault(m => string.Equals(m.Id, modelId, StringComparison.OrdinalIgnoreCase));
+                if (found != null)
                 {
-                    new() { Id = "claude-3-7-sonnet-20250219", OwnedBy = "anthropic" },
-                    new() { Id = "claude-3-5-sonnet-20241022", OwnedBy = "anthropic" },
-                    new() { Id = "claude-3-5-haiku-20241022", OwnedBy = "anthropic" },
-                    new() { Id = "gemini-2.5-pro", OwnedBy = "google" },
-                    new() { Id = "gemini-2.5-flash", OwnedBy = "google" },
-                    new() { Id = "gemini-2.0-flash", OwnedBy = "google" },
-                    new() { Id = "text-embedding-004", OwnedBy = "google" },
-                    new() { Id = "glm-4-plus", OwnedBy = "zhipu" },
-                    new() { Id = "gpt-4o", OwnedBy = "openai" },
-                    new() { Id = "gpt-4o-mini", OwnedBy = "openai" },
-                    new() { Id = "text-embedding-3-small", OwnedBy = "openai" },
-                    new() { Id = "llama3:latest", OwnedBy = "ollama" },
-                    new() { Id = "qwen2.5-coder:latest", OwnedBy = "ollama" },
-                    new() { Id = "claude4net-agent", OwnedBy = "claude4net" }
+                    return Results.Ok(found);
+                }
+
+                return Results.NotFound(new
+                {
+                    error = new
+                    {
+                        message = $"The model '{modelId}' does not exist.",
+                        type = "invalid_request_error",
+                        param = "model",
+                        code = "model_not_found"
+                    }
+                });
+            });
+
+            // POST /v1/completions (Legacy text completion endpoint)
+            app.MapPost("/v1/completions", async (HttpContext context) =>
+            {
+                TextCompletionRequest? request;
+                try
+                {
+                    request = await JsonSerializer.DeserializeAsync<TextCompletionRequest>(context.Request.Body, _jsonOptions);
+                }
+                catch (Exception ex)
+                {
+                    return Results.BadRequest(new { error = new { message = $"Invalid JSON payload: {ex.Message}", type = "invalid_request_error" } });
+                }
+
+                if (request == null || string.IsNullOrWhiteSpace(request.GetPromptString()))
+                {
+                    return Results.BadRequest(new { error = new { message = "Prompt field cannot be empty.", type = "invalid_request_error" } });
+                }
+
+                var (provider, resolvedModel) = ResolveProviderAndModel(request.Model);
+                if (provider == null)
+                {
+                    return Results.BadRequest(new { error = new { message = $"No active or suitable LLM Provider found for model '{request.Model}'.", type = "provider_error" } });
+                }
+
+                string prompt = request.GetPromptString();
+                string completionId = "cmpl-" + Guid.NewGuid().ToString("N")[..12];
+
+                var sbResponse = new StringBuilder();
+                await foreach (var streamEvent in provider.StreamQueryAsync(prompt, model: resolvedModel, ct: context.RequestAborted))
+                {
+                    if (streamEvent.Type == LLMStreamEventType.TextDelta && !string.IsNullOrEmpty(streamEvent.Delta))
+                    {
+                        sbResponse.Append(streamEvent.Delta);
+                    }
+                }
+
+                string responseText = sbResponse.ToString();
+                int promptTokens = provider.TokenCounter.CountTokens(prompt);
+                int completionTokens = provider.TokenCounter.CountTokens(responseText);
+
+                var response = new TextCompletionResponse
+                {
+                    Id = completionId,
+                    Model = resolvedModel,
+                    Choices = new List<TextChoiceDto>
+                    {
+                        new()
+                        {
+                            Text = responseText,
+                            Index = 0,
+                            FinishReason = "stop"
+                        }
+                    },
+                    Usage = new CompletionUsageDto
+                    {
+                        PromptTokens = promptTokens,
+                        CompletionTokens = completionTokens
+                    }
                 };
 
-                return Results.Ok(new ModelListResponse { Data = models });
+                return Results.Json(response, _jsonOptions);
             });
 
             // POST /v1/embeddings
@@ -200,6 +268,7 @@ namespace Claude4Net.Runtime.ApiServer
                     return Results.BadRequest(new { error = new { message = "Input field cannot be empty.", type = "invalid_request_error" } });
                 }
 
+                int dimensions = request.Dimensions.HasValue && request.Dimensions.Value > 0 ? request.Dimensions.Value : 1536;
                 var response = new EmbeddingResponse
                 {
                     Model = string.IsNullOrWhiteSpace(request.Model) ? "text-embedding-004" : request.Model,
@@ -211,7 +280,7 @@ namespace Claude4Net.Runtime.ApiServer
                 {
                     string text = inputs[i];
                     totalTokens += Math.Max(1, text.Length / 4);
-                    var vector = GenerateDeterministicEmbedding(text, 1536);
+                    var vector = GenerateDeterministicEmbedding(text, dimensions);
                     response.Data.Add(new EmbeddingData
                     {
                         Index = i,
@@ -279,6 +348,7 @@ namespace Claude4Net.Runtime.ApiServer
                     await context.Response.Body.FlushAsync(ct);
 
                     var sbFullResponse = new StringBuilder();
+                    bool insideThink = false;
 
                     try
                     {
@@ -286,19 +356,60 @@ namespace Claude4Net.Runtime.ApiServer
                         {
                             if (streamEvent.Type == LLMStreamEventType.TextDelta && !string.IsNullOrEmpty(streamEvent.Delta))
                             {
-                                sbFullResponse.Append(streamEvent.Delta);
-                                completionTokens += provider.TokenCounter.CountTokens(streamEvent.Delta);
-                                var chunk = new ChatCompletionChunk
+                                string delta = streamEvent.Delta;
+                                sbFullResponse.Append(delta);
+                                completionTokens += provider.TokenCounter.CountTokens(delta);
+
+                                string? reasoningChunk = null;
+                                string? contentChunk = null;
+
+                                if (delta.Contains("<think>"))
                                 {
-                                    Id = completionId,
-                                    Model = resolvedModel,
-                                    Choices = new List<ChatChunkChoiceDto>
+                                    insideThink = true;
+                                    delta = delta.Replace("<think>", "");
+                                }
+
+                                if (insideThink)
+                                {
+                                    if (delta.Contains("</think>"))
                                     {
-                                        new() { Index = 0, Delta = new ChatChunkDeltaDto { Content = streamEvent.Delta } }
+                                        var parts = delta.Split("</think>", 2);
+                                        reasoningChunk = parts[0];
+                                        contentChunk = parts.Length > 1 ? parts[1] : null;
+                                        insideThink = false;
                                     }
-                                };
-                                await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(chunk, _jsonOptions)}\n\n", Encoding.UTF8, ct);
-                                await context.Response.Body.FlushAsync(ct);
+                                    else
+                                    {
+                                        reasoningChunk = delta;
+                                    }
+                                }
+                                else
+                                {
+                                    contentChunk = delta;
+                                }
+
+                                if (!string.IsNullOrEmpty(reasoningChunk) || !string.IsNullOrEmpty(contentChunk))
+                                {
+                                    var chunk = new ChatCompletionChunk
+                                    {
+                                        Id = completionId,
+                                        Model = resolvedModel,
+                                        Choices = new List<ChatChunkChoiceDto>
+                                        {
+                                            new()
+                                            {
+                                                Index = 0,
+                                                Delta = new ChatChunkDeltaDto
+                                                {
+                                                    Content = contentChunk,
+                                                    ReasoningContent = reasoningChunk
+                                                }
+                                            }
+                                        }
+                                    };
+                                    await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(chunk, _jsonOptions)}\n\n", Encoding.UTF8, ct);
+                                    await context.Response.Body.FlushAsync(ct);
+                                }
                             }
                         }
                     }
@@ -334,6 +445,23 @@ namespace Claude4Net.Runtime.ApiServer
                             }
                         };
                         await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(finalChunk, _jsonOptions)}\n\n", Encoding.UTF8, ct);
+                    }
+
+                    // If client requested stream_options: { include_usage: true }, emit final usage chunk
+                    if (request.StreamOptions?.IncludeUsage == true)
+                    {
+                        var usageChunk = new ChatCompletionChunk
+                        {
+                            Id = completionId,
+                            Model = resolvedModel,
+                            Choices = new List<ChatChunkChoiceDto>(),
+                            Usage = new CompletionUsageDto
+                            {
+                                PromptTokens = promptTokens,
+                                CompletionTokens = completionTokens
+                            }
+                        };
+                        await context.Response.WriteAsync($"data: {JsonSerializer.Serialize(usageChunk, _jsonOptions)}\n\n", Encoding.UTF8, ct);
                     }
 
                     await context.Response.WriteAsync("data: [DONE]\n\n", Encoding.UTF8, ct);
@@ -736,6 +864,27 @@ namespace Claude4Net.Runtime.ApiServer
             }
 
             return vector.ToList();
+        }
+
+        private static List<ModelCardDto> GetRegisteredModelCards()
+        {
+            return new List<ModelCardDto>
+            {
+                new() { Id = "claude-3-7-sonnet-20250219", OwnedBy = "anthropic" },
+                new() { Id = "claude-3-5-sonnet-20241022", OwnedBy = "anthropic" },
+                new() { Id = "claude-3-5-haiku-20241022", OwnedBy = "anthropic" },
+                new() { Id = "gemini-2.5-pro", OwnedBy = "google" },
+                new() { Id = "gemini-2.5-flash", OwnedBy = "google" },
+                new() { Id = "gemini-2.0-flash", OwnedBy = "google" },
+                new() { Id = "text-embedding-004", OwnedBy = "google" },
+                new() { Id = "glm-4-plus", OwnedBy = "zhipu" },
+                new() { Id = "gpt-4o", OwnedBy = "openai" },
+                new() { Id = "gpt-4o-mini", OwnedBy = "openai" },
+                new() { Id = "text-embedding-3-small", OwnedBy = "openai" },
+                new() { Id = "llama3:latest", OwnedBy = "ollama" },
+                new() { Id = "qwen2.5-coder:latest", OwnedBy = "ollama" },
+                new() { Id = "claude4net-agent", OwnedBy = "claude4net" }
+            };
         }
     }
 

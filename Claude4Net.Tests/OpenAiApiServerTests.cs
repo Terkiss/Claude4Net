@@ -135,6 +135,45 @@ namespace Claude4Net.Tests
         }
 
         [Fact]
+        public async Task GetModel_ById_ReturnsModelCard_Or404ForUnknownModel()
+        {
+            // 1. Existing model
+            var resp1 = await _client.GetAsync($"http://localhost:{TestPort}/v1/models/gpt-4o");
+            Assert.Equal(HttpStatusCode.OK, resp1.StatusCode);
+            var card1 = await resp1.Content.ReadFromJsonAsync<ModelCardDto>();
+            Assert.NotNull(card1);
+            Assert.Equal("gpt-4o", card1.Id);
+            Assert.Equal("openai", card1.OwnedBy);
+
+            // 2. Non-existent model -> 404 with OpenAI error envelope
+            var resp2 = await _client.GetAsync($"http://localhost:{TestPort}/v1/models/non-existent-model-xyz");
+            Assert.Equal(HttpStatusCode.NotFound, resp2.StatusCode);
+            var errJson = await resp2.Content.ReadAsStringAsync();
+            Assert.Contains("model_not_found", errJson);
+        }
+
+        [Fact]
+        public async Task TextCompletions_LegacyEndpoint_ReturnsTextResponse()
+        {
+            var req = new TextCompletionRequest
+            {
+                Model = "claude-3-5-sonnet",
+                Prompt = "Translate 'hello' to French"
+            };
+
+            var resp = await _client.PostAsJsonAsync($"http://localhost:{TestPort}/v1/completions", req);
+            Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+
+            var textResp = await resp.Content.ReadFromJsonAsync<TextCompletionResponse>();
+            Assert.NotNull(textResp);
+            Assert.Equal("text_completion", textResp.Object);
+            Assert.Single(textResp.Choices);
+            Assert.NotEmpty(textResp.Choices[0].Text);
+            Assert.Equal("stop", textResp.Choices[0].FinishReason);
+            Assert.True(textResp.Usage.TotalTokens > 0);
+        }
+
+        [Fact]
         public async Task GetHealthAndStatus_ReturnsValidApiStatus()
         {
             var response = await _client.GetAsync($"http://localhost:{TestPort}/api/v1/health");
@@ -175,11 +214,12 @@ namespace Claude4Net.Tests
         [Fact]
         public async Task Embeddings_SingleAndBatchInput_ReturnsNormalizedVectors()
         {
-            // 1. Single string input
+            // 1. Single string input with custom dimensions (768)
             var req1 = new EmbeddingRequest
             {
                 Model = "text-embedding-004",
-                Input = "Hello world embedding test"
+                Input = "Hello world embedding test",
+                Dimensions = 768
             };
 
             var resp1 = await _client.PostAsJsonAsync($"http://localhost:{TestPort}/v1/embeddings", req1);
@@ -189,9 +229,9 @@ namespace Claude4Net.Tests
             Assert.NotNull(embedResp1);
             Assert.Equal("list", embedResp1.Object);
             Assert.Single(embedResp1.Data);
-            Assert.Equal(1536, embedResp1.Data[0].Embedding.Count);
+            Assert.Equal(768, embedResp1.Data[0].Embedding.Count);
 
-            // 2. Batch string array input
+            // 2. Batch string array input (default 1536)
             var req2 = new EmbeddingRequest
             {
                 Model = "text-embedding-3-small",
@@ -220,7 +260,8 @@ namespace Claude4Net.Tests
                 {
                     new() { Role = "user", Content = "Hello test" }
                 },
-                Stream = false
+                Stream = false,
+                MaxCompletionTokens = 100
             };
 
             var httpResponse = await _client.PostAsJsonAsync($"http://localhost:{TestPort}/v1/chat/completions", request);
@@ -232,6 +273,36 @@ namespace Claude4Net.Tests
             Assert.NotEmpty(chatResp.Choices);
             Assert.Equal("assistant", chatResp.Choices[0].Message.Role);
             Assert.NotEmpty(chatResp.Choices[0].Message.GetContentString());
+            Assert.Equal("fp_claude4net", chatResp.SystemFingerprint);
+        }
+
+        [Fact]
+        public async Task ChatCompletions_MultimodalArrayContent_ExtractsTextAndImages()
+        {
+            var request = new ChatCompletionRequest
+            {
+                Model = "claude-3-5-sonnet",
+                Messages = new List<ChatMessageDto>
+                {
+                    new()
+                    {
+                        Role = "user",
+                        Content = new object[]
+                        {
+                            new { type = "text", text = "Describe this diagram:" },
+                            new { type = "image_url", image_url = new { url = "https://example.com/diagram.png" } }
+                        }
+                    }
+                },
+                Stream = false
+            };
+
+            var httpResponse = await _client.PostAsJsonAsync($"http://localhost:{TestPort}/v1/chat/completions", request);
+            Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+
+            var chatResp = await httpResponse.Content.ReadFromJsonAsync<ChatCompletionResponse>();
+            Assert.NotNull(chatResp);
+            Assert.NotEmpty(chatResp.Choices);
         }
 
         [Fact]
@@ -277,16 +348,17 @@ namespace Claude4Net.Tests
         }
 
         [Fact]
-        public async Task ChatCompletions_Streaming_ReturnsSseChunks()
+        public async Task ChatCompletions_Streaming_WithStreamOptions_AndReasoningContent()
         {
             var request = new ChatCompletionRequest
             {
                 Model = "gemini-2.5-flash",
                 Messages = new List<ChatMessageDto>
                 {
-                    new() { Role = "user", Content = "Stream this test" }
+                    new() { Role = "user", Content = "reasoning test please" }
                 },
-                Stream = true
+                Stream = true,
+                StreamOptions = new StreamOptionsDto { IncludeUsage = true }
             };
 
             using var reqMsg = new HttpRequestMessage(HttpMethod.Post, $"http://localhost:{TestPort}/v1/chat/completions")
@@ -302,16 +374,31 @@ namespace Claude4Net.Tests
             using var reader = new System.IO.StreamReader(stream);
 
             var receivedChunks = new List<string>();
+            bool sawReasoning = false;
+            bool sawUsageChunk = false;
+
             while (await reader.ReadLineAsync() is { } line)
             {
                 if (line.StartsWith("data: "))
                 {
                     receivedChunks.Add(line);
                     if (line.Contains("[DONE]")) break;
+
+                    string dataJson = line.Substring("data: ".Length);
+                    if (dataJson.Contains("reasoning_content"))
+                    {
+                        sawReasoning = true;
+                    }
+                    if (dataJson.Contains("\"usage\":{") && dataJson.Contains("\"choices\":[]"))
+                    {
+                        sawUsageChunk = true;
+                    }
                 }
             }
 
             Assert.NotEmpty(receivedChunks);
+            Assert.True(sawReasoning, "Expected reasoning_content delta in streamed chunks.");
+            Assert.True(sawUsageChunk, "Expected final usage chunk when stream_options.include_usage is true.");
             Assert.Contains(receivedChunks, c => c.Contains("[DONE]"));
         }
 
@@ -424,6 +511,10 @@ namespace Claude4Net.Tests
                 if (prompt.Contains("invoke tool", StringComparison.OrdinalIgnoreCase))
                 {
                     yield return new LLMStreamEvent { Type = LLMStreamEventType.TextDelta, Delta = "<invoke name=\"calculator\"><parameter name=\"number\">42</parameter></invoke>" };
+                }
+                else if (prompt.Contains("reasoning test", StringComparison.OrdinalIgnoreCase))
+                {
+                    yield return new LLMStreamEvent { Type = LLMStreamEventType.TextDelta, Delta = "<think>Let me think step-by-step...</think>The final answer is 42." };
                 }
                 else
                 {

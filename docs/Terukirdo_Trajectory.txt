@@ -25,3 +25,13 @@
 - Implemented `POST /v1/embeddings` endpoint with multi-provider fallback and deterministic 1536-dimensional L2-normalized unit vector generator.
 - Added OpenAI-standard `tools` and `tool_calls` parameter parsing and schema formatting for both SSE streaming and non-streaming responses.
 - Expanded `OpenAiApiServerTests` with strict auth, embeddings, tool calls, and CORS tests. Full test suite (706/706 tests) passed with 100% success rate.
+
+2026-08-17: OpenAI Standard API 100% Full Compatibility Enhancement.
+- Implemented `GET /v1/models/{model}` single model card endpoint with OpenAI standard 404 error envelope (`model_not_found`).
+- Implemented legacy `POST /v1/completions` endpoint for backward compatibility with classic completions clients.
+- Added `stream_options: { include_usage: true }` support to emit the final usage chunk with `choices: []` before `data: [DONE]`.
+- Added `reasoning_content` delta chunk extraction for `<think>...</think>` tags to support DeepSeek-R1 / thinking models in Open WebUI.
+- Supported `dimensions` parameter for `POST /v1/embeddings` allowing custom vector lengths (e.g. 512, 768, 1536).
+- Enhanced `ChatMessageDto.GetContentString()` to recursively parse multimodal vision array parts (`[{"type": "text", "text": "..."}]`).
+- Added DTO fields: `system_fingerprint` ("fp_claude4net"), `max_completion_tokens`, `stop`, `response_format`, `presence_penalty`, `frequency_penalty`, `seed`.
+- Expanded `OpenAiApiServerTests` (18 tests); full test suite verified with 709/709 passed (100% pass rate, 0 failed).

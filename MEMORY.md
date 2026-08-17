@@ -1,13 +1,18 @@
 # Terukirdo Memory Ledger
 
 ## Current Status
-- Claude4Net In-Process OpenAI 호환 API 서버 대폭 확장 완료 (Port 7836):
+- Claude4Net In-Process OpenAI 호환 API 서버 100% 표준 호환 고도화 완료 (Port 7836):
   1. **Strict Bearer Token / x-api-key 인증**: 서버 시작 시 고유 토큰 자동 발급(`c4n-sk-...`) 또는 `--api-key` 지정 지원, 401 Unauthorized 보호 (Health/CORS 예외).
   2. **Full CORS 지원**: 브라우저 기반 클라이언트(Open WebUI 등)를 위한 `OPTIONS` Preflight 및 Access-Control 헤더 완벽 대응.
-  3. **POST /v1/embeddings 엔드포인트**: 멀티 프로바이더 임베딩 라우터 및 1536차원 L2 정규화 결정론적 Fallback 벡터 생성기 탑재.
+  3. **POST /v1/embeddings 엔드포인트**: 멀티 프로바이더 임베딩 라우터, `dimensions` 커스텀 차원 지원, 1536차원 L2 정규화 결정론적 Fallback 벡터 생성기 탑재.
   4. **Tools / Function Calling 하이브리드 지원**: OpenAI 표준 `tools`/`tool_calls` 파싱 및 응답 포맷 연동.
-  5. **REPL & CLI 통합**: `/api on [port] [apiKey]`, `/api status`, `--api-key / -k` 완벽 지원.
-- 전체 테스트 706건 100% 통과 (0 failures, 0 skipped).
+  5. **GET /v1/models/{model}**: 단일 모델 조회 엔드포인트 및 OpenAI 표준 404 (`model_not_found`) 에러 포맷 탑재.
+  6. **POST /v1/completions**: 레거시 텍스트 완성 엔드포인트 완벽 지원.
+  7. **stream_options.include_usage**: 스트리밍 종료 시 최종 `usage` 청크 전송 완벽 지원.
+  8. **reasoning_content**: DeepSeek-R1 / O-series 추론 사고 과정 스트리밍 분리 지원.
+  9. **Vision Multimodal 배열 콘텐츠 파싱**: `messages[].content` 내 텍스트/이미지 파트 재귀 병합.
+  10. **REPL & CLI 통합**: `/api on [port] [apiKey]`, `/api status`, `--api-key / -k` 완벽 지원.
+- 전체 테스트 709건 100% 통과 (0 failures, 0 skipped).
 
 ## Active Task
 - 사용자에게 구현 결과 보고 및 커밋/푸시 승인 요청
