@@ -51,7 +51,7 @@ namespace Claude4Net.Tests
             Assert.Equal("127.0.0.1", GetRequiredProperty(options, "BindAddress"));
             Assert.False((bool)GetRequiredProperty(options, "AllowRemote"));
             Assert.Equal(1_048_576L, Convert.ToInt64(GetRequiredProperty(options, "MaxRequestBodyBytes")));
-            Assert.Equal(TimeSpan.FromSeconds(120), GetRequiredProperty(options, "RequestTimeout"));
+            Assert.Equal(TimeSpan.FromMinutes(10), GetRequiredProperty(options, "RequestTimeout"));
             Assert.Equal(16, GetRequiredProperty(options, "MaxConcurrentRequests"));
             Assert.Equal(0, GetRequiredProperty(options, "MaxQueuedRequests"));
             Assert.Null(optionsType.GetProperty("CertificatePassword"));

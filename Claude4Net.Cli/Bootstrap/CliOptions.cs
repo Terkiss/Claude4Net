@@ -80,6 +80,11 @@ public sealed class CliOptions
     public string? ApiCertificatePasswordEnvironmentVariable { get; set; }
 
     /// <summary>
+    /// Request timeout in seconds for API server (Default: 600 seconds / 10 minutes).
+    /// </summary>
+    public int ApiTimeoutSeconds { get; set; } = 600;
+
+    /// <summary>
     /// Validation or migration error message if invalid/deprecated arguments are supplied.
     /// </summary>
     public string? ValidationError { get; set; }
@@ -208,6 +213,13 @@ public sealed class CliOptions
                 if (i + 1 < args.Length) i++;
                 options.StartApi = false;
                 options.ValidationError = "Literal API certificate passwords are not accepted. Use --api-certificate-password-env.";
+            }
+            else if (arg.Equals("--api-timeout", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                if (int.TryParse(args[++i], out int timeoutSec) && timeoutSec > 0)
+                {
+                    options.ApiTimeoutSeconds = timeoutSec;
+                }
             }
             else
             {

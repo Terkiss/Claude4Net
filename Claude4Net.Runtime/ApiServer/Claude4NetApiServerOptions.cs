@@ -21,7 +21,7 @@ public sealed class Claude4NetApiServerOptions
     public string? CertificatePath { get; set; }
     public string? CertificatePasswordEnvironmentVariable { get; set; }
     public long MaxRequestBodyBytes { get; set; } = 1_048_576;
-    public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(120);
+    public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromMinutes(10);
     public int MaxConcurrentRequests { get; set; } = 16;
     public int MaxQueuedRequests { get; set; }
 

@@ -80,3 +80,9 @@
 - Isolated API Mode from CLI Mode: Prevented Claude4Net internal workspace confinement prompts from overriding external client (Hermes/OpenCode) prompts.
 - Standardized Provider Prefixes: Exposed clear `antigravity/*`, `google/*`, `anthropic/*`, `glm/*`, `ollama/*` model identifiers while preserving backward compatibility aliases.
 - Verification: 978 / 978 tests passing (100%). Solution build: 0 errors.
+
+2026-08-22: API Server Timeout Optimization for Heavy Agent Workflows (ULTRAWORK / Deep Thinking).
+- Resolved 504 Gateway Timeout: Increased default RequestTimeout from 120 seconds (2 minutes) to 600 seconds (10 minutes).
+- Added CLI & REPL Configurable Timeout: Added `--api-timeout` / `--timeout <seconds>` flag to CLI options and `/api on` command parser.
+- Updated ApiServerSecurityTests to assert 10-minute default timeout.
+- Verification: 50 / 50 API Server Security tests passed (100%). Solution build: 0 errors.

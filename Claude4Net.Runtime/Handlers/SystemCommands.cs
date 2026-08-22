@@ -234,6 +234,13 @@ namespace Claude4Net.Runtime.Handlers
                             literalApiKeySupplied = true;
                         }
                         break;
+                    case "--api-timeout":
+                    case "--timeout":
+                        if (index + 1 < parts.Length && int.TryParse(parts[++index], out int timeoutSeconds))
+                        {
+                            options.RequestTimeout = TimeSpan.FromSeconds(timeoutSeconds);
+                        }
+                        break;
                     case "--api-key-env":
                         if (index + 1 >= parts.Length)
                             throw new ArgumentException("--api-key-env requires an environment variable name.");

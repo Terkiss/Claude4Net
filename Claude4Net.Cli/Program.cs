@@ -83,7 +83,8 @@ if (options.StartApi)
             BindAddress = options.ApiBind,
             AllowRemote = options.ApiAllowRemote,
             CertificatePath = options.ApiCertificatePath,
-            CertificatePasswordEnvironmentVariable = options.ApiCertificatePasswordEnvironmentVariable
+            CertificatePasswordEnvironmentVariable = options.ApiCertificatePasswordEnvironmentVariable,
+            RequestTimeout = TimeSpan.FromSeconds(options.ApiTimeoutSeconds)
         });
         AnsiConsole.MarkupLine($"[bold green][[OK]] In-Process OpenAI API Server started at {Markup.Escape(apiServer.Url)}[/]");
         string displayKey = apiServer.TakeApiKeyForDisplay() ?? "[redacted]";

@@ -25,6 +25,7 @@
 ## Next Steps
 - 헤르메스(Hermes) 에이전트에서 Claude4Net API 서버(포트 7836)로 대화 재시도 및 정상 동작 확인
 
+- **Actionable Insight**: Deep reasoning and ultra-work agent modes (e.g. OpenCode ULTRAWORK) with massive multi-turn prompts (150KB+) require extended request timeouts (defaulting to 10~30 minutes) to prevent 504 Gateway Timeout aborts during deep thinking steps.
 - **Actionable Insight**: When Claude4Net runs as an OpenAI-compatible API server, providers like `GeminiCliProvider` must operate in **Pure Passthrough Mode (API Mode)** without prepending Claude4Net's internal workspace confinement rules (`[ACTIVE WORKSPACE DIRECTORY]`) or skills, so external agents (Hermes, Cursor, Roo Code) retain their own workspace and system prompt integrity.
 - **Actionable Insight**: Windows OS에서 `Process.Start` 시 명령줄 인자 버퍼 길이는 최대 32,767자(32KB)로 제한되므로, 수십~수백 KB 이상의 대용량 프롬프트는 반드시 `StandardInput` 스트림을 통해 파이프로 전송해야 한다.
 - **Actionable Insight**: OpenAI 호환 API 서버의 모델 식별자(`id`)는 URL 및 외부 클라이언트 호환성을 위해 공백이나 괄호가 없는 표준 케밥케이스 슬러그(예: `gemini-3.7-flash-high`)를 사용하고, 내부 CLI 구동 시 실제 표시 이름으로 정규화 매핑해야 한다.
