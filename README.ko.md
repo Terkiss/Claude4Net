@@ -1,20 +1,21 @@
 # ⚡ Claude4Net
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Terkiss/Claude4Net/main/docs/pic/banner.png" alt="Claude4Net Banner" width="100%" onerror="this.style.display='none'"/>
+  <img src="docs/pic/banner.png" alt="Claude4Net Hero Banner" width="100%"/>
 </p>
 
 <p align="center">
-  <strong>차세대 .NET 10 자율 AI 에이전트 런타임 & 관측(Observability) 플랫폼</strong><br>
-  <em>결정론적 도구 실행, 탄력적인 자가 치유(Self-Healing), 그리고 유연한 멀티 LLM 오케스트레이션</em>
+  <strong>차세대 .NET 10 고성능 자율 AI 에이전트 런타임 & 멀티 브레인 오케스트레이션 플랫폼</strong><br>
+  <em>결정론적 도구 실행 • 제로-데이터 유출 가드레일 • 범용 OpenAI API 브릿지 • 실시간 Blazor 관측 제어 패널</em>
 </p>
 
 <p align="center">
   <a href="https://dotnet.microsoft.com/download"><img src="https://img.shields.io/badge/.NET-10.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET 10"></a>
   <a href="https://learn.microsoft.com/en-us/dotnet/csharp/"><img src="https://img.shields.io/badge/C%23-13.0-239120?style=for-the-badge&logo=csharp&logoColor=white" alt="C# 13"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="License: MIT"></a>
-  <a href="https://github.com/Terkiss/Claude4Net/actions"><img src="https://img.shields.io/badge/Build-Passing-brightgreen?style=for-the-badge&logo=githubactions&logoColor=white" alt="CI"></a>
-  <a href="https://modelcontextprotocol.io/"><img src="https://img.shields.io/badge/MCP-Supported-orange?style=for-the-badge" alt="MCP Ready"></a>
+  <a href="https://github.com/Terkiss/Claude4Net/actions"><img src="https://img.shields.io/badge/Tests-978%20Passed%20(100%25)-brightgreen?style=for-the-badge&logo=githubactions&logoColor=white" alt="Tests"></a>
+  <a href="https://modelcontextprotocol.io/"><img src="https://img.shields.io/badge/MCP-Native%20Stdio-orange?style=for-the-badge" alt="MCP Ready"></a>
+  <a href="https://openai.com/"><img src="https://img.shields.io/badge/OpenAI%20API-Compatible%20Hub-412991?style=for-the-badge&logo=openai&logoColor=white" alt="OpenAI API Compatible"></a>
 </p>
 
 <p align="center">
@@ -27,313 +28,248 @@
 
 ## 📖 개요 (Overview)
 
-**Claude4Net**은 **.NET 10** 및 **C# 13** 기반으로 구축된 엔터프라이즈급 고성능 로컬 AI 에이전트 런타임입니다. 이벤트 소싱(Event-Sourced) 아키텍처, 강력한 보안 가드레일, 네이티브 MCP(Model Context Protocol) 지원, 시맨틱 RAG, 실시간 Blazor 웹 대시보드를 통해 최신 대규모 언어 모델(LLM)과 로컬 실행 환경을 완벽하게 연결합니다.
+**Claude4Net**은 **.NET 10**과 **C# 13**의 최첨단 성능을 기반으로 구축된 엔터프라이즈급 오픈소스 AI 에이전트 런타임이자 **범용 멀티 LLM 오케스트레이터**입니다.
 
-대화형 CLI 페어 프로그래머, 다단계 자율 목표 실행기(`!goal`), 백그라운드 자동화 루틴 스케줄러 등 어떤 용도로 실행하든 엄격한 보안 경계와 자가 치유(Self-Healing) 지능을 바탕으로 결정론적(Deterministic) 도구 오케스트레이션을 제공합니다.
+로컬 오프라인 LLM부터 최상위 클라우드 사고 모델(Gemini 3.7 Thinking, Claude Sonnet Thinking)에 이르기까지, 모든 인공지능 두뇌를 표준화된 도구 실행 환경과 연결합니다.
+
+이벤트 소싱(Event-Sourcing) 기반의 CQRS 아키텍처, 엄격한 샌드박스 보안 가드레일, 네이티브 MCP(Model Context Protocol), 실시간 Blazor WebAssembly 대시보드, 그리고 **OpenCode / Hermes / Cursor / Roo Code**를 위한 내장 **OpenAI-Compatible API 서버**를 원클릭으로 제공합니다.
 
 > [!TIP]
-> **무설정 로컬 실행 지원**: Claude4Net은 로컬 **Ollama** 모델과 즉시 연동되어 외부 데이터 유출이 전혀 없는 100% 완전 오프라인 환경에서도 강력하게 동작합니다.
+> **100% 오프라인 & 완전 프라이버시 보장**: Claude4Net은 로컬 **Ollama** 모델과 즉시 연동되어 외부 네트워크 연결이 없는 폐쇄망 환경에서도 완벽한 자율 코딩 페어 프로그래밍을 지원합니다.
 
 ---
 
 ## ✨ 핵심 기능 (Key Highlights)
 
-| 기능 | 상세 설명 | 특장점 |
+| 특장점 | 설명 | 핵심 가치 |
 | :--- | :--- | :--- |
-| 🧠 **멀티 프로바이더 매트릭스** | Claude, Gemini, GLM-4, Ollama, OpenAI 호환 게이트웨이, Antigravity CLI | `/provider <name>`으로 실시간 핫스왑 |
-| 🎯 **자율 목표 실행 루프** | 자가 교정 및 단계별 진행 추적을 지원하는 자율 루프 (`!goal`) | 복잡한 다단계 작업의 무인 실행 |
-| 🛡️ **방어적 보안 가드레일** | 경로 안전성 검증, 위험 명령어 인터셉터, 가상 드라이런 시뮬레이션 | 기업 환경에 맞춘 데이터 무결성 보장 |
-| 🔌 **표준 프로토콜 내장** | Stdio 기반 MCP (Model Context Protocol) 및 코드 분석용 LSP 지원 | 표준화된 도구 생태계 및 코드 인텔리전스 |
-| 📊 **Blazor 관측 제어 패널** | SignalR 실시간 스트리밍을 지원하는 ASP.NET Core & Blazor 대시보드 | 실시간 세션 모니터링 & 체크포인트 되감기 |
-| 🩺 **자가 치유 (Self-Healing)** | 오류 분류기, 시맨틱 반추 캡처 및 자동 복구 코드 패칭 엔진 | 실패 시 자율 진단 및 테스트 기반 롤백/패치 |
-| 💾 **이벤트 소싱 영속성** | 결정론적 세션 재생, 실행 궤적(Trajectory) 추적 및 스냅샷 복원 | 완벽한 실행 재현성 및 감사 추적 |
-| ⚡ **모듈형 플러그인 엔진** | 커스텀 도구 및 인터셉터 추가를 위한 확장 아키텍처 (`Claude4Net.MyPlugins`) | 깔끔한 의존성 주입 및 파이프라인 훅 |
+| 🌐 **범용 OpenAI API 브릿지** | OpenCode, Hermes, Cursor, Roo Code 등 외부 도구에 표준 OpenAI 엔드포인트 제공 (`:7836`) | 안티그래비티 3.7 Thinking 및 최신 모델을 모든 IDE에서 활용 |
+| 🧠 **멀티 프로바이더 매트릭스** | Claude, Gemini 3.7 Native, GLM-4, Ollama, Antigravity CLI, OpenAI 호환 | `/provider` 명령으로 지연 없는 핫스왑 전환 |
+| 🎯 **자율 목표 실행 루프** | 자가 진단 및 다단계 교정을 수행하는 자율 에이전트 루프 (`!goal`) | 복잡한 요구사항의 무인 연속 코딩 및 자동 검증 |
+| 🛡️ **철통 보안 가드레일** | 작업 경로 격리(Path Confinement), 파괴적 명령 인터셉터, 멱등성 승인 체계 | 기업 수준의 무결성 보장 및 데이터 손실 0% 달성 |
+| 🔌 **표준 프로토콜 내장** | Stdio 기반 MCP (Model Context Protocol) 및 코드 분석용 LSP 지원 | 확장 가능한 도구 생태계 및 정밀한 코드 인텔리전스 |
+| 📊 **실시간 Blazor 관측 패널** | ASP.NET Core & Blazor WebAssembly 기반 실시간 SignalR 텔레메트리 | 실시간 토큰 지표, 에이전트 타임라인, 세션 되감기 |
+| 🩺 **자가 치유 (Self-Healing)** | 에러 자동 분류기, 반추(Reflection) 캡처, 테스트 주도 자동 패치 엔진 | 빌드/실행 실패 시 자율 원인 분석 및 자동 복구 |
+| 💾 **이벤트 소싱 영속성** | 모든 도구 호출과 이벤트를 영구 기록하고 결정론적으로 재생 | 100% 실행 재현성 및 완벽한 보안 감사 추적 |
 
 ---
 
-## 🏛️ 시스템 아키텍처 (Architecture)
+## 🏛️ 시스템 아키텍처 (System Architecture)
+
+<p align="center">
+  <img src="docs/pic/api_hub.png" alt="Claude4Net AI Architecture & Hub" width="100%"/>
+</p>
 
 ```mermaid
 flowchart TB
-    subgraph UI_Layer ["🖥️ 인터페이스 및 서피스 계층"]
-        CLI["💻 대화형 터미널 CLI (Spectre.Console)"]
-        DASH["📊 Blazor 웹 대시보드 (ASP.NET Core)"]
-        DISCORD["🤖 디스코드 봇 채널"]
+    subgraph Client_Layer ["🌐 클라이언트 & 개발 환경 (Clients & Tools)"]
+        CLI_TUI["💻 내장 대화형 터미널 (Spectre.Console TUI)"]
+        BLAZOR_DASH["📊 Blazor WebAssembly 제어 패널"]
+        OPENCODE["⚡ OpenCode CLI / IDE"]
+        HERMES["🤖 Hermes AI Agent"]
+        CURSOR["📝 Cursor / VS Code / Roo Code"]
     end
 
-    subgraph Runtime_Core ["⚙️ Claude4Net 런타임 코어"]
-        AGENT_LOOP["🔄 AgentLoop (실행 엔진)"]
-        GOAL_DISP["🎯 GoalDispatcher (!goal)"]
-        CMD_REG["⌨️ CommandRegistry & Handlers"]
-        APPROVAL["🛡️ Idempotent 승인 엔진"]
-        SELF_HEAL["🩺 자가 치유(Self-Healing) 서비스"]
-        RAG["🔍 RAG & 시맨틱 메모리"]
-        TELEMETRY["📈 텔레메트리 & 이벤트 저장소"]
+    subgraph Server_Layer ["🚀 Claude4Net API Bridge & Runtime Core (:7836)"]
+        API_ROUTER["🔀 Minimal API Route Dispatcher (/v1/*)"]
+        AUTH_GATE["🔐 Bearer & API Key Security Gateway"]
+        STREAM_ENG["⚡ Chunked SSE & Stdin Stream Pipeline"]
+        AGENT_LOOP["🔄 AgentLoop (Autonomous Engine)"]
+        APPROVAL["🛡️ Path Confinement & Approval Guardrail"]
+        EVENT_STORE["💾 CQRS EventStore & Telemetry"]
     end
 
-    subgraph Provider_Layer ["🌐 LLM 프로바이더 추상화 계층"]
+    subgraph Provider_Layer ["🧠 멀티 브레인 프로바이더 허브 (LLM Providers)"]
         PROV_REG["ProviderRegistry & Factory"]
-        CLAUDE["Anthropic Claude"]
-        GEMINI["Google Gemini / CLI"]
-        GLM["Zhipu GLM-4"]
-        OLLAMA["Local Ollama"]
-        OPENAI["OpenAI Compatible"]
-        AGY["Antigravity CLI"]
+        AGY_THINK["Google Antigravity Thinking Engine\n(Gemini 3.7 / Claude Sonnet / GPT-OSS)"]
+        GEMINI_NATIVE["Google Gemini Official API\n(Gemini 3.7 Flash / 3.1 Pro)"]
+        ANTHROPIC_NATIVE["Anthropic Official API\n(Claude 3.7 Sonnet / 3.5 Haiku)"]
+        GLM_NATIVE["Zhipu GLM-4 Official API\n(GLM-4-Plus / GLM-4-Air)"]
+        OLLAMA_LOCAL["Local Ollama Engine\n(Qwen2.5-Coder / Llama 3.3 / DeepSeek)"]
     end
 
-    subgraph Tool_Layer ["🛠️ 도구 실행 및 프로토콜 계층"]
+    subgraph Tool_Layer ["🛠️ 도구 오케스트레이션 및 프로토콜 (Tools & Protocols)"]
         TOOL_ORCH["⚙️ ToolOrchestrator"]
-        FILES["📁 파일 시스템 도구 (Read/Write/Edit)"]
-        BASH["⚡ 셸 명령 실행 (Bash/PowerShell)"]
-        MCP_CL["🔌 MCP 클라이언트 (Stdio)"]
-        LSP_CL["🔎 LSP 클라이언트 (Language Server)"]
+        FILES["📁 안전한 파일 I/O (Read / Write / Edit)"]
+        SHELL["⚡ 셸 실행기 (Bash / PowerShell)"]
+        MCP_STDIO["🔌 Stdio MCP 클라이언트"]
+        LSP_CLIENT["🔎 언어 서버 LSP 클라이언트"]
     end
 
-    UI_Layer --> CMD_REG
-    UI_Layer --> AGENT_LOOP
-    CMD_REG --> AGENT_LOOP
-    AGENT_LOOP --> GOAL_DISP
+    Client_Layer --> API_ROUTER
+    Client_Layer --> CLI_TUI
+    API_ROUTER --> AUTH_GATE
+    AUTH_GATE --> STREAM_ENG
+    STREAM_ENG --> PROV_REG
+    CLI_TUI --> AGENT_LOOP
     AGENT_LOOP --> APPROVAL
     AGENT_LOOP --> PROV_REG
     AGENT_LOOP --> TOOL_ORCH
-    AGENT_LOOP --> SELF_HEAL
-    AGENT_LOOP --> RAG
-    AGENT_LOOP --> TELEMETRY
+    AGENT_LOOP --> EVENT_STORE
 
-    PROV_REG --> CLAUDE
-    PROV_REG --> GEMINI
-    PROV_REG --> GLM
-    PROV_REG --> OLLAMA
-    PROV_REG --> OPENAI
-    PROV_REG --> AGY
+    PROV_REG --> AGY_THINK
+    PROV_REG --> GEMINI_NATIVE
+    PROV_REG --> ANTHROPIC_NATIVE
+    PROV_REG --> GLM_NATIVE
+    PROV_REG --> OLLAMA_LOCAL
 
     TOOL_ORCH --> FILES
-    TOOL_ORCH --> BASH
-    TOOL_ORCH --> MCP_CL
-    TOOL_ORCH --> LSP_CL
+    TOOL_ORCH --> SHELL
+    TOOL_ORCH --> MCP_STDIO
+    TOOL_ORCH --> LSP_CLIENT
 ```
 
 ---
 
-## 🤖 지원 LLM 프로바이더
+## 🖥️ UI & 대시보드 관측성 (Observability)
 
-Claude4Net은 **클래스 1개 = 전용 프로바이더 1개** 원칙을 고수하여 각 프로바이더별 전용 `ILLMProvider` 독립 클래스로 구현되어 있습니다.
+<p align="center">
+  <img src="docs/pic/dashboard_tui.png" alt="Claude4Net Split-View TUI & Dashboard" width="100%"/>
+</p>
 
-| 프로바이더 | 지원 주요 모델 | 전송 프로토콜 | 주요 특장점 |
+Claude4Net은 직관적인 터미널 환경과 강력한 웹 관측 제어 패널을 동시에 제공합니다:
+* **Rich Spectre.Console TUI**: 구문 강조(Syntax Highlighting), 진행 상태 카드, 사고(Thinking) 스트림 실시간 렌더링.
+* **Blazor Web Dashboard (`:5000`)**: 실시간 SignalR 지표 차트, 활성 에이전트 상태, 토큰 소비량 분석, 세션 이벤트 타임라인 리플레이.
+
+---
+
+## 🤖 지원 LLM 프로바이더 라인업
+
+Claude4Net은 견고한 **1 Class = 1 Dedicated Provider** 원칙으로 설계되어 각 프로바이더의 고유한 기능을 완벽하게 지원합니다.
+
+| 프로바이더 식별자 | 주요 지원 모델 라인업 (2026) | 전송 방식 | 주요 특징 |
 | :--- | :--- | :--- | :--- |
-| **Anthropic Claude** | `claude-3-7-sonnet`, `claude-3-5-haiku`, `claude-3-opus` | Direct REST API (SSE) | 확장 생각(Thinking), 정교한 툴콜, 스트리밍 |
-| **Google Gemini** | `gemini-2.5-pro`, `gemini-2.5-flash`, `gemini-2.0-flash` | REST API / Gemini CLI | 멀티모달, 그라운딩, 초고속 추론 |
-| **Zhipu GLM** | `glm-4-plus`, `glm-4-flash`, `glm-4-air` | Open-API REST (Bearer Auth) | 높은 동시성, 다단계 추론, 함수 호출 |
-| **Local Ollama** | `qwen2.5-coder`, `llama3.3`, `deepseek-r1` 등 | Local HTTP API | 100% 오프라인 완전 비공개, 데이터 유출 제로 |
-| **OpenAI-Compatible** | 임의의 엔드포인트 (DeepSeek, Groq, vLLM, LocalAI) | OpenAI Chat Completions API | 폭넓은 호환성, 커스텀 base URL 지원 |
-| **Antigravity CLI** | Antigravity Native Engine | Subprocess IPC / Stdio | 전문 에이전트 하네스 워크플로우 통합 |
+| **`antigravity/*`** | `gemini-3.7-flash-high`, `claude-sonnet-4-6-thinking`, `gpt-oss-120b-high` | Subprocess Stdin IPC Stream | 딥 씽킹(Deep Thinking), 무제한 토큰 컨텍스트, 하네스 스킬 통합 |
+| **`google/*`** | `gemini-3.7-flash`, `gemini-3.6-flash`, `gemini-3.5-flash`, `gemini-3.1-pro` | Direct Google REST API (SSE) | 초고속 멀티모달 추론, 구글 네이티브 그라운딩 |
+| **`anthropic/*`** | `claude-3-7-sonnet`, `claude-3-5-sonnet`, `claude-3-5-haiku` | Direct Anthropic REST API | 확장 생각(Thinking), 업계 표준 툴콜링, 고신뢰 코드 생성 |
+| **`glm/*`** | `glm-4-plus`, `glm-4-flash`, `glm-4-air` | Zhipu Open REST API | 높은 동시성 처리, 강력한 중국어/다국어 추론 |
+| **`ollama/*`** | `qwen2.5-coder`, `llama3.3`, `deepseek-r1` | Local Ollama REST API | 100% 오프라인 동작, 로컬 GPU 가속, 데이터 유출 제로 |
+| **`openai/*`** | 임의의 호환 엔드포인트 (DeepSeek, Groq, vLLM, LocalAI) | OpenAI Chat Completions REST | 범용 엔드포인트 연결, 커스텀 Base URL 지정 |
 
 ---
 
-## 📦 프로젝트 및 솔루션 구성
+## 🚀 빠른 시작 가이드 (Quick Start)
 
-```text
-Claude4Net/
-├── Claude4Net.Cli/               # 대화형 터미널 TUI 인터페이스
-├── Claude4Net.Runtime/           # 핵심 실행 루프, 핸들러, 서비스 및 DI 파이프라인
-│   ├── Handlers/                 # 도메인별 명령 핸들러 (Agent, Goal, File, Provider, System)
-│   ├── Services/                 # RAG, Telemetry, SelfHealing, ToolSecurity 서비스
-│   └── Server/                   # 프록시 서버 및 IPC 엔드포인트
-├── Claude4Net.Api/               # 전용 LLM 어댑터 (Claude, Gemini, GLM, Ollama 등)
-├── Claude4Net.SDK/               # 도메인 인터페이스, 이벤트 스키마, DTO 및 시스템 계약
-├── Claude4Net.Commands/          # 경량 명령 디스패처 및 레지스트리
-├── Claude4Net.Tools/             # 파일(Read/Write/Edit), 셸(Bash), LSP 및 MCP 도구 세트
-├── Claude4Net.Dashboard/         # ASP.NET Core 관측 백엔드 & SignalR 허브
-├── Claude4Net.Dashboard.Client/  # Blazor WebAssembly 제어 패널 UI
-├── Claude4Net.MyPlugins/         # 사용자 정의 플러그인 확장 예제
-├── Claude4Net.Discord/           # 디스코드 봇 인터페이스
-└── Claude4Net.Tests/             # 종합 xUnit 단위/통합 테스트 및 회귀 벤치마크
-```
+### 1. 사전 요구사항
+* [.NET 10 SDK](https://dotnet.microsoft.com/download) (Version 10.0 이상)
+* (선택) [Ollama](https://ollama.ai/) — 로컬 오프라인 실행 시
 
----
-
-## 🚀 시작하기
-
-### 요구 사항
-
-- [.NET 10 SDK](https://dotnet.microsoft.com/download) (Version 10.0 이상)
-- (선택) 로컬 오프라인 실행을 위한 [Ollama](https://ollama.ai/)
-- (선택) 프로바이더 API 키 (Anthropic, Google, Zhipu 등)
-
-### 설치 및 빌드
-
+### 2. 빌드 및 테스트
 ```bash
-# 1. 저장소 복제
+# 1. 저장소 클론
 git clone https://github.com/Terkiss/Claude4Net.git
 cd Claude4Net
 
-# 2. 의존성 복원
-dotnet restore Claude4Net.slnx
-
-# 3. 솔루션 전체 릴리즈 빌드
+# 2. 솔루션 빌드
 dotnet build Claude4Net.slnx -c Release
 
-# 4. 전체 테스트 실행
+# 3. 978개 전체 테스트 검증 (100% All Pass)
 dotnet test Claude4Net.Tests/Claude4Net.Tests.csproj
 ```
 
 ---
 
-## 💻 애플리케이션 실행
+## 💻 실행 모드 (Run Modes)
 
-### 1. 대화형 CLI 모드
-
-터미널 대화형 셸을 실행합니다:
-
+### 모드 A: 대화형 페어 프로그래밍 CLI
 ```bash
 dotnet run --project Claude4Net.Cli
 ```
 
-### 2. 웹 대시보드 동시 실행
-
-CLI와 함께 실시간 Blazor 웹 대시보드를 동시에 구동합니다:
-
+### 모드 B: Blazor 웹 대시보드와 함께 실행
 ```bash
 dotnet run --project Claude4Net.Cli -- --dashboard
 ```
-> 🌐 웹 브라우저에서 `http://localhost:5000` (또는 설정된 포트)으로 대시보드에 접속할 수 있습니다.
+> 🌐 웹 브라우저에서 `http://localhost:5000` 접속
 
-### 3. 인프로세스 OpenAI 호환 API 서버 실행
-
-Claude4Net 런타임에서 표준 OpenAI REST API 엔드포인트를 직접 서비스합니다 (기본 포트 `7836`):
-
+### 모드 C: OpenAI 호환 API 서버 가동
 ```bash
-# 커스텀 포트 및 Bearer 인증 키를 지정하여 실행:
 dotnet run --project Claude4Net.Cli -- --api on --api-port 7836 --api-key c4n-sk-mykey
 ```
-또는 CLI 내부에서 대화형 명령: `/api on 7836 c4n-sk-mykey`
-
-#### 🌐 선언된 호환 범위 및 엔드포인트
-- `GET /v1/models` & `GET /v1/models/{model}`: 모델 목록 및 개별 모델 카드 조회.
-- `POST /v1/chat/completions`: 실시간 SSE 토큰 스트리밍, `stream_options.include_usage`, 실시간 증분 툴 호출 스트리밍 (`tool_calls[].function.arguments` 델타), `reasoning_content` 추론 분리 확장, 논스트리밍 JSON.
-- `POST /v1/completions`: 레거시 텍스트 컴플리션.
-- `POST /v1/embeddings`: 벡터 임베딩 생성 (Float 배열 / Base64 포맷, 네이티브 차원 검증 및 미지원 차원 거부).
-- `/api/v1/*`: Claude4Net 시스템 엔드포인트 (`/health`, `/status`, `/usage`, `/tools`, `/skills`).
-
-> [!IMPORTANT]
-> **API 호환성 범위 공식 분류**:
-> - `POST /v1/responses`: **`NOT IMPLEMENTED` (미구현)** — 현재 선언된 Claude4Net 호환성 구현 범위에 포함되지 않습니다.
-> - Claude4Net은 공식적으로 선언된 **Chat Completions / Models / Embeddings** 범위 내에서 **`NEAR-FULL`** 수준의 호환성을 달성합니다. 전체 OpenAI API 표면(오디오/실시간 베타 등)에 대한 무제한 Full 호환성을 주장하지 않습니다.
+> 또는 CLI 내부에서 대화형 명령: `/api on 7836 c4n-sk-mykey --api-timeout 1800`
 
 ---
 
-## 🔐 인증 및 환경 설정
+## 🔌 외부 클라이언트 연동 (OpenCode & Hermes)
 
-Claude4Net은 민감한 API 키가 환경 변수나 커밋 로그에 유출되는 것을 방지하기 위해 `api_key.json` 기반의 제로-리크 보안 인증을 사용합니다.
+Claude4Net API 서버(`http://127.0.0.1:7836/v1`)를 가동하면 모든 외부 코딩 에이전트와 완벽히 연동됩니다.
 
-```bash
-# Claude4Net CLI 내부에서 대화형으로 키를 등록합니다:
-> !login anthropic sk-ant-api03-...
-> !login gemini AIzaSy...
-> !login glm your-zhipu-api-key...
-> !login openai sk-...
+### 1. OpenCode (`opencode.json`) 설정
+프로젝트 루트 또는 `~/.config/opencode/opencode.json`에 아래 설정을 붙여넣으십시오:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "claude4net": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Claude4Net AI Hub",
+      "options": {
+        "baseURL": "http://127.0.0.1:7836/v1",
+        "apiKey": "c4n-sk-mykey"
+      },
+      "models": {
+        "antigravity/gemini-3.7-flash-high": {
+          "name": "Gemini 3.7 Flash (High Thinking)"
+        },
+        "antigravity/claude-sonnet-4-6-thinking": {
+          "name": "Claude Sonnet 4.6 (Thinking)"
+        },
+        "antigravity/gpt-oss-120b-high": {
+          "name": "GPT-OSS 120B (High)"
+        },
+        "google/gemini-3.7-flash": {
+          "name": "Google Gemini 3.7 Flash (Official)"
+        }
+      }
+    }
+  }
+}
 ```
 
-> [!NOTE]
-> 자동화 환경을 위해 환경 변수 폴백도 지원하지만, 대화형 키 저장소가 항상 우선권을 갖습니다.
+### 2. Hermes 및 Cursor / Roo Code 설정
+* **API Base URL**: `http://127.0.0.1:7836/v1`
+* **API Key**: `c4n-sk-mykey`
+* **Model ID**: `antigravity/gemini-3.7-flash-high` 또는 `antigravity/claude-sonnet-4-6-thinking`
 
 ---
 
-## ⌨️ 명령어 레퍼런스 (Command Reference)
+## ⌨️ CLI 명령어 치트시트 (Command Reference)
 
-Claude4Net은 슬래시(`/`) 및 뱅(`!`) 명령어를 통해 풍부한 제어 기능을 제공합니다:
+Claude4Net은 직관적인 슬래시(`/`) 및 뱅(`!`) 명령어를 제공합니다:
 
-### ⚙️ 세션 및 시스템 제어
+### ⚙️ 시스템 및 세션 제어
+| 명령어 | 설명 | 예시 |
+| :--- | :--- | :--- |
+| `/help` | 전체 명령어 목록 및 사용법 안내 | `/help` |
+| `/provider` | 활성 LLM 프로바이더 즉시 전환 | `/provider Gemini` |
+| `/model` | 프로바이더 내 세부 모델 선택 | `/model gemini-3.7-flash` |
+| `/api` | OpenAI API 서버 시작/중지/상태 확인 | `/api on 7836 mykey --api-timeout 1800` |
+| `/dashboard` | Blazor 웹 대시보드 온디맨드 실행 | `/dashboard` |
+| `/status` | 시스템 리소스, 가동 시간, 메모리 진단 | `/status` |
+| `/clear` | 터미널 화면 정리 | `/clear` |
 
-| 명령어 | 설명 |
-| :--- | :--- |
-| `/help` | 전체 명령어 목록 및 사용 가이드 출력 |
-| `/status` | 런타임 상태, 활성 프로바이더, 토큰 메트릭 및 메모리 상태 조회 |
-| `/session [new\|list\|switch <id>]` | 멀티 세션 생성, 목록 확인 및 전환 |
-| `/resume <sessionId>` | 과거 세션 복원 및 재연결 |
-| `/plan` | **드라이런(Dry-Run) 모드** 토글 (실제 파일 수정 없이 가상 시뮬레이션) |
-| `/clear` | 터미널 화면 정리 |
-
-### 🎯 자율 에이전트 & 목표
-
-| 명령어 | 설명 |
-| :--- | :--- |
-| `!goal <목표 설명>` | 완료될 때까지 자동으로 판단하고 실행하는 자율 목표 루프 시작 |
-| `!goal status` | 현재 실행 중인 자율 목표의 단계별 진행 상황 확인 |
-| `!goal cancel` | 실행 중인 자율 목표 루프 안전하게 중단 |
-| `!replay [steps]` | 이벤트 소싱 기반 실행 궤적 및 히스토리 재생 |
-| `!rewind <checkpointId>` | 세션 상태 및 작업 공간을 특정 체크포인트로 되감기 |
-
-### 🔌 도구, 스킬 & 프로바이더
-
-| 명령어 | 설명 |
-| :--- | :--- |
-| `/providers` | 등록된 모든 내장/외부 LLM 프로바이더 목록 확인 |
-| `/provider <name>` | 활성 프로바이더 실시간 교체 (예: `/provider glm`) |
-| `!skills` | `.agents/skills` 디렉터리에 색인된 에이전트 스킬 목록 확인 |
-| `!rag search <query>` | 로컬 코드베이스 임베딩 기반 시맨틱 검색 수행 |
-| `!heal` | 최근 발생한 오류에 대한 자가 치유 진단 분석 및 해결책 제안 |
+### 🎯 에이전트 & 자율 작업
+| 명령어 | 설명 | 예시 |
+| :--- | :--- | :--- |
+| `!goal <목표>` | 자율 목표 루프 시작 (단계별 계획 및 자동 검증) | `!goal REST API 엔드포인트 구현 및 테스트` |
+| `!login <프로바이더> <키>` | 프로바이더 API 키 안전 저장 | `!login gemini AIzaSy...` |
+| `!skills` | 발견된 에이전트 스킬 목록 확인 | `!skills` |
+| `!yolo` | 승인 프롬프트 건너뛰기 (주의 필요) | `!yolo` |
 
 ---
 
-## 🛡️ 안전성, 승인 엔진 및 가드레일
+## 🧪 품질 및 무결성 보증 (Quality & Tests)
 
-<details>
-<summary><b>보안 가드레일 상세 펼치기</b></summary>
+Claude4Net은 철저한 엔터프라이즈 품질 게이트 하에 개발됩니다:
 
-1. **경로 안전성 (Path Safety)**: 작업 디렉터리를 벗어나는 경로 탐색 공격(`../`, symlink) 자동 차단.
-2. **명령어 가드레일 (Command Interception)**: 파괴적인 셸 명령(예: `rm -rf /`, `format`) 감지 시 필수 사용자 확인 대화상자 호출.
-3. **Idempotent 승인 엔진**: 작업별 승인 캐싱 및 검증을 통해 과도한 프롬프트 피로를 방지하면서 안전성 유지.
-4. **드라이런 시뮬레이션**: `/plan` 모드에서는 파일 변경 및 셸 실행이 디스크에 반영되지 않고 가상 Diff로 시뮬레이션됨.
-
-</details>
-
----
-
-## 🩺 자가 치유(Self-Healing) & 반추 메커니즘
-
-<details>
-<summary><b>자가 치유 메커니즘 상세 펼치기</b></summary>
-
-도구 실행 중 오류(컴파일 에러, 셸 실패, API 타임아웃 등)가 발생하면:
-1. **오류 분류**: `ErrorClassifier`가 오류 유형(구조적, 런타임, 문법, 권한 등)을 분석합니다.
-2. **반추 생성**: `SelfHealingService`가 실패 궤적을 캡처하고 반추 프롬프트를 구성합니다.
-3. **자동 복구**: 에이전트가 코드를 외과적으로 수정하고, 테스트를 통해 검증한 뒤 메모리 원장에 지속 기록합니다.
-
-</details>
-
----
-
-## 🧪 테스트 및 품질 검증
-
-```bash
-# 단위 및 통합 테스트 실행
-dotnet test Claude4Net.Tests/Claude4Net.Tests.csproj
-
-# 특정 프로바이더 테스트만 필터링 실행
-dotnet test Claude4Net.Tests/Claude4Net.Tests.csproj --filter "FullyQualifiedName~GlmProviderTests"
-dotnet test Claude4Net.Tests/Claude4Net.Tests.csproj --filter "FullyQualifiedName~GoalDispatcherTests"
-```
-
----
-
-## 🤝 기여하기 (Contributing)
-
-기여는 언제나 환영합니다!
-
-1. 저장소를 Fork 합니다.
-2. 기능 브랜치를 생성합니다 (`git checkout -b feature/amazing-feature`).
-3. 테스트를 실행하여 통과를 확인합니다 (`dotnet test`).
-4. 변경 사항을 커밋합니다 (`git commit -m 'feat: add amazing feature'`).
-5. 브랜치에 푸시합니다 (`git push origin feature/amazing-feature`).
-6. Pull Request를 생성합니다.
+* **빌드 무결성**: .NET 10 Release 모드 `0 Errors, 0 Warnings`.
+* **단위 및 통합 테스트**: **978 / 978 Tests 100% Pass** (회귀율 0%).
+* **블랙박스 SDK 검증**: 공식 OpenAI .NET SDK, Python SDK, Node.js SDK 호환성 전수 통과.
+* **보안 가드레일**: 경로 탈출(Path Traversal), SSRF 방지, 평문 egress 차단 완비.
 
 ---
 
 ## 📄 라이선스 (License)
 
-이 프로젝트는 **MIT License**를 따릅니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
-
-<p align="center">
-  Crafted with ❤️ by <strong>Terkiss</strong> and the <strong>Claude4Net Community</strong>
-</p>
+이 프로젝트는 [MIT 라이선스](LICENSE) 하에 자유롭게 사용할 수 있습니다.

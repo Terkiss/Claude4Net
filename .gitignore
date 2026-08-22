@@ -40,6 +40,10 @@ ralph-queue-state.md
 *.png
 *.jpg
 *.jpeg
+!docs/pic/*
+!docs/**/*.png
+!docs/**/*.jpg
+!docs/**/*.jpeg
 
 # Local SDK and Android build artifacts
 Claude4Net.JaVaSDK/

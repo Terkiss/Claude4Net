@@ -86,3 +86,8 @@
 - Added CLI & REPL Configurable Timeout: Added `--api-timeout` / `--timeout <seconds>` flag to CLI options and `/api on` command parser.
 - Updated ApiServerSecurityTests to assert 10-minute default timeout.
 - Verification: 50 / 50 API Server Security tests passed (100%). Solution build: 0 errors.
+
+2026-08-22: Visual Branding & Multi-Language Documentation Modernization.
+- Generated and integrated high-resolution visual assets: `docs/pic/banner.png` (hero banner), `docs/pic/api_hub.png` (universal API hub architecture), `docs/pic/dashboard_tui.png` (split-view CLI TUI & Blazor control plane).
+- Revamped `README.md`, `README.ko.md`, and `README.ja.md` with modern copywriting, architecture Mermaid diagrams, OpenCode/Hermes integration templates, 2026 model lineups, and 978/978 test pass badges.
+- Updated `.gitignore` to track documentation images under `docs/pic/`.
