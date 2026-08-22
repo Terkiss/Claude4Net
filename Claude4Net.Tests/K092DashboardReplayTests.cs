@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -25,7 +25,8 @@ namespace Claude4Net.Tests
             _tempWorkspace = Path.Combine(Path.GetTempPath(), "Claude4Net_K092_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_tempWorkspace);
             AppState.CurrentCwd = _tempWorkspace;
-            _testSessionId = "session-k092";
+            _testSessionId = "session-k092-" + Guid.NewGuid().ToString("N")[..8];
+            AppState.SessionId = _testSessionId;
         }
 
         public void Dispose()

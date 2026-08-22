@@ -51,3 +51,4 @@ android/local.properties
 android/**/build/
 android/**/.cxx/
 android/**/.externalNativeBuild/
+node_modules/

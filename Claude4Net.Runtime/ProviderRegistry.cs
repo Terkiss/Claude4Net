@@ -246,8 +246,8 @@ namespace Claude4Net.Runtime
                 TransportKind = "cli",
                 DefaultModels = new ProviderDefaultModels
                 {
-                    Small = "gemini-2.0-flash",
-                    Large = "gemini-3.1-pro"
+                    Small = "gemini-3.7-flash-high",
+                    Large = "gemini-3.1-pro-high"
                 },
                 Capabilities = new ProviderCapabilities
                 {
@@ -363,11 +363,7 @@ namespace Claude4Net.Runtime
             // Endpoint validation
             if (!string.IsNullOrWhiteSpace(descriptor.Endpoint))
             {
-                if (!Uri.TryCreate(descriptor.Endpoint, UriKind.Absolute, out var uriResult) ||
-                    !(uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps))
-                {
-                    throw new ArgumentException($"Provider descriptor endpoint '{descriptor.Endpoint}' is not a valid absolute HTTP/HTTPS URI. Context: {context}", nameof(descriptor));
-                }
+                ProviderEndpointPolicy.ParseAndValidate(descriptor.Endpoint, "Endpoint");
             }
 
             // Ensure non-null collections for Headers and Metadata
@@ -481,6 +477,39 @@ namespace Claude4Net.Runtime
 
             // 3. Fallback: 기존 레거시 생성 로직
             return CreateProviderLegacy(providerId, serviceProvider);
+        }
+
+        public IEnumerable<ProviderDescriptor> GetApiRequestDescriptors(IServiceProvider? serviceProvider = null)
+        {
+            foreach (var descriptor in All)
+            {
+                var factory = _factories.FirstOrDefault(f => f.CanCreate(descriptor));
+                if (factory == null || factory.SupportsApiRequests)
+                {
+                    yield return descriptor;
+                }
+            }
+        }
+
+        public RequestProviderLease CreateRequestProviderLease(string providerId, IServiceProvider serviceProvider)
+        {
+            var descriptor = Get(providerId);
+            if (descriptor == null)
+            {
+                throw new KeyNotFoundException($"Provider '{providerId}' is not registered.");
+            }
+
+            var diFactories = serviceProvider.GetService<IEnumerable<IProviderFactory>>();
+            var factory = diFactories?.FirstOrDefault(f => f.CanCreate(descriptor)) ??
+                          _factories.FirstOrDefault(f => f.CanCreate(descriptor));
+
+            if (factory != null)
+            {
+                return factory.CreateRequestProviderLease(descriptor, serviceProvider);
+            }
+
+            var provider = CreateProviderLegacy(providerId, serviceProvider);
+            return RequestProviderLease.NonOwning(provider);
         }
 
         private ILLMProvider CreateProviderLegacy(string providerId, IServiceProvider serviceProvider)

@@ -46,10 +46,16 @@ namespace Claude4Net.Tools
             var input = JsonSerializer.Deserialize<BashInput>(arguments, options)
                         ?? throw new ArgumentException("Invalid arguments for BashTool");
 
+            string cmdToRun = input.command.Trim();
+            if (string.Equals(cmdToRun, "cd", StringComparison.OrdinalIgnoreCase) || string.Equals(cmdToRun, "pwd", StringComparison.OrdinalIgnoreCase))
+            {
+                cmdToRun = "(Get-Location).Path";
+            }
+
             // [보안 및 설정] PowerShell을 사용하여 명령을 격리된 환경(NoProfile)에서 실행합니다.
             using var process = new Process();
             process.StartInfo.FileName = "powershell.exe";
-            process.StartInfo.Arguments = $"-NoProfile -Command \"{input.command}\"";
+            process.StartInfo.Arguments = $"-NoProfile -Command \"{cmdToRun}\"";
             process.StartInfo.RedirectStandardOutput = true;
             process.StartInfo.RedirectStandardError = true;
             process.StartInfo.UseShellExecute = false;

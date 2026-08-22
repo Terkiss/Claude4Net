@@ -7,8 +7,27 @@ using Claude4Net.SDK;
 namespace Claude4Net.Tests
 {
     [Collection("AppState")]
-    public class D05SmartRouterTests
+    public class D05SmartRouterTests : IDisposable
     {
+        private readonly string _originalProvider;
+        private readonly string _originalModel;
+        private readonly bool _originalExplicit;
+
+        public D05SmartRouterTests()
+        {
+            _originalProvider = AppState.ActiveProvider;
+            _originalModel = AppState.ActiveModel;
+            _originalExplicit = AppState.IsProviderExplicitlySet;
+            AppState.IsProviderExplicitlySet = false;
+        }
+
+        public void Dispose()
+        {
+            AppState.ActiveProvider = _originalProvider;
+            AppState.ActiveModel = _originalModel;
+            AppState.IsProviderExplicitlySet = _originalExplicit;
+        }
+
         [Fact]
         public void SmartRouter_ShouldUpdateLatencyEMA()
         {

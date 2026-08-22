@@ -35,3 +35,48 @@
 - Enhanced `ChatMessageDto.GetContentString()` to recursively parse multimodal vision array parts (`[{"type": "text", "text": "..."}]`).
 - Added DTO fields: `system_fingerprint` ("fp_claude4net"), `max_completion_tokens`, `stop`, `response_format`, `presence_penalty`, `frequency_penalty`, `seed`.
 - Expanded `OpenAiApiServerTests` (18 tests); full test suite verified with 709/709 passed (100% pass rate, 0 failed).
+
+2026-08-17: OpenAI Compatibility Hardening Defect Remediation (R-001, R-002, R-003).
+- Fixed R-001 (Real-Time Tool Call Streaming): Replaced post-accumulation buffer parsing with IncrementalToolCallParser state machine. Emits genuine real-time tool header and arguments delta chunks without leaking raw <invoke> tags.
+- Fixed R-002 (Stream-Safe Reasoning Parser): Replaced naive substring checking with bounded sliding window IncrementalReasoningParser state machine. Handles all split boundary permutations of <think> and </think> with zero leakage.
+- Fixed R-003 (Embeddings Semantic Correction): Removed synthetic SHA256 deterministic vector generation. Wired real IEmbeddingProvider from DI with explicit 501/400 OpenAI error envelopes for unconfigured providers or unsupported dimensions.
+- Added IncrementalStreamingAndEmbeddingRemediationTests; full test suite (735/735 tests) passed with 100% success rate (0 failures, 0 skipped).
+
+2026-08-17: GOAL-OPENAI-COMPAT-HARDENING-R001-R003 Ralph Loop Full Gate Verification Complete.
+- First Reviewer Audit: Fixed surrogate pair preservation (UTF-16 emojis/Korean/currency) and chunk batching in IncrementalToolCallParser & IncrementalReasoningParser. R-001, R-002, R-003 all APPROVED as CLOSED.
+- Universal Final Controller & Official OpenAI Python SDK (v2.24.0) Black-Box Gate: 11 real client black-box tests passed 100% across live HTTP server port (models, non-streaming, streaming with usage chunks, tool call accumulation, reasoning content, embeddings, dimensions rejection, auth 401, concurrency 10).
+- Final Approach Control: 740 / 740 tests PASSED (100%), 0 errors, git diff clean. Verdict: FINALCONTROL PASSED / APPROVED FOR COMMIT ONLY.
+
+2026-08-17: GOAL-OPENAI-COMPAT-FINAL-CLOSURE-V5.4 Tier 3 Release Gate Complete.
+- Official OpenAI .NET SDK (v2.13.0) Black-Box Suite (OfficialOpenAiDotNetSdkBlackBoxTests): 7/7 passed 100% over live Kestrel HTTP port.
+- Official OpenAI JavaScript SDK (v7.4.0) Black-Box Suite (blackbox_openai_js_sdk_runner.mjs): 11/11 passed 100% under Node.js runtime.
+- Documented POST /v1/responses as NOT IMPLEMENTED in README.md, README.ko.md, README.ja.md.
+- Full Solution Test Suite: 749 / 749 passed (100%), 0 errors, 0 new warnings. Verdict: APPROVED FOR COMMIT ONLY.
+
+2026-08-21: OpenAI API Compatibility Rework (Wave 1~15) & Ralph Loop Multi-Perspective Review Complete.
+- Implemented Wave 1~15: ProviderEndpointPolicy egress enforcement, RequestProviderLease lifecycle isolation, streaming UTF-16 surrogate preservation, /api/v1/agent/run 403 tombstone, fail-closed CLI API key handling, SDK runner process gating & bounded pipe drain.
+- Enhanced test isolation in K036OllamaTests and K080DashboardReadModelTests to eliminate parallel AppState race conditions.
+- First Reviewer Verdict: PASS WITH P3 (Modern C# patterns, CancellationToken propagation, async disposal integrity).
+- Tech Expert Verdict: ARCHITECTURALLY ACCEPTABLE (Security boundaries, SSRF prevention, fail-closed design).
+- Universal Final Controller & Solution Test Suite: 979 / 979 passed (100%), 0 errors, 0 skipped.
+- Final Approach Control Verdict: APPROVED FOR COMMIT ONLY.
+
+2026-08-22: Hermes Agent & OpenAI Client Integration / Antigravity CLI API Routing Fix.
+- Resolved 400 Bad Request: Relaxed hyper-strict ValidateKnownOptions to fully permit standard OpenAI parameters (temperature [0.0~2.0], top_p [0.0~1.0], presence_penalty, frequency_penalty, max_tokens, and streaming stop/tokens).
+- Resolved 400/404 Model Not Found & 502 Bad Gateway: Enabled SupportsApiRequests in AntigravityCliProviderFactory/GeminiCliProviderFactory with EmptyToolRegistry sandbox; registered full antigravity model catalog in ApiModelCatalog; wired dynamic fallback to AppState.ActiveProvider.
+- Verification: 129 / 129 targeted security and validation tests passed (100%). Solution build: 0 errors.
+
+2026-08-22: Google Gemini Official API & Antigravity Model Catalog Modernization.
+- Modernized Google Gemini Native API model lineup with verified 2026 releases: gemini-3.7-flash, gemini-3.6-flash, gemini-3.5-flash, gemini-3.5-flash-lite, gemini-3.1-pro, gemini-2.5-pro, gemini-2.5-flash, gemini-2.0-flash, gemini-2.0-flash-lite, gemini-1.5-pro, gemini-1.5-flash.
+- Modernized Google Antigravity (agy) model lineup: Gemini 3.7 Flash (High/Med/Low), Gemini 3.6 Flash (High/Med/Low), Gemini 3.5 Flash (High/Med/Low), Gemini 3.1 Pro (High/Low), Claude Sonnet 4.6 (Thinking), Claude Opus 4.6 (Thinking), GPT-OSS 120B (High/Med).
+- Fixed Spectre.Console bracket markup escaping in /model interactive picker in both Claude4Net.Runtime and Claude4Net.Commands.
+- Synchronized ProviderRegistry DefaultModels, ApiModelCatalog, and isolated AppState in D05SmartRouterTests.
+- Verification: 129 / 129 API Server tests, 65 / 65 factory/router/routing catalog tests passed (100%). Solution build: 0 errors.
+
+2026-08-22: Hermes & OpenCode Integration, Stream JSON Pipeline, and Provider Prefix Normalization.
+- Resolved 502 Win32Exception on large prompts: Converted Antigravity CLI from command-line arguments to streaming JSON over stdin to bypass Windows 32KB CreateProcess argument limit.
+- Resolved 404 on multi-segment model IDs: Updated ASP.NET Core minimal API routes to `/v1/models/{*modelId}`.
+- Resolved 502 Pipe Closed on prefixed models: Added prefix stripping in NormalizeAgyModel to normalize `antigravity/*` and `agy/*` to Antigravity CLI thinking models.
+- Isolated API Mode from CLI Mode: Prevented Claude4Net internal workspace confinement prompts from overriding external client (Hermes/OpenCode) prompts.
+- Standardized Provider Prefixes: Exposed clear `antigravity/*`, `google/*`, `anthropic/*`, `glm/*`, `ollama/*` model identifiers while preserving backward compatibility aliases.
+- Verification: 978 / 978 tests passing (100%). Solution build: 0 errors.

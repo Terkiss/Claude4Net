@@ -16,8 +16,10 @@ namespace Claude4Net.Api;
 public class GeminiEmbeddingProvider : IEmbeddingProvider
 {
     private readonly HttpClient _httpClient;
-    private const string Model = "text-embedding-004";
     private readonly ConcurrentDictionary<string, float[]> _l1Cache = new();
+
+    public string ProviderId => "gemini";
+    public string ModelId => "text-embedding-004";
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GeminiEmbeddingProvider"/> class.
@@ -46,15 +48,15 @@ public class GeminiEmbeddingProvider : IEmbeddingProvider
         string? apiKey = AuthManager.GetApiKey("gemini");
         if (string.IsNullOrEmpty(apiKey)) throw new InvalidOperationException("Gemini API key not found.");
 
-        var url = $"https://generativelanguage.googleapis.com/v1beta/models/{Model}:embedContent?key={apiKey}";
+        var url = $"https://generativelanguage.googleapis.com/v1beta/models/{ModelId}:embedContent?key={apiKey}";
         
         var request = new
         {
-            model = $"models/{Model}",
+            model = $"models/{ModelId}",
             content = new { parts = new[] { new { text = text } } }
         };
 
-        var response = await _httpClient.PostAsJsonAsync(url, request, ct);
+        using var response = await _httpClient.PostAsJsonAsync(url, request, ct);
         response.EnsureSuccessStatusCode();
 
         var result = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: ct);

@@ -10,6 +10,7 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="OpenAI" Version="2.13.0" />
     <PackageReference Include="Spectre.Console.Testing" Version="0.55.0" />
     <PackageReference Include="xunit" Version="2.5.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
@@ -34,11 +35,13 @@
       <Link>.resources\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <None Update="blackbox_openai_sdk_runner.py;blackbox_openai_js_sdk_runner.mjs;sdk_process_fixture.py">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <Target Name="GenerateTestInitializer" BeforeTargets="BeforeBuild">
     <PropertyGroup>
-      <MockDir>$(BaseIntermediateOutputPath)mockbin</MockDir>
       <InitializerContent>
 <![CDATA[
 using System%3B
@@ -64,6 +67,13 @@ namespace Claude4Net.Tests
 }
 ]]>
       </InitializerContent>
+    </PropertyGroup>
+    <WriteLinesToFile File="TestInitializer.cs" Lines="$(InitializerContent)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+  </Target>
+
+  <Target Name="GeneratePowerShellMock" BeforeTargets="BeforeBuild" Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <PropertyGroup>
+      <MockDir>$(BaseIntermediateOutputPath)mockbin</MockDir>
       <MockSrc>
 <![CDATA[
 using System%3B
@@ -103,7 +113,6 @@ class Program {
     <Exec Command="C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /out:&quot;$(MockDir)\powershell.exe&quot; &quot;$(MockDir)\powershell.cs&quot;" />
     <MakeDir Directories="$(TargetDir)mockbin" />
     <Copy SourceFiles="$(MockDir)\powershell.exe" DestinationFolder="$(TargetDir)mockbin" Condition="!Exists('$(TargetDir)mockbin\powershell.exe')" />
-    <WriteLinesToFile File="TestInitializer.cs" Lines="$(InitializerContent)" Overwrite="true" WriteOnlyWhenDifferent="true" />
   </Target>
 
   <Target Name="CleanTempDbAndResidues" AfterTargets="Clean">

@@ -28,6 +28,14 @@ public static class CliServiceRegistration
 
         // 외부 API 호출에 사용하는 HTTP 클라이언트
         services.AddHttpClient();
+        foreach (string clientName in new[] { "Anthropic", "Gemini", "glm", "Ollama", "lmstudio", "OpenAiCompat" })
+        {
+            services.AddHttpClient(clientName)
+                .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+                {
+                    AllowAutoRedirect = false
+                });
+        }
 
         // 런타임 인프라 서비스
         services.AddSingleton<ProviderRegistry>(sp => ProviderRegistry.CreateWithDefaults());
@@ -111,6 +119,11 @@ public static class CliServiceRegistration
         });
         services.AddSingleton<GeminiCliProvider>();
         services.AddSingleton<Claude4Net.Api.AntigravityCliProvider>();
+        services.AddSingleton<IEmbeddingProvider, GlmProvider>(sp =>
+        {
+            var clientFactory = sp.GetRequiredService<IHttpClientFactory>();
+            return new GlmProvider(clientFactory.CreateClient("glm"), sp.GetRequiredService<IToolRegistry>());
+        });
         services.AddSingleton<IEmbeddingProvider, GeminiEmbeddingProvider>(sp =>
         {
             var clientFactory = sp.GetRequiredService<IHttpClientFactory>();

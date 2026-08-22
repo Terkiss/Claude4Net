@@ -54,14 +54,45 @@ namespace Claude4Net.Commands.Handlers
 
                 var modelsMap = new Dictionary<string, (string Provider, string ModelId)>
                 {
-                    { "Gemini 3.5 Flash (Medium)", ("antigravity-cli", "Gemini 3.5 Flash (Medium)") },
-                    { "Gemini 3.5 Flash (High)", ("antigravity-cli", "Gemini 3.5 Flash (High)") },
-                    { "Gemini 3.5 Flash (Low)", ("antigravity-cli", "Gemini 3.5 Flash (Low)") },
-                    { "Gemini 3.1 Pro (Low)", ("antigravity-cli", "Gemini 3.1 Pro (Low)") },
-                    { "Gemini 3.1 Pro (High)", ("antigravity-cli", "Gemini 3.1 Pro (High)") },
-                    { "Claude Sonnet 4.6 (Thinking)", ("antigravity-cli", "Claude Sonnet 4.6 (Thinking)") },
-                    { "Claude Opus 4.6 (Thinking)", ("antigravity-cli", "Claude Opus 4.6 (Thinking)") },
-                    { "GPT-OSS 120B (Medium)", ("antigravity-cli", "GPT-OSS 120B (Medium)") }
+                    // Antigravity CLI (Local Agent - OAuth)
+                    { "[cyan][[Antigravity]][/] Gemini 3.7 Flash (Medium)", ("antigravity-cli", "Gemini 3.7 Flash (Medium)") },
+                    { "[cyan][[Antigravity]][/] Gemini 3.7 Flash (High)", ("antigravity-cli", "Gemini 3.7 Flash (High)") },
+                    { "[cyan][[Antigravity]][/] Gemini 3.7 Flash (Low)", ("antigravity-cli", "Gemini 3.7 Flash (Low)") },
+                    { "[cyan][[Antigravity]][/] Gemini 3.6 Flash (Medium)", ("antigravity-cli", "Gemini 3.6 Flash (Medium)") },
+                    { "[cyan][[Antigravity]][/] Gemini 3.6 Flash (High)", ("antigravity-cli", "Gemini 3.6 Flash (High)") },
+                    { "[cyan][[Antigravity]][/] Gemini 3.6 Flash (Low)", ("antigravity-cli", "Gemini 3.6 Flash (Low)") },
+                    { "[cyan][[Antigravity]][/] Gemini 3.5 Flash (Medium)", ("antigravity-cli", "Gemini 3.5 Flash (Medium)") },
+                    { "[cyan][[Antigravity]][/] Gemini 3.5 Flash (High)", ("antigravity-cli", "Gemini 3.5 Flash (High)") },
+                    { "[cyan][[Antigravity]][/] Gemini 3.5 Flash (Low)", ("antigravity-cli", "Gemini 3.5 Flash (Low)") },
+                    { "[cyan][[Antigravity]][/] Gemini 3.1 Pro (High)", ("antigravity-cli", "Gemini 3.1 Pro (High)") },
+                    { "[cyan][[Antigravity]][/] Gemini 3.1 Pro (Low)", ("antigravity-cli", "Gemini 3.1 Pro (Low)") },
+                    { "[cyan][[Antigravity]][/] Claude Sonnet 4.6 (Thinking)", ("antigravity-cli", "Claude Sonnet 4.6 (Thinking)") },
+                    { "[cyan][[Antigravity]][/] Claude Opus 4.6 (Thinking)", ("antigravity-cli", "Claude Opus 4.6 (Thinking)") },
+                    { "[cyan][[Antigravity]][/] GPT-OSS 120B (High)", ("antigravity-cli", "GPT-OSS 120B (High)") },
+                    { "[cyan][[Antigravity]][/] GPT-OSS 120B (Medium)", ("antigravity-cli", "GPT-OSS 120B (Medium)") },
+
+                    // Google Gemini (Native API - API Key)
+                    { "[yellow][[Google Gemini]][/] gemini-3.7-flash", ("gemini", "gemini-3.7-flash") },
+                    { "[yellow][[Google Gemini]][/] gemini-3.6-flash", ("gemini", "gemini-3.6-flash") },
+                    { "[yellow][[Google Gemini]][/] gemini-3.5-flash", ("gemini", "gemini-3.5-flash") },
+                    { "[yellow][[Google Gemini]][/] gemini-3.5-flash-lite", ("gemini", "gemini-3.5-flash-lite") },
+                    { "[yellow][[Google Gemini]][/] gemini-3.1-pro", ("gemini", "gemini-3.1-pro") },
+                    { "[yellow][[Google Gemini]][/] gemini-2.5-pro", ("gemini", "gemini-2.5-pro") },
+                    { "[yellow][[Google Gemini]][/] gemini-2.5-flash", ("gemini", "gemini-2.5-flash") },
+                    { "[yellow][[Google Gemini]][/] gemini-2.0-flash", ("gemini", "gemini-2.0-flash") },
+                    { "[yellow][[Google Gemini]][/] gemini-2.0-flash-lite", ("gemini", "gemini-2.0-flash-lite") },
+                    { "[yellow][[Google Gemini]][/] gemini-1.5-pro", ("gemini", "gemini-1.5-pro") },
+                    { "[yellow][[Google Gemini]][/] gemini-1.5-flash", ("gemini", "gemini-1.5-flash") },
+
+                    // Anthropic Claude (API Key)
+                    { "[magenta][[Anthropic Claude]][/] claude-3-5-sonnet-20241022", ("claude", "claude-3-5-sonnet-20241022") },
+                    { "[magenta][[Anthropic Claude]][/] claude-3-5-haiku-20241022", ("claude", "claude-3-5-haiku-20241022") },
+                    { "[magenta][[Anthropic Claude]][/] claude-3-opus-20240229", ("claude", "claude-3-opus-20240229") },
+
+                    // Zhipu GLM (API Key)
+                    { "[blue][[Zhipu GLM]][/] glm-4-plus", ("glm", "glm-4-plus") },
+                    { "[blue][[Zhipu GLM]][/] glm-4-flash", ("glm", "glm-4-flash") },
+                    { "[blue][[Zhipu GLM]][/] glm-4-air", ("glm", "glm-4-air") }
                 };
 
                 try {
@@ -69,7 +100,7 @@ namespace Claude4Net.Commands.Handlers
                     if (!string.IsNullOrEmpty(ollamaUri)) {
                         var ollama = sp.GetRequiredService<OllamaProvider>();
                         var ollamaModels = await ollama.ListModelsAsync();
-                        foreach (var m in ollamaModels) modelsMap[$"[green][Ollama][/] {Markup.Escape(m)}"] = ("ollama", m);
+                        foreach (var m in ollamaModels) modelsMap[$"[green][[Ollama]][/] {Markup.Escape(m)}"] = ("ollama", m);
                     }
                 } catch { }
 
@@ -90,7 +121,8 @@ namespace Claude4Net.Commands.Handlers
                             client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
                         }
                         if (!endpoint.Contains("/v1")) endpoint = endpoint.TrimEnd('/') + "/v1";
-                        var response = await client.GetAsync($"{endpoint}/models");
+                        Uri modelsEndpoint = ProviderEndpointPolicy.ParseAndValidate($"{endpoint}/models", "lmstudioEndpoint");
+                        using var response = await client.GetAsync(modelsEndpoint);
                         if (response.IsSuccessStatusCode) {
                             var jsonStr = await response.Content.ReadAsStringAsync();
                             var doc = System.Text.Json.JsonDocument.Parse(jsonStr);
@@ -98,7 +130,7 @@ namespace Claude4Net.Commands.Handlers
                             foreach (var item in data.EnumerateArray()) {
                                 if (item.TryGetProperty("id", out var idProp)) {
                                     string m = idProp.GetString() ?? "";
-                                    modelsMap[$"[blue][LMStudio][/] {Markup.Escape(m)}"] = ("lmstudio", m);
+                                    modelsMap[$"[blue][[LMStudio]][/] {Markup.Escape(m)}"] = ("lmstudio", m);
                                 }
                             }
                         }
@@ -109,7 +141,7 @@ namespace Claude4Net.Commands.Handlers
 
                 var prompt = new SelectionPrompt<string>()
                     .Title("[white]Switch Model[/]")
-                    .PageSize(15)
+                    .PageSize(20)
                     .AddChoices(modelsMap.Keys)
                     .UseConverter(label => 
                     {
@@ -132,6 +164,7 @@ namespace Claude4Net.Commands.Handlers
 
                 AppState.ActiveModel = selectedInfo.ModelId;
                 AppState.ActiveProvider = selectedInfo.Provider;
+                AppState.IsProviderExplicitlySet = true;
                 return $"Model changed to: [bold green]{Markup.Escape(selectedInfo.ModelId)}[/] (Provider: {selectedInfo.Provider})";
             }
 
@@ -144,8 +177,14 @@ namespace Claude4Net.Commands.Handlers
             }
             else
             {
-                if (newModel.StartsWith("claude")) detectedProvider = "claude";
-                else if (newModel.StartsWith("gemini")) detectedProvider = "gemini";
+                if (newModel.StartsWith("claude", StringComparison.OrdinalIgnoreCase) && !newModel.Contains("Thinking")) detectedProvider = "claude";
+                else if (newModel.StartsWith("gemini-2.", StringComparison.OrdinalIgnoreCase) ||
+                         newModel.StartsWith("gemini-1.", StringComparison.OrdinalIgnoreCase)) detectedProvider = "gemini";
+                else if (newModel.StartsWith("glm", StringComparison.OrdinalIgnoreCase)) detectedProvider = "glm";
+                else if (newModel.StartsWith("Gemini 3.", StringComparison.OrdinalIgnoreCase) ||
+                         newModel.StartsWith("Claude Sonnet 4.", StringComparison.OrdinalIgnoreCase) ||
+                         newModel.StartsWith("Claude Opus 4.", StringComparison.OrdinalIgnoreCase) ||
+                         newModel.StartsWith("GPT-OSS", StringComparison.OrdinalIgnoreCase)) detectedProvider = "antigravity-cli";
                 else {
                     try {
                         var ollama = sp.GetRequiredService<OllamaProvider>();
@@ -170,7 +209,8 @@ namespace Claude4Net.Commands.Handlers
                                 client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
                             }
                             if (!endpoint.Contains("/v1")) endpoint = endpoint.TrimEnd('/') + "/v1";
-                            var response = await client.GetAsync($"{endpoint}/models");
+                            Uri modelsEndpoint = ProviderEndpointPolicy.ParseAndValidate($"{endpoint}/models", "lmstudioEndpoint");
+                            using var response = await client.GetAsync(modelsEndpoint);
                             if (response.IsSuccessStatusCode) {
                                 var jsonStr = await response.Content.ReadAsStringAsync();
                                 var doc = System.Text.Json.JsonDocument.Parse(jsonStr);

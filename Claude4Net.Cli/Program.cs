@@ -21,6 +21,17 @@ using System.Threading;
 
 var options = CliOptions.Parse(args);
 
+int startupValidationExitCode = CliStartupGuard.Validate(options, Console.Error);
+if (startupValidationExitCode != 0)
+{
+    return startupValidationExitCode;
+}
+
+foreach (string warning in options.Warnings)
+{
+    Console.Error.WriteLine($"Warning: {warning}");
+}
+
 if (options.WorkspaceDir != null)
 {
     if (!Directory.Exists(options.WorkspaceDir))
@@ -29,6 +40,10 @@ if (options.WorkspaceDir != null)
         return 1;
     }
     AppState.CurrentCwd = Path.GetFullPath(options.WorkspaceDir);
+}
+else if (string.IsNullOrEmpty(AppState.CurrentCwd))
+{
+    AppState.CurrentCwd = AppState.OriginalCwd ?? Environment.CurrentDirectory;
 }
 
 // Load configuration and resolve provider/model settings precedence
@@ -54,16 +69,25 @@ if (options.StartDashboard)
     }
 }
 
-var serviceProvider = services.BuildServiceProvider();
+await using var serviceProvider = services.BuildServiceProvider();
 
 if (options.StartApi)
 {
     var apiServer = serviceProvider.GetRequiredService<Claude4Net.Runtime.ApiServer.Claude4NetApiServer>();
     try
     {
-        await apiServer.StartAsync(options.ApiPort, options.ApiKey);
-        AnsiConsole.MarkupLine($"[bold green][[OK]] In-Process OpenAI API Server started at http://localhost:{options.ApiPort}[/]");
-        AnsiConsole.MarkupLine($"[grey]      Bearer Auth Key:[/] [cyan]{Markup.Escape(apiServer.ApiKey)}[/]");
+        await apiServer.StartAsync(new Claude4Net.Runtime.ApiServer.Claude4NetApiServerOptions
+        {
+            Port = options.ApiPort,
+            ApiKey = options.ApiKey,
+            BindAddress = options.ApiBind,
+            AllowRemote = options.ApiAllowRemote,
+            CertificatePath = options.ApiCertificatePath,
+            CertificatePasswordEnvironmentVariable = options.ApiCertificatePasswordEnvironmentVariable
+        });
+        AnsiConsole.MarkupLine($"[bold green][[OK]] In-Process OpenAI API Server started at {Markup.Escape(apiServer.Url)}[/]");
+        string displayKey = apiServer.TakeApiKeyForDisplay() ?? "[redacted]";
+        AnsiConsole.MarkupLine($"[grey]      Bearer Auth Key:[/] [cyan]{Markup.Escape(displayKey)}[/]");
     }
     catch (Exception ex)
     {

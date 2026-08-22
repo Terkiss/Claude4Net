@@ -74,13 +74,13 @@ namespace Claude4Net.Api
         }
 
         /// <summary>
-        /// gemini CLI�??�출?�여 ?�롬?�트�??�송?�고 출력???�트리밍?�니??
-        /// XML ?�태???�구 ?�출???�시간으�?감�??�여 ?�벤?�로 발생?�킵?�다.
+        /// gemini CLI??출?여 ?롬?트??송?고 출력???트리밍?니??
+        /// XML ?태???구 ?출???시간으?감??여 ?벤?로 발생?킵?다.
         /// </summary>
-        /// <param name="prompt">?�용???�력 ?�롬?�트</param>
-        /// <param name="model">모델�?/param>
-        /// <param name="ct">?�업 취소 ?�큰</param>
-        /// <returns>?�트리밍 ?�벤???�거??/returns>
+        /// <param name="prompt">?용???력 ?롬?트</param>
+        /// <param name="model">모델?/param>
+        /// <param name="ct">?업 취소 ?큰</param>
+        /// <returns>?트리밍 ?벤???거??/returns>
         public async IAsyncEnumerable<LLMStreamEvent> StreamQueryAsync(string prompt, string? model = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
         {
             if (!string.IsNullOrEmpty(prompt))
@@ -89,13 +89,25 @@ namespace Claude4Net.Api
             }
 
             var tools = _toolRegistry?.GetTools();
+            bool isApiMode = (tools == null || tools.Count == 0);
 
-            // ?�구 ?�의 �??�용 규칙???�롬?�트???�함
-            var toolDefs = new StringBuilder();
-            if (tools != null && tools.Count > 0)
+            string combinedPrompt;
+            string wsPath = !string.IsNullOrEmpty(AppState.CurrentCwd)
+                ? AppState.CurrentCwd
+                : (!string.IsNullOrEmpty(AppState.OriginalCwd) ? AppState.OriginalCwd : Environment.CurrentDirectory);
+
+            if (isApiMode)
             {
+                // In API Mode: Pure LLM passthrough for external clients (Hermes, Cursor, Roo Code, etc.)
+                // The external client provides its own system prompt, workspace path, tools, and conversation history.
+                combinedPrompt = prompt;
+            }
+            else
+            {
+                // In CLI Mode: Claude4Net internal agent loop
+                var toolDefs = new StringBuilder();
                 toolDefs.AppendLine("[AVAILABLE TOOLS]");
-                foreach (var t in tools)
+                foreach (var t in tools!)
                 {
                     string schemaDoc = t.InputSchema != null ? System.Text.Json.JsonSerializer.Serialize(t.InputSchema, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }) : "{}";
                     toolDefs.AppendLine($"- Name: {t.Name}");
@@ -104,61 +116,96 @@ namespace Claude4Net.Api
                     toolDefs.AppendLine();
                 }
                 toolDefs.AppendLine(@"[TOOL USE RULES]
-You are connected to a C# execution loop. DO NOT execute your internal commands.
-If you need to use a tool from the list above, you MUST respond EXACTLY in this XML format:
+You are connected to an external execution loop. DO NOT execute your internal tools or system commands directly.
+If you need to use a tool, you MUST respond EXACTLY in this XML format:
 <tool_call name=""ToolName"">
 { ""argName"": ""argValue"" }
 </tool_call>
 You can only call one tool per <tool_call> tag. After outputting a tool call, wait for the result.");
-            }
 
-            var historyDump = new StringBuilder();
-            if (_conversationHistory.Count > 0)
-            {
-                historyDump.AppendLine("[CONVERSATION HISTORY]");
-                historyDump.AppendLine(System.Text.Json.JsonSerializer.Serialize(_conversationHistory, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
-            }
-
-            var systemPromptBuilder = new StringBuilder();
-
-            // ?�율 진화 ?�킬 ?�보 로드
-            string skillsDir = string.IsNullOrEmpty(AppState.CurrentCwd) ? "" : Path.Combine(AppState.CurrentCwd, "Skills");
-            if (!string.IsNullOrEmpty(skillsDir) && Directory.Exists(skillsDir))
-            {
-                var skillFiles = Directory.GetFiles(skillsDir, "*.md");
-                foreach (var file in skillFiles)
+                var historyDump = new StringBuilder();
+                if (_conversationHistory.Count > 0)
                 {
-                    systemPromptBuilder.AppendLine($"\n[SKILL GUIDELINE: {Path.GetFileName(file)}]");
-                    systemPromptBuilder.AppendLine(File.ReadAllText(file));
-                    systemPromptBuilder.AppendLine();
+                    historyDump.AppendLine("[CONVERSATION HISTORY]");
+                    historyDump.AppendLine(System.Text.Json.JsonSerializer.Serialize(_conversationHistory, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
                 }
+
+                var systemPromptBuilder = new StringBuilder();
+                string skillsDir = string.IsNullOrEmpty(AppState.CurrentCwd) ? "" : Path.Combine(AppState.CurrentCwd, "Skills");
+                if (!string.IsNullOrEmpty(skillsDir) && Directory.Exists(skillsDir))
+                {
+                    var skillFiles = Directory.GetFiles(skillsDir, "*.md");
+                    foreach (var file in skillFiles)
+                    {
+                        systemPromptBuilder.AppendLine($"\n[SKILL GUIDELINE: {Path.GetFileName(file)}]");
+                        systemPromptBuilder.AppendLine(File.ReadAllText(file));
+                        systemPromptBuilder.AppendLine();
+                    }
+                }
+                var systemPrompt = systemPromptBuilder.ToString();
+
+                string workspaceRules = $@"
+[ACTIVE WORKSPACE DIRECTORY]
+Path: {wsPath}
+
+[CRITICAL WORKSPACE CONFINEMENT RULES]
+1. All project files, source code, folders, and resources MUST be created and edited strictly INSIDE the active workspace directory: {wsPath}
+2. NEVER create project directories or files in user home (C:\Users\...) or outside {wsPath}.
+3. Always use relative paths from the workspace root or absolute paths inside {wsPath}.";
+
+                combinedPrompt = $"{systemPrompt}\n\n[CRITICAL INSTRUCTION]\n반드시 모든 사고(Thinking) 과정과 출력, 코드 분석 내용은 한국어(Korean)로만 작성하세요.\n{workspaceRules}\n\n{toolDefs}\n\n{historyDump}\n\n[CURRENT USER PROMPT]:\n{prompt}";
             }
-            var systemPrompt = systemPromptBuilder.ToString();
 
-            // 최종 ?�롬?�트 조합
-            string combinedPrompt = $"{systemPrompt}\n\n[CRITICAL INSTRUCTION]\n반드??모든 ?�고(Thinking) 과정�?출력, ?�?? 분석 ?�용???�국??Korean)로만 ?�성?�세??\n\n{toolDefs}\n\n{historyDump}\n\n[CURRENT USER PROMPT]:\n{prompt}";
-
-            string modelArg = !string.IsNullOrEmpty(model) ? $"--model \"{model}\" " : "";
-            string arguments = $"/c agy {modelArg}-p \" \"";
+            string agyPath = ResolveAgyExecutable();
 
             var processStartInfo = new ProcessStartInfo
             {
-                FileName = "cmd.exe",
-                Arguments = arguments,
-                WorkingDirectory = string.IsNullOrEmpty(AppState.CurrentCwd) ? AppDomain.CurrentDomain.BaseDirectory : AppState.CurrentCwd,
+                FileName = agyPath,
+                WorkingDirectory = wsPath,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 RedirectStandardInput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
+                StandardInputEncoding = new UTF8Encoding(false),
                 StandardOutputEncoding = Encoding.UTF8
             };
+
+            processStartInfo.ArgumentList.Add("--input-format");
+            processStartInfo.ArgumentList.Add("stream-json");
+            processStartInfo.ArgumentList.Add("--output-format");
+            processStartInfo.ArgumentList.Add("stream-json");
+            processStartInfo.ArgumentList.Add("--dangerously-skip-permissions");
+            processStartInfo.ArgumentList.Add("--disable-slash-commands");
+
+            string resolvedModel = NormalizeAgyModel(model);
+            if (!string.IsNullOrEmpty(resolvedModel))
+            {
+                processStartInfo.ArgumentList.Add("--model");
+                processStartInfo.ArgumentList.Add(resolvedModel);
+            }
+            if (!isApiMode && !string.IsNullOrEmpty(AppState.CurrentCwd))
+            {
+                processStartInfo.ArgumentList.Add("--add-dir");
+                processStartInfo.ArgumentList.Add(AppState.CurrentCwd);
+            }
 
             using var process = new Process { StartInfo = processStartInfo };
             process.Start();
 
-            // CLI???�롬?�트 ?�력
-            await process.StandardInput.WriteAsync(combinedPrompt);
+            // Write input prompt over stdin (supports arbitrary size without 32KB Windows CLI limit)
+            var inputMessage = new
+            {
+                @event = "user",
+                message = new
+                {
+                    role = "user",
+                    content = combinedPrompt
+                }
+            };
+            string inputJson = System.Text.Json.JsonSerializer.Serialize(inputMessage) + "\n";
+            await process.StandardInput.WriteAsync(inputJson);
+            await process.StandardInput.FlushAsync();
             process.StandardInput.Close();
 
             var interceptedTools = new List<ToolUseRequest>();
@@ -167,13 +214,20 @@ You can only call one tool per <tool_call> tag. After outputting a tool call, wa
             string currentToolName = "";
 
             var fullText = new StringBuilder();
+            var stdErrBuffer = new StringBuilder();
 
-            process.ErrorDataReceived += (sender, args) => { /* ?�러 ?�레??*/ };
+            process.ErrorDataReceived += (sender, args) =>
+            {
+                if (!string.IsNullOrEmpty(args.Data))
+                {
+                    stdErrBuffer.AppendLine(args.Data);
+                }
+            };
             process.BeginErrorReadLine();
 
             using var reader = process.StandardOutput;
 
-            // CLI 출력 ?�시�??�싱 �??�벤???�송
+            // CLI 출력 ?시??싱 ??벤???송
             while (true)
             {
                 if (ct.IsCancellationRequested)
@@ -185,34 +239,82 @@ You can only call one tool per <tool_call> tag. After outputting a tool call, wa
                 string? line = await reader.ReadLineAsync(ct);
                 if (line == null) break;
 
-                // ANSI ?�스케?�프 코드 ?�거
-                string cleanLine = System.Text.RegularExpressions.Regex.Replace(line, @"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@~])", "");
+                string cleanLine = line.Trim();
+                if (string.IsNullOrEmpty(cleanLine)) continue;
 
-                // 불필?�한 ?�림 문구 ?�제
-                if (cleanLine.Contains("MCP issues detected"))
+                string textToProcess = cleanLine;
+
+                // Try parsing stream-json event
+                if (cleanLine.StartsWith("{") && cleanLine.EndsWith("}"))
                 {
-                    cleanLine = cleanLine.Replace("MCP issues detected. ", "")
-                                         .Replace("Run /mcp list for status.", "")
-                                         .Replace("MCP issues detected.", "");
+                    try
+                    {
+                        using var doc = System.Text.Json.JsonDocument.Parse(cleanLine);
+                        var root = doc.RootElement;
+                        if (root.TryGetProperty("event", out var eventProp))
+                        {
+                            string eventType = eventProp.GetString() ?? "";
+                            if (eventType == "step_update" && root.TryGetProperty("step_update", out var stepUpdate))
+                            {
+                                if (stepUpdate.TryGetProperty("text_delta", out var textDeltaProp))
+                                {
+                                    textToProcess = textDeltaProp.GetString() ?? "";
+                                }
+                                else
+                                {
+                                    continue;
+                                }
+                            }
+                            else if (eventType == "result" && root.TryGetProperty("result", out var resultProp))
+                            {
+                                if (resultProp.TryGetProperty("status", out var statusProp) &&
+                                    statusProp.GetString() == "ERROR" &&
+                                    resultProp.TryGetProperty("error", out var errProp))
+                                {
+                                    stdErrBuffer.AppendLine(errProp.GetString());
+                                }
+                                continue;
+                            }
+                            else
+                            {
+                                continue;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Fallback to raw line processing
+                    }
                 }
 
-                // <tool_call> ?�그 감�? �?버퍼�?로직
+                // ANSI ?스케?프 코드 ?거
+                textToProcess = System.Text.RegularExpressions.Regex.Replace(textToProcess, @"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@~])", "");
+
+                // 불필?한 ?림 문구 ?제
+                if (textToProcess.Contains("MCP issues detected"))
+                {
+                    textToProcess = textToProcess.Replace("MCP issues detected. ", "")
+                                                 .Replace("Run /mcp list for status.", "")
+                                                 .Replace("MCP issues detected.", "");
+                }
+
+                // <tool_call> ?그 감? ?버퍼?로직
                 if (!isBufferingTool)
                 {
-                    var matchStart = System.Text.RegularExpressions.Regex.Match(cleanLine, @"<tool_call[ \t]+name\s*=\s*""([^""]+)""\s*>");
+                    var matchStart = System.Text.RegularExpressions.Regex.Match(textToProcess, @"<tool_call[ \t]+name\s*=\s*""([^""]+)""\s*>");
                     if (matchStart.Success)
                     {
                         isBufferingTool = true;
                         currentToolName = matchStart.Groups[1].Value;
-                        string precedingText = cleanLine.Substring(0, matchStart.Index);
+                        string precedingText = textToProcess.Substring(0, matchStart.Index);
 
                         if (!string.IsNullOrWhiteSpace(precedingText))
                         {
-                            fullText.Append(precedingText + "\n");
-                            yield return new LLMStreamEvent { Type = LLMStreamEventType.TextDelta, Delta = precedingText + "\n" };
+                            fullText.Append(precedingText);
+                            yield return new LLMStreamEvent { Type = LLMStreamEventType.TextDelta, Delta = precedingText };
                         }
 
-                        string remainder = cleanLine.Substring(matchStart.Index + matchStart.Length);
+                        string remainder = textToProcess.Substring(matchStart.Index + matchStart.Length);
                         toolBuffer.Clear();
 
                         var matchEnd = System.Text.RegularExpressions.Regex.Match(remainder, @"</tool_call>");
@@ -220,7 +322,7 @@ You can only call one tool per <tool_call> tag. After outputting a tool call, wa
                         {
                             isBufferingTool = false;
                             toolBuffer.AppendLine(remainder.Substring(0, matchEnd.Index));
-                            cleanLine = remainder.Substring(matchEnd.Index + matchEnd.Length);
+                            textToProcess = remainder.Substring(matchEnd.Index + matchEnd.Length);
                         }
                         else
                         {
@@ -231,21 +333,21 @@ You can only call one tool per <tool_call> tag. After outputting a tool call, wa
                 }
                 else
                 {
-                    var matchEnd = System.Text.RegularExpressions.Regex.Match(cleanLine, @"</tool_call>");
+                    var matchEnd = System.Text.RegularExpressions.Regex.Match(textToProcess, @"</tool_call>");
                     if (matchEnd.Success)
                     {
                         isBufferingTool = false;
-                        toolBuffer.AppendLine(cleanLine.Substring(0, matchEnd.Index));
-                        cleanLine = cleanLine.Substring(matchEnd.Index + matchEnd.Length);
+                        toolBuffer.AppendLine(textToProcess.Substring(0, matchEnd.Index));
+                        textToProcess = textToProcess.Substring(matchEnd.Index + matchEnd.Length);
                     }
                     else
                     {
-                        toolBuffer.AppendLine(cleanLine);
+                        toolBuffer.AppendLine(textToProcess);
                         continue;
                     }
                 }
 
-                // ?�구 ?�출 ?�성 ???�벤??발생
+                // ?구 ?출 ?성 ???벤??발생
                 if (!isBufferingTool && toolBuffer.Length > 0 && !string.IsNullOrEmpty(currentToolName))
                 {
                     string jsonArgs = toolBuffer.ToString().Trim();
@@ -258,7 +360,7 @@ You can only call one tool per <tool_call> tag. After outputting a tool call, wa
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"\n\x1b[1;31m?�️ JSON Parse Error (\x1b[33m{currentToolName}\x1b[1;31m):\x1b[0m {ex.Message}");
+                        Console.WriteLine($"\n\x1b[1;31m?️ JSON Parse Error (\x1b[33m{currentToolName}\x1b[1;31m):\x1b[0m {ex.Message}");
                     }
 
                     var toolReq = new ToolUseRequest {
@@ -276,26 +378,36 @@ You can only call one tool per <tool_call> tag. After outputting a tool call, wa
                     toolBuffer.Clear();
                     currentToolName = "";
 
-                    if (string.IsNullOrWhiteSpace(cleanLine))
+                    if (string.IsNullOrEmpty(textToProcess))
                         continue;
                 }
 
-                if (string.IsNullOrWhiteSpace(cleanLine))
+                if (string.IsNullOrEmpty(textToProcess))
                     continue;
 
-                string chunk = cleanLine + "\n";
-                fullText.Append(chunk);
+                fullText.Append(textToProcess);
 
                 yield return new LLMStreamEvent
                 {
                     Type = LLMStreamEventType.TextDelta,
-                    Delta = chunk
+                    Delta = textToProcess
                 };
             }
 
             await process.WaitForExitAsync(ct);
 
             string finalOutput = fullText.ToString().TrimEnd();
+
+            if (string.IsNullOrEmpty(finalOutput) && stdErrBuffer.Length > 0)
+            {
+                string err = stdErrBuffer.ToString().Trim();
+                finalOutput = $"[Error from agy]: {err}";
+                yield return new LLMStreamEvent
+                {
+                    Type = LLMStreamEventType.TextDelta,
+                    Delta = finalOutput + "\n"
+                };
+            }
 
             if (!string.IsNullOrEmpty(finalOutput))
             {
@@ -306,6 +418,55 @@ You can only call one tool per <tool_call> tag. After outputting a tool call, wa
             {
                 Type = LLMStreamEventType.Completed,
                 FinalResponse = new LLMResponse { Text = finalOutput, ToolCalls = interceptedTools }
+            };
+        }
+
+        private static string ResolveAgyExecutable()
+        {
+            string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string defaultAgy = Path.Combine(localAppData, "agy", "bin", "agy.exe");
+            if (File.Exists(defaultAgy))
+            {
+                return defaultAgy;
+            }
+            return "agy";
+        }
+
+        private static string NormalizeAgyModel(string? model)
+        {
+            if (string.IsNullOrWhiteSpace(model)) return string.Empty;
+            string key = model.Trim().ToLowerInvariant();
+            if (key.StartsWith("antigravity/"))
+            {
+                key = key["antigravity/".Length..].Trim();
+            }
+            else if (key.StartsWith("agy/"))
+            {
+                key = key["agy/".Length..].Trim();
+            }
+
+            return key switch
+            {
+                "gemini-3.7-flash-high" or "gemini 3.7 flash (high)" => "Gemini 3.7 Flash (High)",
+                "gemini-3.7-flash-medium" or "gemini-3.7-flash-med" or "gemini 3.7 flash (medium)" => "Gemini 3.7 Flash (Medium)",
+                "gemini-3.7-flash-low" or "gemini 3.7 flash (low)" => "Gemini 3.7 Flash (Low)",
+                "gemini-3.7-flash" or "gemini 3.7 flash" => "Gemini 3.7 Flash (High)",
+                "gemini-3.6-flash-high" or "gemini 3.6 flash (high)" => "Gemini 3.6 Flash (High)",
+                "gemini-3.6-flash-medium" or "gemini-3.6-flash-med" or "gemini 3.6 flash (medium)" => "Gemini 3.6 Flash (Medium)",
+                "gemini-3.6-flash-low" or "gemini 3.6 flash (low)" => "Gemini 3.6 Flash (Low)",
+                "gemini-3.6-flash" or "gemini 3.6 flash" => "Gemini 3.6 Flash (High)",
+                "gemini-3.5-flash-high" or "gemini 3.5 flash (high)" => "Gemini 3.5 Flash (High)",
+                "gemini-3.5-flash-medium" or "gemini-3.5-flash-med" or "gemini 3.5 flash (medium)" => "Gemini 3.5 Flash (Medium)",
+                "gemini-3.5-flash-low" or "gemini 3.5 flash (low)" => "Gemini 3.5 Flash (Low)",
+                "gemini-3.5-flash" or "gemini 3.5 flash" => "Gemini 3.5 Flash (High)",
+                "gemini-3.1-pro-high" or "gemini 3.1 pro (high)" => "Gemini 3.1 Pro (High)",
+                "gemini-3.1-pro-low" or "gemini 3.1 pro (low)" => "Gemini 3.1 Pro (Low)",
+                "gemini-3.1-pro" or "gemini 3.1 pro" => "Gemini 3.1 Pro (High)",
+                "claude-sonnet-4-6-thinking" or "claude-sonnet-4-6" or "claude-sonnet-4.6" or "claude sonnet 4.6 (thinking)" => "Claude Sonnet 4.6 (Thinking)",
+                "claude-opus-4-6-thinking" or "claude-opus-4-6" or "claude-opus-4.6" or "claude opus 4.6 (thinking)" => "Claude Opus 4.6 (Thinking)",
+                "gpt-oss-120b-high" or "gpt-oss 120b (high)" => "GPT-OSS 120B (High)",
+                "gpt-oss-120b-medium" or "gpt-oss-120b-med" or "gpt-oss-120b" or "gpt-oss 120b (medium)" => "GPT-OSS 120B (Medium)",
+                _ => model
             };
         }
     }

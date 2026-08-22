@@ -198,6 +198,28 @@ dotnet run --project Claude4Net.Cli -- --dashboard
 ```
 > 🌐 Web ブラウザで `http://localhost:5000` (または設定されたポート) にアクセスしてダッシュボードを利用できます。
 
+### 3. インプロセス OpenAI 互換 API サーバーの起動
+
+Claude4Net ランタイムから標準 OpenAI REST API エンドポイントを直接提供します (デフォルトポート `7836`):
+
+```bash
+# カスタムポートと Bearer 認証キーを指定して起動:
+dotnet run --project Claude4Net.Cli -- --api on --api-port 7836 --api-key c4n-sk-mykey
+```
+または CLI 内の対話型コマンド: `/api on 7836 c4n-sk-mykey`
+
+#### 🌐 宣言された互換スコープとエンドポイント
+- `GET /v1/models` & `GET /v1/models/{model}`: モデル一覧および個別モデルカードの取得。
+- `POST /v1/chat/completions`: リアルタイム SSE トークンストリーミング、`stream_options.include_usage`、増分ツール呼び出しストリーミング (`tool_calls[].function.arguments` デルタ)、`reasoning_content` 推論分離拡張、ノンストリーミング JSON。
+- `POST /v1/completions`: レガシーテキスト補完。
+- `POST /v1/embeddings`: ベクトル埋め込み生成 (Float 配列 / Base64 形式、ネイティブ次元検証および非サポート次元のエラー拒否)。
+- `/api/v1/*`: Claude4Net システムエンドポイント (`/health`, `/status`, `/usage`, `/tools`, `/skills`)。
+
+> [!IMPORTANT]
+> **API 互換性スコープの公式分類**:
+> - `POST /v1/responses`: **`NOT IMPLEMENTED` (未実装)** — 現在宣言されている Claude4Net 互換性実装スコープには含まれていません。
+> - Claude4Net は公式に宣言された **Chat Completions / Models / Embeddings** スコープ内で **`NEAR-FULL`** レベルの互換性を達成しています。すべての OpenAI API 表面（オーディオ/リアルタイムベータなど）に対する無制限の Full 互換性を主張するものではありません。
+
 ---
 
 ## 🔐 認証と環境設定

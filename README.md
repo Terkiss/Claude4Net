@@ -198,6 +198,28 @@ dotnet run --project Claude4Net.Cli -- --dashboard
 ```
 > 🌐 The Dashboard will be accessible at `http://localhost:5000` (or configured port).
 
+### 3. Launch In-Process OpenAI-Compatible API Server
+
+Serve standard OpenAI REST API endpoints directly from the Claude4Net runtime (default port `7836`):
+
+```bash
+# Start API server on custom port with bearer auth key:
+dotnet run --project Claude4Net.Cli -- --api on --api-port 7836 --api-key c4n-sk-mykey
+```
+Or interactively inside REPL: `/api on 7836 c4n-sk-mykey`
+
+#### 🌐 Declared Compatibility Scope & Endpoints
+- `GET /v1/models` & `GET /v1/models/{model}`: Model list and individual model cards.
+- `POST /v1/chat/completions`: Full SSE token streaming, `stream_options.include_usage`, real-time incremental tool calls streaming (`tool_calls[].function.arguments` delta), `reasoning_content` extension, and non-streaming responses.
+- `POST /v1/completions`: Legacy prompt completions.
+- `POST /v1/embeddings`: Vector embeddings generation (Float array / Base64 format, native dimension enforcement).
+- `/api/v1/*`: Claude4Net system endpoints (`/health`, `/status`, `/usage`, `/tools`, `/skills`).
+
+> [!IMPORTANT]
+> **API Scope Classification**:
+> - `POST /v1/responses`: **`NOT IMPLEMENTED`** (outside the currently declared Claude4Net compatibility implementation scope).
+> - Claude4Net achieves **`NEAR-FULL`** compatibility within its declared **Chat Completions / Models / Embeddings** compatibility scope. Full OpenAI API-surface compatibility across all multimodal audio/realtime beta endpoints is NOT claimed.
+
 ---
 
 ## 🔐 Authentication & Configuration

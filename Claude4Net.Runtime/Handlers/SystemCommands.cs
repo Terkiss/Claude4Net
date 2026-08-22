@@ -16,6 +16,8 @@ namespace Claude4Net.Runtime.Handlers
 {
     public static class SystemCommands
     {
+        private const string LiteralApiKeyDeprecationWarning = "--api-key is deprecated; use --api-key-env <NAME>.";
+
         public static async Task<string> HandleUsage(string a, IServiceProvider sp)
         {
             string sessionId = AppState.SessionId;
@@ -135,41 +137,33 @@ namespace Claude4Net.Runtime.Handlers
                 return "[red]API Server service is not registered in runtime.[/]";
             }
 
-            string trimmed = (a ?? string.Empty).Trim().ToLowerInvariant();
-            var parts = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            string action = parts.Length > 0 ? parts[0] : "status";
+            string[] parts = (a ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            string action = parts.Length > 0 ? parts[0].ToLowerInvariant() : "status";
 
             switch (action)
             {
                 case "on":
                 case "start":
-                    int port = Claude4Net.Runtime.ApiServer.Claude4NetApiServer.DefaultPort;
-                    string? customApiKey = null;
-                    if (parts.Length > 1 && int.TryParse(parts[1], out int customPort) && customPort > 0)
-                    {
-                        port = customPort;
-                        if (parts.Length > 2) customApiKey = parts[2];
-                    }
-                    else if (parts.Length > 1)
-                    {
-                        customApiKey = parts[1];
-                    }
-
                     if (apiServer.IsRunning)
                     {
-                        return $"[yellow]API Server is already running on[/] [cyan]{apiServer.Url}[/] (Key: [cyan]{apiServer.ApiKey}[/])";
+                        return $"[yellow]API Server is already running on[/] [cyan]{apiServer.Url}[/] (Key: [cyan][redacted][/])";
                     }
 
-                    await apiServer.StartAsync(port, customApiKey);
-                    return $"[bold green]✓ In-Process OpenAI API Server started on[/] [cyan]{apiServer.Url}[/]\n" +
-                           $"[grey]Bearer Auth Key:[/] [cyan]{apiServer.ApiKey}[/]\n" +
+                    ApiStartOptionsParseResult parsedStart = ParseApiStartOptions(parts);
+                    await apiServer.StartAsync(parsedStart.Options);
+                    string displayKey = apiServer.TakeApiKeyForDisplay() ?? "[redacted]";
+                    string warning = parsedStart.Warning == null
+                        ? string.Empty
+                        : $"[yellow]Warning: {Markup.Escape(parsedStart.Warning)}[/]\n";
+                    return warning +
+                           $"[bold green]✓ In-Process OpenAI API Server started on[/] [cyan]{apiServer.Url}[/]\n" +
+                           $"[grey]Bearer Auth Key:[/] [cyan]{Markup.Escape(displayKey)}[/]\n" +
                            $"[grey]Available Endpoints:[/]\n" +
                            $" • [green]GET[/]  /v1/models\n" +
                            $" • [green]POST[/] /v1/chat/completions (SSE stream, JSON & Tools/Function Calling)\n" +
-                           $" • [green]POST[/] /v1/embeddings (1536-dim multi-provider vector router)\n" +
+                           $" • [green]POST[/] /v1/embeddings (native provider dimensions)\n" +
                            $" • [green]GET[/]  /api/v1/status\n" +
                            $" • [green]GET[/]  /api/v1/usage\n" +
-                           $" • [green]POST[/] /api/v1/agent/run\n" +
                            $" • [green]GET[/]  /api/v1/tools\n" +
                            $" • [green]GET[/]  /api/v1/skills";
 
@@ -188,7 +182,7 @@ namespace Claude4Net.Runtime.Handlers
                     if (apiServer.IsRunning)
                     {
                         return $"[bold green]API Server Status: RUNNING[/] on [cyan]{apiServer.Url}[/]\n" +
-                               $"Bearer Auth Key: [cyan]{apiServer.ApiKey}[/]\n" +
+                               $"Bearer Auth Key: [cyan][redacted][/]\n" +
                                $"Active Provider: [cyan]{AppState.ActiveProvider}[/], Model: [cyan]{AppState.ActiveModel}[/]";
                     }
                     else
@@ -197,6 +191,87 @@ namespace Claude4Net.Runtime.Handlers
                     }
             }
         }
+
+        private static ApiStartOptionsParseResult ParseApiStartOptions(string[] parts)
+        {
+            var options = new Claude4Net.Runtime.ApiServer.Claude4NetApiServerOptions();
+            var positional = new List<string>();
+            bool literalApiKeySupplied = false;
+
+            for (int index = 1; index < parts.Length; index++)
+            {
+                string argument = parts[index];
+                switch (argument.ToLowerInvariant())
+                {
+                    case "--api-bind":
+                    case "--bind":
+                        if (index + 1 < parts.Length) options.BindAddress = parts[++index];
+                        break;
+                    case "--api-allow-remote":
+                    case "--allow-remote":
+                        options.AllowRemote = true;
+                        break;
+                    case "--api-certificate":
+                    case "--certificate":
+                        if (index + 1 < parts.Length) options.CertificatePath = parts[++index];
+                        break;
+                    case "--api-certificate-password-env":
+                    case "--certificate-password-env":
+                        if (index + 1 < parts.Length) options.CertificatePasswordEnvironmentVariable = parts[++index];
+                        break;
+                    case "--api-certificate-password":
+                    case "--certificate-password":
+                        throw new ArgumentException("Literal certificate passwords are not accepted. Use --certificate-password-env.");
+                    case "--api-port":
+                    case "--port":
+                        if (index + 1 < parts.Length && int.TryParse(parts[++index], out int namedPort)) options.Port = namedPort;
+                        break;
+                    case "--api-key":
+                    case "--key":
+                        if (index + 1 < parts.Length)
+                        {
+                            options.ApiKey = parts[++index];
+                            literalApiKeySupplied = true;
+                        }
+                        break;
+                    case "--api-key-env":
+                        if (index + 1 >= parts.Length)
+                            throw new ArgumentException("--api-key-env requires an environment variable name.");
+                        options.ApiKey = Environment.GetEnvironmentVariable(parts[++index]);
+                        if (string.IsNullOrWhiteSpace(options.ApiKey))
+                            throw new ArgumentException("The environment variable specified by --api-key-env is not set or is empty.");
+                        break;
+                    default:
+                        if (argument.StartsWith("-", StringComparison.Ordinal))
+                            throw new ArgumentException($"Unknown API option: {argument}.");
+                        positional.Add(argument);
+                        break;
+                }
+            }
+
+            if (positional.Count > 0 && int.TryParse(positional[0], out int positionalPort))
+            {
+                options.Port = positionalPort;
+                if (positional.Count > 1)
+                {
+                    options.ApiKey = positional[1];
+                    literalApiKeySupplied = true;
+                }
+            }
+            else if (positional.Count > 0 && options.ApiKey == null)
+            {
+                options.ApiKey = positional[0];
+                literalApiKeySupplied = true;
+            }
+
+            return new ApiStartOptionsParseResult(
+                options,
+                literalApiKeySupplied ? LiteralApiKeyDeprecationWarning : null);
+        }
+
+        private sealed record ApiStartOptionsParseResult(
+            Claude4Net.Runtime.ApiServer.Claude4NetApiServerOptions Options,
+            string? Warning);
 
         public static Task<string> HandleYolo(string a, IServiceProvider sp)
         {

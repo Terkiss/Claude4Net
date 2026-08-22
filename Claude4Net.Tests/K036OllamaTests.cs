@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Claude4Net.Tests
 {
+    [Collection("AppState")]
     public class K036OllamaTests
     {
         [Fact]
@@ -45,6 +46,47 @@ namespace Claude4Net.Tests
             finally
             {
                 Environment.SetEnvironmentVariable("OLLAMA_CONTEXT_LIMIT", originalVal);
+            }
+        }
+
+        [Fact]
+        public async Task OllamaProvider_ListModelsAsync_RejectsRemoteHttpEndpoint_AndAllowsLoopback()
+        {
+            var mockRegistry = new Mock<IToolRegistry>();
+            string? originalEndpoint = Environment.GetEnvironmentVariable("OLLAMA_API_KEY");
+            try
+            {
+                // Remote plaintext http endpoint must NOT be contacted (fail-closed to fallback).
+                var remoteHandler = new CountingTagsHandler();
+                var remoteProvider = new OllamaProvider(new HttpClient(remoteHandler), mockRegistry.Object);
+                Environment.SetEnvironmentVariable("OLLAMA_API_KEY", "http://192.0.2.1:11434");
+                List<string> remoteModels = await remoteProvider.ListModelsAsync();
+                Assert.Equal(0, remoteHandler.SendCount);
+                Assert.Equal(new List<string> { "llama3" }, remoteModels);
+
+                // Loopback http endpoint is allowed and contacted.
+                var loopbackHandler = new CountingTagsHandler();
+                var loopbackProvider = new OllamaProvider(new HttpClient(loopbackHandler), mockRegistry.Object);
+                Environment.SetEnvironmentVariable("OLLAMA_API_KEY", "http://127.0.0.1:11434");
+                await loopbackProvider.ListModelsAsync();
+                Assert.Equal(1, loopbackHandler.SendCount);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("OLLAMA_API_KEY", originalEndpoint);
+            }
+        }
+
+        private sealed class CountingTagsHandler : HttpMessageHandler
+        {
+            public int SendCount;
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                System.Threading.Interlocked.Increment(ref SendCount);
+                return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"models\":[]}", System.Text.Encoding.UTF8, "application/json")
+                });
             }
         }
 

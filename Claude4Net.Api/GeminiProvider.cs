@@ -268,9 +268,8 @@ namespace Claude4Net.Api
             int toolCallIndex = 0;
 
             // Parse SSE stream events from the Gemini API response
-            while (await reader.ReadLineAsync() is { } line)
+            while (await reader.ReadLineAsync(ct) is { } line)
             {
-                if (ct.IsCancellationRequested) break;
                 if (string.IsNullOrWhiteSpace(line)) continue;
                 if (line.StartsWith("data: ")) line = line.Substring(6);
                 if (line == "[" || line == "," || line == "]") continue;

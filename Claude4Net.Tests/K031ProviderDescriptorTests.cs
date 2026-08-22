@@ -169,5 +169,53 @@ namespace Claude4Net.Tests
             Assert.Equal(initialCount + 1, registry.Count);
             Assert.NotNull(registry.Get("custom-openai"));
         }
+
+        [Fact]
+        public void ProviderRegistry_RejectsRemoteHttpEndpoint()
+        {
+            var registry = new ProviderRegistry();
+            ProviderDescriptor descriptor = CreateEndpointDescriptor("remote-http", "http://192.0.2.1/v1");
+
+            Assert.Throws<ArgumentException>(() => registry.Register(descriptor));
+            Assert.Null(registry.Get(descriptor.Id));
+        }
+
+        [Theory]
+        [InlineData("http://localhost:1234/v1")]
+        [InlineData("http://127.0.0.1:1234/v1")]
+        [InlineData("http://[::1]:1234/v1")]
+        public void ProviderRegistry_AcceptsLoopbackHttpEndpoints(string endpoint)
+        {
+            var registry = new ProviderRegistry();
+            ProviderDescriptor descriptor = CreateEndpointDescriptor("loopback-http", endpoint);
+
+            registry.Register(descriptor);
+
+            Assert.Same(descriptor, registry.Get(descriptor.Id));
+        }
+
+        [Fact]
+        public void ProviderRegistry_AcceptsRemoteHttpsEndpoint()
+        {
+            var registry = new ProviderRegistry();
+            ProviderDescriptor descriptor = CreateEndpointDescriptor("remote-https", "https://api.example.test/v1");
+
+            registry.Register(descriptor);
+
+            Assert.Same(descriptor, registry.Get(descriptor.Id));
+        }
+
+        private static ProviderDescriptor CreateEndpointDescriptor(string id, string endpoint)
+        {
+            return new ProviderDescriptor
+            {
+                Id = id,
+                Label = id,
+                TransportKind = "openai-compat",
+                Endpoint = endpoint,
+                DefaultModels = new ProviderDefaultModels { Small = "small-model", Large = "large-model" },
+                Auth = new ProviderAuth { Mode = "none" }
+            };
+        }
     }
 }

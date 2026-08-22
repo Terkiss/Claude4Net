@@ -51,6 +51,10 @@ namespace Claude4Net.Api
         /// <summary>프로바이더 고유 식별자</summary>
         public string Name => "glm";
 
+        public string ProviderId => "glm";
+
+        public string ModelId => DefaultEmbeddingModel;
+
         /// <summary>토큰 카운터</summary>
         public ITokenCounter TokenCounter { get; } = new DefaultTokenCounter();
 
@@ -194,7 +198,7 @@ namespace Claude4Net.Api
             string? apiKey = ResolveApiKey();
             string endpoint = DefaultEndpoint.TrimEnd('/') + "/models";
 
-            var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
+            using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
             if (!string.IsNullOrEmpty(apiKey))
             {
                 request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
@@ -293,7 +297,7 @@ namespace Claude4Net.Api
                 DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
             };
 
-            var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
+            using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
             {
                 Content = JsonContent.Create(payload, new System.Net.Http.Headers.MediaTypeHeaderValue("application/json"), jsonOptions)
             };
@@ -466,7 +470,7 @@ namespace Claude4Net.Api
                 DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
             };
 
-            var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
+            using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
             {
                 Content = JsonContent.Create(payload, new System.Net.Http.Headers.MediaTypeHeaderValue("application/json"), jsonOptions)
             };

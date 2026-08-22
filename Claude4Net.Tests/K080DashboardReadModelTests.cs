@@ -25,7 +25,8 @@ namespace Claude4Net.Tests
             _tempWorkspace = Path.Combine(Path.GetTempPath(), "Claude4Net_K080_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_tempWorkspace);
             AppState.CurrentCwd = _tempWorkspace;
-            _testSessionId = "test-session-123";
+            _testSessionId = "test-session-" + Guid.NewGuid().ToString("N")[..8];
+            AppState.SessionId = _testSessionId;
         }
 
         public void Dispose()
@@ -127,6 +128,9 @@ namespace Claude4Net.Tests
         [Fact]
         public async Task GetCheckpoints_WithValidSessionId_ShouldReturnCheckpoints()
         {
+            AppState.CurrentCwd = _tempWorkspace;
+            AppState.SessionId = _testSessionId;
+
             // Setup a mock checkpoint manifest file
             var store = new CheckpointStore(_tempWorkspace, _testSessionId);
             var dummyFile = Path.Combine(_tempWorkspace, "dummy.txt");
@@ -144,6 +148,8 @@ namespace Claude4Net.Tests
                 includeMemoryState: false
             );
 
+            AppState.CurrentCwd = _tempWorkspace;
+            AppState.SessionId = _testSessionId;
             var hub = new ControlPlaneHub();
             var state = await hub.GetCheckpoints(_testSessionId);
 
@@ -173,6 +179,8 @@ namespace Claude4Net.Tests
         [Fact]
         public async Task GetVerification_WithValidSessionId_ShouldReturnVerificationResult()
         {
+            AppState.CurrentCwd = _tempWorkspace;
+            AppState.SessionId = _testSessionId;
             var sessionStore = new AgentSessionStore(_tempWorkspace, _testSessionId);
 
             var check = new VerificationCheck
@@ -199,6 +207,8 @@ namespace Claude4Net.Tests
 
             await sessionStore.SaveVerificationResultAsync(verificationResult);
 
+            AppState.CurrentCwd = _tempWorkspace;
+            AppState.SessionId = _testSessionId;
             var hub = new ControlPlaneHub();
             var state = await hub.GetVerification(_testSessionId);
 
@@ -331,6 +341,7 @@ namespace Claude4Net.Tests
             };
             await store.SaveRunRecordAsync(runRecord);
 
+            AppState.CurrentCwd = _tempWorkspace;
             var hub = new ControlPlaneHub();
             var state = await hub.GetRoutines();
 
@@ -367,6 +378,9 @@ namespace Claude4Net.Tests
         [Fact]
         public async Task GetState_WithValidSessionId_ShouldReturnSessionAndTaskBoard()
         {
+            AppState.CurrentCwd = _tempWorkspace;
+            AppState.SessionId = _testSessionId;
+
             // 1. Session Setup
             var sessionRecord = new AgentSessionRecord
             {

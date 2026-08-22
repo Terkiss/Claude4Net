@@ -19,6 +19,8 @@ namespace Claude4Net.Runtime
     /// </summary>
     public interface IProviderFactory
     {
+        bool SupportsApiRequests { get; }
+
         /// <summary>
         /// 지?�된 ?�로바이???�스?�립?��? ?�성?????�는지 ?��?�?결정?�니??
         /// </summary>
@@ -28,6 +30,11 @@ namespace Claude4Net.Runtime
         /// ?�스?�립???�보�?기반?�로 LLM ?�로바이???�스?�스�??�성?�니??
         /// </summary>
         ILLMProvider Create(ProviderDescriptor descriptor, IServiceProvider serviceProvider);
+
+        ILLMProvider CreateRequestProvider(ProviderDescriptor descriptor, IServiceProvider serviceProvider);
+
+        RequestProviderLease CreateRequestProviderLease(ProviderDescriptor descriptor, IServiceProvider serviceProvider) =>
+            RequestProviderLease.NonOwning(CreateRequestProvider(descriptor, serviceProvider));
     }
 
     /// <summary>
@@ -35,6 +42,8 @@ namespace Claude4Net.Runtime
     /// </summary>
     public class AnthropicProviderFactory : IProviderFactory
     {
+        public bool SupportsApiRequests => true;
+
         public bool CanCreate(ProviderDescriptor descriptor)
         {
             if (descriptor == null) return false;
@@ -46,6 +55,21 @@ namespace Claude4Net.Runtime
             if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
             return serviceProvider.GetRequiredService<ClaudeService>();
         }
+
+        public ILLMProvider CreateRequestProvider(ProviderDescriptor descriptor, IServiceProvider serviceProvider)
+        {
+            if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
+            var httpClient = serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient("Anthropic");
+            return new ClaudeService(new AnthropicClient(httpClient), EmptyToolRegistry.Instance);
+        }
+
+        public RequestProviderLease CreateRequestProviderLease(ProviderDescriptor descriptor, IServiceProvider serviceProvider)
+        {
+            if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
+            var httpClient = serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient("Anthropic");
+            var provider = new ClaudeService(new AnthropicClient(httpClient), EmptyToolRegistry.Instance);
+            return new RequestProviderLease(provider, httpClient);
+        }
     }
 
     /// <summary>
@@ -53,6 +77,8 @@ namespace Claude4Net.Runtime
     /// </summary>
     public class GeminiProviderFactory : IProviderFactory
     {
+        public bool SupportsApiRequests => true;
+
         public bool CanCreate(ProviderDescriptor descriptor)
         {
             if (descriptor == null) return false;
@@ -64,6 +90,21 @@ namespace Claude4Net.Runtime
             if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
             return serviceProvider.GetRequiredService<GeminiProvider>();
         }
+
+        public ILLMProvider CreateRequestProvider(ProviderDescriptor descriptor, IServiceProvider serviceProvider)
+        {
+            if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
+            var httpClient = serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient("Gemini");
+            return new GeminiProvider(httpClient, EmptyToolRegistry.Instance);
+        }
+
+        public RequestProviderLease CreateRequestProviderLease(ProviderDescriptor descriptor, IServiceProvider serviceProvider)
+        {
+            if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
+            var httpClient = serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient("Gemini");
+            var provider = new GeminiProvider(httpClient, EmptyToolRegistry.Instance);
+            return new RequestProviderLease(provider, httpClient);
+        }
     }
 
     /// <summary>
@@ -71,6 +112,8 @@ namespace Claude4Net.Runtime
     /// </summary>
     public class OllamaProviderFactory : IProviderFactory
     {
+        public bool SupportsApiRequests => true;
+
         public bool CanCreate(ProviderDescriptor descriptor)
         {
             if (descriptor == null) return false;
@@ -83,13 +126,30 @@ namespace Claude4Net.Runtime
             if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
             return serviceProvider.GetRequiredService<OllamaProvider>();
         }
+
+        public ILLMProvider CreateRequestProvider(ProviderDescriptor descriptor, IServiceProvider serviceProvider)
+        {
+            if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
+            var httpClient = serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient("Ollama");
+            return new OllamaProvider(httpClient, EmptyToolRegistry.Instance);
+        }
+
+        public RequestProviderLease CreateRequestProviderLease(ProviderDescriptor descriptor, IServiceProvider serviceProvider)
+        {
+            if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
+            var httpClient = serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient("Ollama");
+            var provider = new OllamaProvider(httpClient, EmptyToolRegistry.Instance);
+            return new RequestProviderLease(provider, httpClient);
+        }
     }
 
     /// <summary>
-    /// Gemini CLI ?�로바이???�성???�당?�는 ?�토리입?�다.
+    /// Gemini CLI 프로바이더 생성을 담당하는 팩토리입니다.
     /// </summary>
     public class GeminiCliProviderFactory : IProviderFactory
     {
+        public bool SupportsApiRequests => true;
+
         public bool CanCreate(ProviderDescriptor descriptor)
         {
             if (descriptor == null) return false;
@@ -101,13 +161,27 @@ namespace Claude4Net.Runtime
             if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
             return serviceProvider.GetRequiredService<GeminiCliProvider>();
         }
+
+        public ILLMProvider CreateRequestProvider(ProviderDescriptor descriptor, IServiceProvider serviceProvider)
+        {
+            if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
+            return new GeminiCliProvider(EmptyToolRegistry.Instance);
+        }
+
+        public RequestProviderLease CreateRequestProviderLease(ProviderDescriptor descriptor, IServiceProvider serviceProvider)
+        {
+            var provider = CreateRequestProvider(descriptor, serviceProvider);
+            return RequestProviderLease.NonOwning(provider);
+        }
     }
 
     /// <summary>
-    /// Antigravity CLI ?�로바이???�성???�당?�는 ?�토리입?�다.
+    /// Antigravity CLI 프로바이더 생성을 담당하는 팩토리입니다.
     /// </summary>
     public class AntigravityCliProviderFactory : IProviderFactory
     {
+        public bool SupportsApiRequests => true;
+
         public bool CanCreate(ProviderDescriptor descriptor)
         {
             if (descriptor == null) return false;
@@ -119,6 +193,18 @@ namespace Claude4Net.Runtime
             if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
             return serviceProvider.GetRequiredService<Claude4Net.Api.AntigravityCliProvider>();
         }
+
+        public ILLMProvider CreateRequestProvider(ProviderDescriptor descriptor, IServiceProvider serviceProvider)
+        {
+            if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
+            return new Claude4Net.Api.AntigravityCliProvider(EmptyToolRegistry.Instance);
+        }
+
+        public RequestProviderLease CreateRequestProviderLease(ProviderDescriptor descriptor, IServiceProvider serviceProvider)
+        {
+            var provider = CreateRequestProvider(descriptor, serviceProvider);
+            return RequestProviderLease.NonOwning(provider);
+        }
     }
 
     /// <summary>
@@ -128,6 +214,8 @@ namespace Claude4Net.Runtime
     /// </summary>
     public class GlmProviderFactory : IProviderFactory
     {
+        public bool SupportsApiRequests => true;
+
         public bool CanCreate(ProviderDescriptor descriptor)
         {
             if (descriptor == null) return false;
@@ -138,13 +226,25 @@ namespace Claude4Net.Runtime
         {
             if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
 
-            var httpClientFactory = serviceProvider.GetService<IHttpClientFactory>();
-            var httpClient = httpClientFactory != null
-                ? httpClientFactory.CreateClient(descriptor.Id)
-                : new HttpClient();
+            var httpClient = serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient("glm");
             var toolRegistry = serviceProvider.GetRequiredService<IToolRegistry>();
 
             return new GlmProvider(httpClient, toolRegistry);
+        }
+
+        public ILLMProvider CreateRequestProvider(ProviderDescriptor descriptor, IServiceProvider serviceProvider)
+        {
+            if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
+            var httpClient = serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient("glm");
+            return new GlmProvider(httpClient, EmptyToolRegistry.Instance);
+        }
+
+        public RequestProviderLease CreateRequestProviderLease(ProviderDescriptor descriptor, IServiceProvider serviceProvider)
+        {
+            if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
+            var httpClient = serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient("glm");
+            var provider = new GlmProvider(httpClient, EmptyToolRegistry.Instance);
+            return new RequestProviderLease(provider, httpClient);
         }
     }
 
@@ -153,6 +253,8 @@ namespace Claude4Net.Runtime
     /// </summary>
     public class OpenAiCompatProviderFactory : IProviderFactory
     {
+        public bool SupportsApiRequests => true;
+
         public bool CanCreate(ProviderDescriptor descriptor)
         {
             if (descriptor == null) return false;
@@ -162,63 +264,53 @@ namespace Claude4Net.Runtime
 
         public ILLMProvider Create(ProviderDescriptor descriptor, IServiceProvider serviceProvider)
         {
-            if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
+            ValidateDescriptor(descriptor);
 
-            // Robust endpoint validation
-            if (string.IsNullOrWhiteSpace(descriptor.Endpoint))
-            {
-                throw new ArgumentException("Endpoint cannot be empty for OpenAI-compatible provider.", nameof(descriptor));
-            }
-
-            if (!Uri.TryCreate(descriptor.Endpoint, UriKind.Absolute, out var uriResult) ||
-                !(uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps))
-            {
-                throw new ArgumentException($"Endpoint '{descriptor.Endpoint}' is not a valid absolute HTTP/HTTPS URI.", nameof(descriptor));
-            }
-
-            // Credential checks
-            if (descriptor.Auth != null)
-            {
-                var mode = descriptor.Auth.Mode;
-                if (mode.Equals("api-key", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (descriptor.Auth.EnvVars == null || descriptor.Auth.EnvVars.Count == 0)
-                    {
-                        throw new ArgumentException("API key authorization mode requires at least one environment variable defined.", nameof(descriptor));
-                    }
-
-                    bool hasKey = false;
-                    foreach (var envVar in descriptor.Auth.EnvVars)
-                    {
-                        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable(envVar)) ||
-                            !string.IsNullOrEmpty(AuthManager.GetApiKey(descriptor.Id)) ||
-                            !string.IsNullOrEmpty(AuthManager.GetApiKey(envVar)))
-                        {
-                            hasKey = true;
-                            break;
-                        }
-                    }
-
-                    if (!hasKey)
-                    {
-                        throw new InvalidOperationException($"Missing required API key environment variable or key store entry for provider '{descriptor.Id}'.");
-                    }
-                }
-                else if (mode.Equals("oauth", StringComparison.OrdinalIgnoreCase))
-                {
-                    // OAuth check: if needed, we can expand this. For now just no-op.
-                }
-                else if (!mode.Equals("none", StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new ArgumentException($"Unsupported authorization mode '{mode}' for OpenAI-compatible provider.", nameof(descriptor));
-                }
-            }
-
-            var httpClientFactory = serviceProvider.GetService<IHttpClientFactory>();
-            var httpClient = httpClientFactory != null ? httpClientFactory.CreateClient(descriptor.Id) : new HttpClient();
+            var httpClient = serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient("OpenAiCompat");
             var toolRegistry = serviceProvider.GetRequiredService<IToolRegistry>();
 
             return new OpenAiCompatProvider(httpClient, toolRegistry, descriptor);
+        }
+
+        public ILLMProvider CreateRequestProvider(ProviderDescriptor descriptor, IServiceProvider serviceProvider)
+        {
+            ValidateDescriptor(descriptor);
+            var httpClient = serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient("OpenAiCompat");
+            return new OpenAiCompatProvider(httpClient, EmptyToolRegistry.Instance, descriptor);
+        }
+
+        public RequestProviderLease CreateRequestProviderLease(ProviderDescriptor descriptor, IServiceProvider serviceProvider)
+        {
+            ValidateDescriptor(descriptor);
+            var httpClient = serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient("OpenAiCompat");
+            var provider = new OpenAiCompatProvider(httpClient, EmptyToolRegistry.Instance, descriptor);
+            return new RequestProviderLease(provider, httpClient);
+        }
+
+        private static void ValidateDescriptor(ProviderDescriptor descriptor)
+        {
+            if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
+            if (string.IsNullOrWhiteSpace(descriptor.Endpoint))
+                throw new ArgumentException("Endpoint cannot be empty for OpenAI-compatible provider.", nameof(descriptor));
+            ProviderEndpointPolicy.ParseAndValidate(descriptor.Endpoint, nameof(descriptor));
+
+            if (descriptor.Auth?.Mode.Equals("api-key", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                if (descriptor.Auth.EnvVars == null || descriptor.Auth.EnvVars.Count == 0)
+                    throw new ArgumentException("API key authorization mode requires at least one environment variable defined.", nameof(descriptor));
+                bool hasKey = descriptor.Auth.EnvVars.Any(envVar =>
+                    !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(envVar)) ||
+                    !string.IsNullOrEmpty(AuthManager.GetApiKey(descriptor.Id)) ||
+                    !string.IsNullOrEmpty(AuthManager.GetApiKey(envVar)));
+                if (!hasKey)
+                    throw new InvalidOperationException($"Missing required API key environment variable or key store entry for provider '{descriptor.Id}'.");
+            }
+            else if (descriptor.Auth is not null &&
+                !descriptor.Auth.Mode.Equals("none", StringComparison.OrdinalIgnoreCase) &&
+                !descriptor.Auth.Mode.Equals("oauth", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException($"Unsupported authorization mode '{descriptor.Auth.Mode}' for OpenAI-compatible provider.", nameof(descriptor));
+            }
         }
     }
 }

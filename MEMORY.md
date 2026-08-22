@@ -1,21 +1,20 @@
 # Terukirdo Memory Ledger
 
 ## Current Status
-- Claude4Net In-Process OpenAI 호환 API 서버 100% 표준 호환 고도화 완료 (Port 7836):
-  1. **Strict Bearer Token / x-api-key 인증**: 서버 시작 시 고유 토큰 자동 발급(`c4n-sk-...`) 또는 `--api-key` 지정 지원, 401 Unauthorized 보호 (Health/CORS 예외).
-  2. **Full CORS 지원**: 브라우저 기반 클라이언트(Open WebUI 등)를 위한 `OPTIONS` Preflight 및 Access-Control 헤더 완벽 대응.
-  3. **POST /v1/embeddings 엔드포인트**: 멀티 프로바이더 임베딩 라우터, `dimensions` 커스텀 차원 지원, 1536차원 L2 정규화 결정론적 Fallback 벡터 생성기 탑재.
-  4. **Tools / Function Calling 하이브리드 지원**: OpenAI 표준 `tools`/`tool_calls` 파싱 및 응답 포맷 연동.
-  5. **GET /v1/models/{model}**: 단일 모델 조회 엔드포인트 및 OpenAI 표준 404 (`model_not_found`) 에러 포맷 탑재.
-  6. **POST /v1/completions**: 레거시 텍스트 완성 엔드포인트 완벽 지원.
-  7. **stream_options.include_usage**: 스트리밍 종료 시 최종 `usage` 청크 전송 완벽 지원.
-  8. **reasoning_content**: DeepSeek-R1 / O-series 추론 사고 과정 스트리밍 분리 지원.
-  9. **Vision Multimodal 배열 콘텐츠 파싱**: `messages[].content` 내 텍스트/이미지 파트 재귀 병합.
-  10. **REPL & CLI 통합**: `/api on [port] [apiKey]`, `/api status`, `--api-key / -k` 완벽 지원.
-- 전체 테스트 709건 100% 통과 (0 failures, 0 skipped).
+- `OpenAI-Compatible API Rework (Wave 1~15)` 및 Ralph Loop 전체 품질 게이트 통과 완료.
+- **Hermes Agent & OpenAI Client Integration / Antigravity CLI API Streaming Fix** 완료:
+  1. `stream-json` 표준 입력(stdin) 파이프라인 전환: 80KB 이상의 대용량 프롬프트 전송 시 Windows `CreateProcess` 32KB 명령줄 길이 제한으로 인한 `Win32Exception` (502 Bad Gateway) 완벽 해결.
+  2. 공백 없는 표준 슬러그(Kebab-case) 모델 ID로 전면 개편 (`gemini-3.7-flash-high`, `gemini-3.6-flash-high`, `claude-sonnet-4-6-thinking` 등) 및 `NormalizeAgyModel` 자동 매핑 적용 (Hermes `model switch failed model names cannot contain spaces` 해결).
+  3. `ProviderEndpointPolicy` 엔드포인트 검증 및 API Descriptor 조회 시 격리성 보장.
+  4. API 에러 응답 정보 은닉화(Sanitization)로 클라이언트로의 내부 예외 누수 차단 및 서버 콘솔 진단 로깅.
+- **Google Gemini Official API & Antigravity Model Catalog Modernization** 완료:
+  1. Google Gemini Native API 3.x 전체 라인업(`gemini-3.7-flash`, `gemini-3.6-flash`, `gemini-3.5-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-pro` 등) 등록 및 DefaultModels 최신화.
+  2. Google Antigravity CLI 실제 가용 모델 정밀화 (`Gemini 3.7 Flash`, `Gemini 3.6 Flash`, `Gemini 3.5 Flash`, `Gemini 3.1 Pro`, `Claude Sonnet/Opus 4.6 Thinking`, `GPT-OSS 120B`).
+  3. Spectre.Console 대괄호 파서 이스케이프 (`[[Antigravity]]` 등) 완료.
+- 솔루션 전체 빌드 0 errors, 전체 테스트 100% 통과 (0 failures, 0 skipped).
 
 ## Active Task
-- 사용자에게 구현 결과 보고 및 커밋/푸시 승인 요청
+- Hermes Agent와의 실제 연결 테스트 및 대화/툴 호출 검증
 
 ## Known Risks
 - 없음
@@ -24,9 +23,12 @@
 - 없음
 
 ## Next Steps
-- 주인님의 확인 및 커밋/푸시 승인 요청.
+- 헤르메스(Hermes) 에이전트에서 Claude4Net API 서버(포트 7836)로 대화 재시도 및 정상 동작 확인
 
-## Key Technical Learnings
+- **Actionable Insight**: When Claude4Net runs as an OpenAI-compatible API server, providers like `GeminiCliProvider` must operate in **Pure Passthrough Mode (API Mode)** without prepending Claude4Net's internal workspace confinement rules (`[ACTIVE WORKSPACE DIRECTORY]`) or skills, so external agents (Hermes, Cursor, Roo Code) retain their own workspace and system prompt integrity.
+- **Actionable Insight**: Windows OS에서 `Process.Start` 시 명령줄 인자 버퍼 길이는 최대 32,767자(32KB)로 제한되므로, 수십~수백 KB 이상의 대용량 프롬프트는 반드시 `StandardInput` 스트림을 통해 파이프로 전송해야 한다.
+- **Actionable Insight**: OpenAI 호환 API 서버의 모델 식별자(`id`)는 URL 및 외부 클라이언트 호환성을 위해 공백이나 괄호가 없는 표준 케밥케이스 슬러그(예: `gemini-3.7-flash-high`)를 사용하고, 내부 CLI 구동 시 실제 표시 이름으로 정규화 매핑해야 한다.
+- **Actionable Insight**: In Spectre.Console markup strings, literal square brackets like `[Antigravity]` are interpreted as style tags. Always escape them as `[[Antigravity]]` to prevent runtime `Could not find color or style` exceptions.
 - **Actionable Insight**: When creating or editing workspace project files using `write_to_file`, do not supply `ArtifactMetadata` because it enforces the artifact directory path restriction.
 - **Actionable Insight**: 명령어 로직이 비대해지면 `CommandRegistry`에서 직접 구현하지 말고, `Claude4Net.Runtime/Handlers/`에 도메인별 정적 핸들러 클래스를 만들어 위임한다.
   - 근거: `AgentLoop`와 `CommandRegistry` 양쪽에서 동일한 명령어 로직을 중복 없이 호출하기 위함.

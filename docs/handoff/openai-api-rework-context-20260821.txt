@@ -1,0 +1,144 @@
+================================================================================
+Claude4Net OpenAI-Compatible API Rework — Handoff Context
+작성일: 2026-08-21 (Asia/Seoul)
+브랜치: experiment  |  HEAD: 3f042a490642395781a88ea2ad42290f80162741
+상태: 작업 완료·검증됨 / Ralph Loop 심사 통과 (FAC: APPROVED FOR COMMIT ONLY) / 커밋 승인 대기
+================================================================================
+
+[1. 작업 개요]
+--------------------------------------------------------------------------------
+Claude4Net의 in-process OpenAI-호환 API 서버(Kestrel, 기본 포트 7836)의
+호환성·격리·보안을 완성하는 작업. 대상 엔드포인트:
+  GET  /v1/models, /v1/models/{id}
+  POST /v1/chat/completions (SSE 스트리밍 + 논스트리밍)
+  POST /v1/completions (legacy)
+  POST /v1/embeddings
+  /api/v1/* (health/status/usage/tools/skills; agent/run은 영구 비활성 403)
+제외 범위: POST /v1/responses (구현 안 함, README에 NOT IMPLEMENTED 명시).
+
+Baseline(커밋 3f042a4)에서 시작해 dirty worktree를 보존하며 진행.
+원본 13개 blocker(S1-S4,T1-T2,R1-R2,U1,D1,C1,I1-I2)를 Wave 1-10으로 수정,
+re-review#1이 찾은 추가 갭(B1-B11)을 Wave 11-15로 수정,
+self-review가 찾은 OllamaProvider.ListModelsAsync 잔여 1건을 추가 수정.
+
+[2. 현재 상태 (검증 증거)]
+--------------------------------------------------------------------------------
+  전체 테스트 스위트 : 979 / 979 통과 (0 실패, 0 스킵)  ← baseline 749 → +230
+  Release 빌드       : 0 errors (기존 NuGet 경고 8개: NU1903 SQLitePCLRaw, NU1510)
+  공식 SDK 블랙박스  : .NET / Python(12/12) / JS(12/12) 전부 통과 (legacy 포함)
+  git diff --check   : exit 0 (공백 오류 없음)
+  staged             : 비어 있음 (커밋 금지 규칙 준수)
+  teardown           : 고아 testhost/SDK-runner 프로세스 없음, 누수 리스너 없음
+
+[3. 완료된 작업 (웨이브별)]
+--------------------------------------------------------------------------------
+Wave 1  S1 평문 egress 차단: Claude4Net.SDK/ProviderEndpointPolicy.cs 추가
+        (https 항상 허용, http는 Uri.IsLoopback만). ProviderRegistry.RegisterInternal,
+        OpenAiCompatProviderFactory.ValidateDescriptor, OpenAiCompatProvider send 직전 적용.
+        endpoint-from-key override 제거.
+Wave 2  S2 embedding 증폭 차단: OpenAiRequestValidator 256 items / 32,768 UTF-16 units,
+        빈 항목 거부.
+Wave 3  S3/S4 키 소싱·수명주기: --api-key-env 추가, literal --api-key는 고정 비비밀
+        경고와 함께 유지, 생성 키 수명주기별 회전·stop 시 키 소거, CliStartupGuard가
+        하드 실패 시 nonzero 종료.
+Wave 4  T1/T2 취소 전파: 3개 DeserializeAsync에 context.RequestAborted 전달,
+        MoveNextWithCancellationAsync provider 전진 바운드, GeminiProvider ReadLineAsync(ct).
+Wave 5  R1/R2 라우팅: 단일 생성자-해결 _providerRegistry로 catalog+resolution 통일,
+        fail-closed, AppState.ActiveProvider 폴백 제거.
+Wave 6  U1 surrogate: 두 증분 파서가 trailing high surrogate를 청크 간 보존,
+        1MiB 한도에 산입.
+Wave 7  D1 disposal: RequestProviderLease(빌트인은 owning, 플러그인 기본 non-owning),
+        chat+legacy에서 await using, AnthropicClient/GeminiEmbeddingProvider/
+        OpenAiCompatProvider HTTP 메시지 dispose.
+Wave 8  C1 agent-run 계약: EnableAgentRun 옵션/CLI 스위치/광고 제거,
+        /api/v1/agent/run은 인증 후 body/의존성 접근 전 403 tombstone.
+Wave 9  I1 SDK 프로세스 격리: stdin 게이트(0x01 1바이트만 release, EOF/이외 값 exit),
+        성공경로 stdout/stderr drain을 PipeDrainTimeout으로 바운드.
+Wave 10 I2 legacy completions: .NET(raw HTTP)/Python/JS 공식 SDK runner에 추가.
+Wave 11 B3: Claude4NetApiServer의 4개 cleanup site 전부 DisposeEnumeratorAsync
+        (WaitAsync(ct) 바운드 + 무조건). B9=NOTE(기존 커밋 0bb9c42 기원, 안전 최소수정 불가).
+Wave 12 B4+B1+B2: ListModels/GLM/Ollama request 메시지 dispose,
+        Ollama(StreamQueryAsync)+LM Studio(Runtime/Commands ProviderCommands x4)에
+        ProviderEndpointPolicy 적용, provider HttpClient AllowAutoRedirect=false.
+Wave 13 B5+B10: Program이 하드 키-소싱 실패 시 nonzero 종료, 인터랙티브 /api의
+        --api-key-env+경고, 원격 바인딩 명시 키 최소 32자.
+Wave 14 B7+B8: SDK 게이트 바이트 검증 + 바운드 drain.
+Wave 15 B11: README.ko.md / README.ja.md 에서 /agent/run 광고 제거 (README.md 일치).
+추가수정 OllamaProvider.ListModelsAsync: AuthManager("ollama")에서 endpoint를 읽는
+        모델목록 조회가 정책 미적용이던 잔여 우회 경로를 ProviderEndpointPolicy로 차단
+        (K036OllamaTests에 RED→GREEN 테스트 추가).
+추가수정 테스트 격리: K036OllamaTests에 [Collection("AppState")] 추가 및
+        K080DashboardReadModelTests의 비동기 호출 간 AppState.CurrentCwd / AppState.SessionId
+        명시적 재바인딩 추가(병렬 실행 시 D05/K080 상태 오염 완전 격리, 979/979 통과).
+
+[4. 핵심 결정 / 거절 항목]
+--------------------------------------------------------------------------------
+거절 B6: literal --api-key 기능 유지 + 1회 시작 키 표시 = 승인된 설계 결정.
+        (re-review의 "literal 거부/환경키 미출력" 요구는 거절.)
+NOTE B9: emittedText usage-accounting 메모리 = 기존 커밋 0bb9c42 기원.
+        청크별 토큰 카운트는 전체-텍스트 토큰화와 청크 경계에서 동등하지 않고,
+        증분 토크나이저 계약이 없어 의미 보존 최소 수정이 불가 → 기록만 함.
+판정 유보: 원격 약한 키 스로틀링(B10의 rate-limit 부분)은 최소길이(32)만 적용,
+        시도 제한(rate-limit)은 미구현(범위 밖).
+
+[5. 남은 작업 / 다음 단계]
+--------------------------------------------------------------------------------
+(1) Ralph Loop 독립 다각도 심사 완료:
+    - First Reviewer 판정: PASS WITH P3 (모던 C# 관례, CancellationToken 전파, Dispose 무결성 확인)
+    - Tech Expert 판정: ARCHITECTURALLY ACCEPTABLE (ProviderEndpointPolicy, Fail-closed, 403 툼스톤)
+    - Final Approach Control 판정: APPROVED FOR COMMIT ONLY (979/979 전수 통과, 3종 SDK 통과, git diff --check exit 0)
+(2) 커밋: 프로젝트 규칙상 주인님 명시 승인 필요. 승인 시 git-master 규율
+    (원자 분할 커밋, wave별)로 진행. 현재 staged는 비어 있음.
+(3) known non-blocking 관찰:
+    - NU1903 SQLitePCLRaw.lib.e_sqlite3 2.1.10 취약 의존 경고(기존, 미변경).
+    - NU1510 Microsoft.Extensions.DependencyInjection 불필요 참조 경고.
+    - B5 사소 엣지: --api-key-env MISSING 뒤에 --api-key literal을 줘도
+      HardValidationError가 남아 시작 실패(fail-closed라 보안 구멍은 아님).
+    - docs/Terukirdo_Trajectory.txt 의 과거 735/740/749 기록은 현재 979와 불일치(과거 기록).
+
+[6. 주요 파일 위치]
+--------------------------------------------------------------------------------
+API 서버        : Claude4Net.Runtime/ApiServer/Claude4NetApiServer.cs
+서버 옵션       : Claude4Net.Runtime/ApiServer/Claude4NetApiServerOptions.cs
+모델 catalog    : Claude4Net.Runtime/ApiServer/ApiModelCatalog.cs
+endpoint 정책   : Claude4Net.SDK/ProviderEndpointPolicy.cs
+요청 검증       : Claude4Net.Runtime/ApiServer/OpenAiRequestValidator.cs
+증분 파서       : Claude4Net.Runtime/ApiServer/Streaming/Incremental*Parser.cs
+provider 팩토리 : Claude4Net.Runtime/ProviderFactory.cs / ProviderRegistry.cs
+lease           : Claude4Net.Runtime/RequestProviderLease.cs
+provider 구현   : Claude4Net.Api/{OpenAiCompatProvider,GlmProvider,OllamaProvider,
+                  AnthropicClient,GeminiEmbeddingProvider,GeminiProvider}.cs
+CLI 키/가드     : Claude4Net.Cli/Bootstrap/CliOptions.cs(CliStartupGuard 포함),
+                  Claude4Net.Cli/Program.cs, Claude4Net.Runtime/Handlers/SystemCommands.cs
+SDK 프로세스    : Claude4Net.Tests/{SdkProcessRunner,SdkRuntimeCapabilityProbe,
+                  ProcessTreeJob,SdkProcessExceptions}.cs + blackbox_openai_*_runner.*
+테스트          : Claude4Net.Tests/{ApiServerSecurityTests,Wave2*,Wave3*,Wave4*,
+                  ApiProviderIsolationTests,ProviderResourceOwnershipTests,
+                  K036OllamaTests,K073ProviderFactoryTests,K031ProviderDescriptorTests,
+                  OfficialOpenAi*}.cs
+durable notepad : C:\Users\dl200\AppData\Local\Temp\opencode\ulw-rework-fix-20260821-044240.md
+
+[7. 제약 사항 (반드시 유지)]
+--------------------------------------------------------------------------------
+- 커밋/push/release/deploy는 주인님 명시 승인 전 금지.
+- dirty worktree의 무관한 변경(dashboard 테스트 K080/K081/K092, P1DynamicWorkspaceTests,
+  MEMORY.md, README.ja/ko 의 무관 부분, docs/Terukirdo_Trajectory.txt, .gitignore,
+  package.json/lock, .omo/, REFACTORING_PROGRESS.md, docs/plans/)은 건드리지 말 것.
+- 기존 테스트 약화/삭제 금지. /v1/responses는 계속 제외.
+- [JsonExtensionData] forward-compat 유지.
+- loopback 전용 테스트. 원격 바인딩/실제 자격증명/외부 provider 호출 금지.
+- C# LSP 미설치(설치 거절됨) → Release 빌드 + dotnet test 가 진단 수단.
+
+[8. 재개 방법]
+--------------------------------------------------------------------------------
+- 쿼터 리셋 후 독립 re-review#2 재시도: 5개 레인을 task(subagent_type=...)로 재발사.
+  각 레인에 fix 델타(W11-W15 + OllamaProvider.ListModelsAsync + 테스트 격리)와
+  거절 항목(B6 승인결정, B9 NOTE)을 "재플래그 금지"로 명시.
+- 커밋 진행: 주인님 승인 후 git-master 규율로 wave별 원자 커밋.
+- 검증 재실행:
+    dotnet build Claude4Net.slnx -c Release --no-restore
+    dotnet test Claude4Net.Tests/Claude4Net.Tests.csproj -c Release --no-build
+  (기대: 979/979, 빌드 0 errors)
+================================================================================
+끝.
+================================================================================

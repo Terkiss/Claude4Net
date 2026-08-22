@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -29,7 +29,7 @@ namespace Claude4Net.Tests
             _tempWorkspace = Path.Combine(Path.GetTempPath(), "Claude4Net_K081_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_tempWorkspace);
             AppState.CurrentCwd = _tempWorkspace;
-            _testSessionId = "test-session-456";
+            _testSessionId = "test-session-" + Guid.NewGuid().ToString("N")[..8];
             AppState.SessionId = _testSessionId;
         }
 
@@ -271,6 +271,8 @@ namespace Claude4Net.Tests
         [Fact]
         public async Task RunVerification_ShouldExecuteAndReturnVerdict()
         {
+            AppState.CurrentCwd = _tempWorkspace;
+            AppState.SessionId = _testSessionId;
             AppState.CurrentPermissionMode = PermissionMode.WorkspaceWrite;
 
             var hub = new ControlPlaneHub();

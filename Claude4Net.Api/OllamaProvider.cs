@@ -136,9 +136,18 @@ namespace Claude4Net.Api
         public async Task<List<string>> ListModelsAsync()
         {
             string? uri = AuthManager.GetApiKey("ollama") ?? "http://localhost:11434";
+            Uri endpointUri;
             try
             {
-                var response = await _httpClient.GetFromJsonAsync<JsonElement>($"{uri}/api/tags");
+                endpointUri = ProviderEndpointPolicy.ParseAndValidate($"{uri.TrimEnd('/')}/api/tags", "ollamaEndpoint");
+            }
+            catch (ArgumentException)
+            {
+                return new List<string> { "llama3" };
+            }
+            try
+            {
+                var response = await _httpClient.GetFromJsonAsync<JsonElement>(endpointUri);
                 if (response.TryGetProperty("models", out var models))
                 {
                     return models.EnumerateArray().Select(m => m.GetProperty("name").GetString()!).ToList();
@@ -196,7 +205,10 @@ namespace Claude4Net.Api
                 stream = true,
                 options = new { num_ctx = ContextLimit }
             };
-            var request = new HttpRequestMessage(HttpMethod.Post, $"{uri}/api/chat");
+            Uri endpointUri = ProviderEndpointPolicy.ParseAndValidate(
+                $"{uri.TrimEnd('/')}/api/chat",
+                "ollamaEndpoint");
+            using var request = new HttpRequestMessage(HttpMethod.Post, endpointUri);
             request.Content = JsonContent.Create(payload);
 
             using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);

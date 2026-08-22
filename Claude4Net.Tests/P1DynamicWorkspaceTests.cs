@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -96,7 +96,7 @@ namespace Claude4Net.Tests
         {
             // Arrange
             AppState.CurrentCwd = _ws1;
-            AppState.SessionId = "hub-test";
+            AppState.SessionId = "hub-test-" + Guid.NewGuid().ToString("N")[..8];
 
             // Create some history in WS1
             var store1 = new FileAgentEventStore(_ws1);
@@ -133,7 +133,7 @@ namespace Claude4Net.Tests
         {
             // Arrange
             AppState.CurrentCwd = _ws1;
-            AppState.SessionId = "serial-test";
+            AppState.SessionId = "serial-test-" + Guid.NewGuid().ToString("N")[..8];
             var store = new FileAgentEventStore(_ws1);
 
             await store.AppendEventAsync(AppState.SessionId, new UserPromptReceivedEvent { Version = 1, Prompt = "Test Prompt" });

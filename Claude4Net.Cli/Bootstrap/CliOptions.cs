@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Claude4Net.SDK;
 
@@ -10,6 +11,8 @@ namespace Claude4Net.Cli.Bootstrap;
 /// </summary>
 public sealed class CliOptions
 {
+    public const string LiteralApiKeyDeprecationWarning = "--api-key is deprecated; use --api-key-env <NAME>.";
+
     /// <summary>
     /// Whether to start the web dashboard.
     /// </summary>
@@ -68,10 +71,22 @@ public sealed class CliOptions
     /// </summary>
     public string? ApiKey { get; set; }
 
+    public string ApiBind { get; set; } = "127.0.0.1";
+
+    public bool ApiAllowRemote { get; set; }
+
+    public string? ApiCertificatePath { get; set; }
+
+    public string? ApiCertificatePasswordEnvironmentVariable { get; set; }
+
     /// <summary>
     /// Validation or migration error message if invalid/deprecated arguments are supplied.
     /// </summary>
     public string? ValidationError { get; set; }
+
+    internal string? HardValidationError { get; set; }
+
+    public List<string> Warnings { get; } = new();
 
     /// <summary>
     /// Remaining non-option arguments.
@@ -153,9 +168,46 @@ public sealed class CliOptions
                     options.ApiPort = port;
                 }
             }
+            else if (arg.Equals("--api-key-env", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                string? apiKey = Environment.GetEnvironmentVariable(args[++i]);
+                if (string.IsNullOrWhiteSpace(apiKey))
+                {
+                    options.ApiKey = null;
+                    options.HardValidationError = "The environment variable specified by --api-key-env is not set or is empty.";
+                    options.ValidationError = options.HardValidationError;
+                }
+                else
+                {
+                    options.ApiKey = apiKey;
+                }
+            }
             else if ((arg.Equals("--api-key", StringComparison.OrdinalIgnoreCase) || arg.Equals("-k", StringComparison.OrdinalIgnoreCase)) && i + 1 < args.Length)
             {
                 options.ApiKey = args[++i];
+                options.Warnings.Add(LiteralApiKeyDeprecationWarning);
+            }
+            else if (arg.Equals("--api-bind", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                options.ApiBind = args[++i];
+            }
+            else if (arg.Equals("--api-allow-remote", StringComparison.OrdinalIgnoreCase))
+            {
+                options.ApiAllowRemote = true;
+            }
+            else if (arg.Equals("--api-certificate", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                options.ApiCertificatePath = args[++i];
+            }
+            else if (arg.Equals("--api-certificate-password-env", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                options.ApiCertificatePasswordEnvironmentVariable = args[++i];
+            }
+            else if (arg.Equals("--api-certificate-password", StringComparison.OrdinalIgnoreCase))
+            {
+                if (i + 1 < args.Length) i++;
+                options.StartApi = false;
+                options.ValidationError = "Literal API certificate passwords are not accepted. Use --api-certificate-password-env.";
             }
             else
             {
@@ -190,5 +242,16 @@ public sealed class CliOptions
         };
 
         return normalized is "readonly" or "workspacewrite" or "prompt" or "dangerfullaccess" or "default" or "yolo" or "bypasspermissions";
+    }
+}
+
+internal static class CliStartupGuard
+{
+    internal static int Validate(CliOptions options, TextWriter errorOutput)
+    {
+        if (options.HardValidationError == null) return 0;
+
+        errorOutput.WriteLine($"Error: {options.HardValidationError}");
+        return 1;
     }
 }

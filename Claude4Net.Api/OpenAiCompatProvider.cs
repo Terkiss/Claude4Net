@@ -29,6 +29,10 @@ namespace Claude4Net.Api
 
         public string Name => _descriptor.Id;
 
+        public string ProviderId => _descriptor.Id;
+
+        public string ModelId => _descriptor.DefaultModels.Small;
+
         public ITokenCounter TokenCounter { get; } = new DefaultTokenCounter();
 
         public int ContextLimit => _descriptor.ContextWindowSize > 0 ? _descriptor.ContextWindowSize : 200000;
@@ -47,21 +51,6 @@ namespace Claude4Net.Api
                 }
                 if (string.IsNullOrEmpty(apiKey)) apiKey = AuthManager.GetApiKey(_descriptor.Id);
                 if (string.IsNullOrEmpty(apiKey) && _descriptor.Auth.EnvVars.Count > 0) apiKey = AuthManager.GetApiKey(_descriptor.Auth.EnvVars[0]);
-
-                if (!string.IsNullOrEmpty(apiKey) && apiKey.StartsWith("http", StringComparison.OrdinalIgnoreCase))
-                {
-                    int spaceIdx = apiKey.IndexOf(' ');
-                    if (spaceIdx > 0)
-                    {
-                        endpoint = apiKey.Substring(0, spaceIdx).Trim();
-                        apiKey = apiKey.Substring(spaceIdx + 1).Trim();
-                    }
-                    else
-                    {
-                        endpoint = apiKey.Trim();
-                        apiKey = null;
-                    }
-                }
             }
 
             if (!endpoint.Contains("/chat/completions"))
@@ -74,7 +63,8 @@ namespace Claude4Net.Api
                 endpoint = endpoint.Replace("/chat/completions", "/models");
             }
 
-            var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
+            Uri endpointUri = ProviderEndpointPolicy.ParseAndValidate(endpoint, nameof(ProviderDescriptor.Endpoint));
+            using var request = new HttpRequestMessage(HttpMethod.Get, endpointUri);
             if (!string.IsNullOrEmpty(apiKey))
             {
                 request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
@@ -230,21 +220,6 @@ namespace Claude4Net.Api
                 {
                     apiKey = AuthManager.GetApiKey(_descriptor.Auth.EnvVars[0]);
                 }
-
-                if (!string.IsNullOrEmpty(apiKey) && apiKey.StartsWith("http", StringComparison.OrdinalIgnoreCase))
-                {
-                    int spaceIdx = apiKey.IndexOf(' ');
-                    if (spaceIdx > 0)
-                    {
-                        endpoint = apiKey.Substring(0, spaceIdx).Trim();
-                        apiKey = apiKey.Substring(spaceIdx + 1).Trim();
-                    }
-                    else
-                    {
-                        endpoint = apiKey.Trim();
-                        apiKey = null;
-                    }
-                }
             }
 
             if (!endpoint.Contains("/chat/completions"))
@@ -254,7 +229,8 @@ namespace Claude4Net.Api
             }
 
             var jsonOptions = new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull };
-            var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
+            Uri endpointUri = ProviderEndpointPolicy.ParseAndValidate(endpoint, nameof(ProviderDescriptor.Endpoint));
+            using var request = new HttpRequestMessage(HttpMethod.Post, endpointUri)
             {
                 Content = JsonContent.Create(payload, new System.Net.Http.Headers.MediaTypeHeaderValue("application/json"), jsonOptions)
             };
@@ -403,21 +379,6 @@ namespace Claude4Net.Api
                 }
                 if (string.IsNullOrEmpty(apiKey)) apiKey = AuthManager.GetApiKey(_descriptor.Id);
                 if (string.IsNullOrEmpty(apiKey) && _descriptor.Auth.EnvVars.Count > 0) apiKey = AuthManager.GetApiKey(_descriptor.Auth.EnvVars[0]);
-
-                if (!string.IsNullOrEmpty(apiKey) && apiKey.StartsWith("http", StringComparison.OrdinalIgnoreCase))
-                {
-                    int spaceIdx = apiKey.IndexOf(' ');
-                    if (spaceIdx > 0)
-                    {
-                        endpoint = apiKey.Substring(0, spaceIdx).Trim();
-                        apiKey = apiKey.Substring(spaceIdx + 1).Trim();
-                    }
-                    else
-                    {
-                        endpoint = apiKey.Trim();
-                        apiKey = null;
-                    }
-                }
             }
 
             if (!endpoint.Contains("/embeddings"))
@@ -443,7 +404,8 @@ namespace Claude4Net.Api
             };
 
             var jsonOptions = new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull };
-            var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
+            Uri endpointUri = ProviderEndpointPolicy.ParseAndValidate(endpoint, nameof(ProviderDescriptor.Endpoint));
+            using var request = new HttpRequestMessage(HttpMethod.Post, endpointUri)
             {
                 Content = JsonContent.Create(payload, new System.Net.Http.Headers.MediaTypeHeaderValue("application/json"), jsonOptions)
             };
