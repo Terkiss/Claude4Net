@@ -36,6 +36,22 @@ namespace Claude4Net.Tests
             Assert.Null(options.ValidationError);
         }
 
+        [Fact]
+        public void CliOptions_Parse_DefaultsToDashboardTrue_AndSupportsNoDashboard()
+        {
+            // Default empty args -> StartDashboard is true
+            var defaultOpts = CliOptions.Parse(Array.Empty<string>());
+            Assert.True(defaultOpts.StartDashboard);
+
+            // Explicit --no-dashboard -> StartDashboard is false
+            var noDashOpts = CliOptions.Parse(new[] { "--no-dashboard" });
+            Assert.False(noDashOpts.StartDashboard);
+
+            // Explicit --dashboard -> StartDashboard is true
+            var dashOpts = CliOptions.Parse(new[] { "--dashboard" });
+            Assert.True(dashOpts.StartDashboard);
+        }
+
         [Theory]
         [InlineData("--dashboard")]
         [InlineData("--legacy-cli")]

@@ -14,9 +14,9 @@ public sealed class CliOptions
     public const string LiteralApiKeyDeprecationWarning = "--api-key is deprecated; use --api-key-env <NAME>.";
 
     /// <summary>
-    /// Whether to start the web dashboard.
+    /// Whether to start the web dashboard (Default: true).
     /// </summary>
-    public bool StartDashboard { get; set; }
+    public bool StartDashboard { get; set; } = true;
 
     /// <summary>
     /// Permission mode argument.
@@ -44,9 +44,9 @@ public sealed class CliOptions
     public bool LegacyCli { get; set; }
 
     /// <summary>
-    /// Whether to use the new Lumen interactive CLI. (Opt-in for K044)
+    /// Whether to use the new Lumen interactive CLI. (Default: true)
     /// </summary>
-    public bool UseLumen { get; set; }
+    public bool UseLumen { get; set; } = true;
 
     /// <summary>
     /// Directory path for workspace option.
@@ -114,6 +114,10 @@ public sealed class CliOptions
             {
                 options.StartDashboard = true;
                 options.ValidationError = $"{arg}: Dashboard and Lumen now start automatically. Legacy UI has been removed.";
+            }
+            else if (arg.Equals("--no-dashboard", StringComparison.OrdinalIgnoreCase))
+            {
+                options.StartDashboard = false;
             }
             else if (arg.Equals("--smoke-exit", StringComparison.OrdinalIgnoreCase))
             {

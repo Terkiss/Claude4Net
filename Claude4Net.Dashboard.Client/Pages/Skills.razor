@@ -1,4 +1,5 @@
 @page "/skills"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.SignalR.Client
 @using Claude4Net.Dashboard.Client.Models
 @inject NavigationManager NavigationManager
@@ -6,411 +7,282 @@
 
 <PageTitle>Skills Management</PageTitle>
 
-<div class="container mt-4">
+<div class="container-fluid p-0">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3><i class="bi bi-tools"></i> Skills & Proposals</h3>
-        <button class="btn btn-primary" @onclick="LoadSkills" disabled="@(isLoading || isProcessing)">
-            @if (isLoading)
-            {
-                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                <span> Loading...</span>
-            }
-            else
-            {
-                <i class="bi bi-arrow-clockwise"></i><span> Refresh</span>
-            }
-        </button>
+        <div>
+            <h4 class="fw-bold text-light mb-0"><i class="bi bi-gear-wide-connected text-cyan me-2" style="color: var(--neon-cyan);"></i> Autonomous Skill Registry & SkillOpt</h4>
+            <small class="text-muted font-monospace">Self-Evolving Agent Skills, Benchmark Evaluations & Mutation Proposals</small>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm @(activeTab == "registered" ? "btn-primary font-monospace" : "btn-outline-secondary")" @onclick='() => SetActiveTab("registered")'>
+                <i class="bi bi-collection me-1"></i> Registered Skills (@skills.Count)
+            </button>
+            <button type="button" class="btn btn-sm @(activeTab == "proposals" ? "btn-primary font-monospace" : "btn-outline-secondary")" @onclick='() => SetActiveTab("proposals")'>
+                <i class="bi bi-lightbulb me-1"></i> Evolution Proposals (@proposals.Count)
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary font-monospace" @onclick="LoadSkills" disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                    <span>Loading...</span>
+                }
+                else
+                {
+                    <i class="bi bi-arrow-clockwise me-1"></i><span>Refresh</span>
+                }
+            </button>
+        </div>
     </div>
 
     @if (!string.IsNullOrEmpty(errorMessage))
     {
-        <div class="alert alert-danger" role="alert">
-            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+        <div class="alert alert-danger font-monospace small" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> @errorMessage
         </div>
     }
 
     @if (!string.IsNullOrEmpty(successMessage))
     {
-        <div class="alert alert-success" role="alert">
-            <i class="bi bi-check-circle-fill"></i> @successMessage
+        <div class="alert alert-success font-monospace small" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> @successMessage
         </div>
     }
 
-    @if (isProcessing)
+    @if (isLoading && skills.Count == 0 && proposals.Count == 0)
     {
-        <div class="alert alert-warning" role="alert">
-            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-            <span> Processing skill proposal action... Please wait.</span>
+        <div class="cyber-card p-5 text-center">
+            <div class="spinner-border text-info mb-3" role="status"></div>
+            <div class="text-muted small font-monospace">Loading skill registry and evolution pipeline...</div>
         </div>
     }
+    else if (activeTab == "registered")
+    {
+        <div class="cyber-card p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary border-opacity-25">
+                <span class="fw-bold text-light small"><i class="bi bi-cpu me-1"></i> Active Agent Skills (@skills.Count)</span>
+                <span class="badge badge-neon-cyan font-monospace">Hot-Reloadable</span>
+            </div>
 
-    <!-- Tabs Navigation -->
-    <ul class="nav nav-tabs mb-3" id="skillsTab" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link @(activeTab == "registered" ? "active" : "")" @onclick='() => SetActiveTab("registered")' type="button">
-                Registered Skills <span class="badge bg-secondary">@skills.Count</span>
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link @(activeTab == "proposals" ? "active" : "")" @onclick='() => SetActiveTab("proposals")' type="button">
-                Skill Proposals <span class="badge bg-secondary">@proposals.Count</span>
-            </button>
-        </li>
-    </ul>
-
-    <!-- Tab Content -->
-    <div class="tab-content" id="skillsTabContent">
-        @if (activeTab == "registered")
-        {
-            @if (isLoading && skills.Count == 0)
+            @if (skills.Count == 0)
             {
-                <div class="d-flex justify-content-center my-5">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading registered skills...</span>
-                    </div>
-                </div>
-            }
-            else if (skills.Count == 0)
-            {
-                <div class="alert alert-info">
-                    No registered skills found.
-                </div>
+                <div class="p-4 text-center text-muted font-monospace small">No registered skills found in .agents/skills/</div>
             }
             else
             {
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover align-middle">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>ID</th>
-                                <th>Display Name</th>
-                                <th>Source Path</th>
-                                <th>Aliases</th>
-                                <th>Success Count</th>
-                                <th>Failure Count</th>
-                                <th>Average Score</th>
-                                <th>Last Used</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var skill in skills)
-                            {
-                                <tr>
-                                    <td><code>@skill.Id</code></td>
-                                    <td><strong>@skill.DisplayName</strong></td>
-                                    <td><small class="text-muted">@skill.SourcePath</small></td>
-                                    <td>
-                                        @if (skill.Aliases != null && skill.Aliases.Any())
-                                        {
-                                            @foreach (var alias in skill.Aliases)
-                                            {
-                                                <span class="badge bg-info text-dark me-1">@alias</span>
-                                            }
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">-</span>
-                                        }
-                                    </td>
-                                    <td><span class="text-success">@skill.Metrics.SuccessCount</span></td>
-                                    <td><span class="text-danger">@skill.Metrics.FailureCount</span></td>
-                                    <td>@skill.Metrics.AverageScore.ToString("F2")</td>
-                                    <td>@(skill.Metrics.LastUsed.HasValue ? skill.Metrics.LastUsed.Value.ToString("g") : "Never")</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            }
-        }
-        else if (activeTab == "proposals")
-        {
-            @if (isLoading && proposals.Count == 0)
-            {
-                <div class="d-flex justify-content-center my-5">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading proposals...</span>
-                    </div>
-                </div>
-            }
-            else if (proposals.Count == 0)
-            {
-                <div class="alert alert-info">
-                    No skill proposals found.
-                </div>
-            }
-            else
-            {
-                <div class="row">
-                    @foreach (var prop in proposals)
+                <div class="row g-3">
+                    @foreach (var skill in skills)
                     {
-                        var statusClass = prop.Status.ToLower() switch
-                        {
-                            "approved" => "border-success",
-                            "rejected" => "border-danger",
-                            "applied" => "border-primary",
-                            _ => "border-warning"
-                        };
-
-                        var statusBadge = prop.Status.ToLower() switch
-                        {
-                            "approved" => "bg-success",
-                            "rejected" => "bg-danger",
-                            "applied" => "bg-primary",
-                            _ => "bg-warning text-dark"
-                        };
-
-                        <div class="col-12 mb-3">
-                            <div class="card h-100 shadow-sm border-start border-4 @statusClass">
-                                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
-                                    <span class="fw-bold">@prop.Title <small class="text-muted">(ID: <code>@prop.Id</code>)</small></span>
-                                    <span class="badge @statusBadge">@prop.Status</span>
-                                </div>
-                                <div class="card-body">
-                                    <p><strong>Description:</strong> @prop.Description</p>
-                                    <p><strong>Rationale:</strong> @prop.Rationale</p>
-                                    @if (!string.IsNullOrEmpty(prop.TargetPath))
-                                    {
-                                        <p><strong>Target Path:</strong> <code>@prop.TargetPath</code></p>
-                                    }
-                                    @if (!string.IsNullOrEmpty(prop.SkillId))
-                                    {
-                                        <p><strong>Skill ID:</strong> <code>@prop.SkillId</code></p>
-                                    }
-
-                                    @if (!string.IsNullOrEmpty(prop.ProposedChanges))
-                                    {
-                                        <div class="mb-3">
-                                            <strong>Proposed Changes:</strong>
-                                            <pre class="bg-light p-2 mt-1 rounded" style="font-size: 0.85rem; max-height: 200px; overflow-y: auto;"><code>@prop.ProposedChanges</code></pre>
-                                        </div>
-                                    }
-
-                                    <!-- Action Controls -->
-                                    <div class="d-flex flex-wrap align-items-center gap-3 mt-3 pt-3 border-top">
-                                        @if (prop.Status.Equals("Draft", StringComparison.OrdinalIgnoreCase) ||
-                                             prop.Status.Equals("Proposed", StringComparison.OrdinalIgnoreCase) ||
-                                             prop.Status.Equals("Pending", StringComparison.OrdinalIgnoreCase))
-                                        {
-                                            <button class="btn btn-success" @onclick="() => Approve(prop.Id)" disabled="@isProcessing">
-                                                <i class="bi bi-check-lg"></i> Approve
-                                            </button>
-
-                                            <div class="d-flex align-items-center gap-1" style="max-width: 400px; flex-grow: 1;">
-                                                <input type="text" class="form-control" placeholder="Rejection reason..."
-                                                       value="@GetRejectionReason(prop.Id)"
-                                                       @onchange="@(e => rejectionReasons[prop.Id] = e.Value?.ToString() ?? string.Empty)"
-                                                       disabled="@isProcessing" />
-                                                <button class="btn btn-danger" @onclick="() => Reject(prop.Id)" disabled="@isProcessing">
-                                                    Reject
-                                                </button>
-                                            </div>
-                                        }
-                                        else if (prop.Status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
-                                        {
-                                            <button class="btn btn-primary" @onclick="() => Apply(prop.Id)" disabled="@isProcessing">
-                                                <i class="bi bi-box-arrow-in-down"></i> Apply Proposal
-                                            </button>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted"><small>No actions available for status: @prop.Status</small></span>
-                                        }
+                        <div class="col-12 col-md-6 col-xl-4">
+                            <div class="p-3 rounded h-100 d-flex flex-column justify-content-between" style="background: rgba(14, 19, 28, 0.9); border: 1px solid rgba(255,255,255,0.06);">
+                                <div>
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="text-info fw-bold font-monospace mb-0 text-truncate">@skill.DisplayName</h6>
+                                        <span class="badge bg-dark border border-secondary border-opacity-50 text-muted font-monospace" style="font-size: 0.68rem;">@skill.Id</span>
                                     </div>
+                                    <p class="text-light small mb-3 font-monospace" style="font-size: 0.82rem; min-height: 40px;">@skill.SourcePath</p>
                                 </div>
-                                <div class="card-footer bg-transparent text-muted">
-                                    <small>Created: @prop.CreatedAt.ToString("g") | Updated: @prop.UpdatedAt.ToString("g")</small>
+                                <div>
+                                    <div class="d-flex justify-content-between small text-muted font-monospace pt-2 border-top border-secondary border-opacity-10">
+                                        <span>Score: <span class="text-info">@skill.Metrics.AverageScore.ToString("F1")</span></span>
+                                        <span>Success: <span class="text-emerald" style="color: var(--neon-emerald);">@skill.Metrics.SuccessCount</span></span>
+                                        <span>Fail: <span class="text-danger">@skill.Metrics.FailureCount</span></span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     }
                 </div>
             }
-        }
-    </div>
+        </div>
+    }
+    else if (activeTab == "proposals")
+    {
+        <div class="cyber-card p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary border-opacity-25">
+                <span class="fw-bold text-light small"><i class="bi bi-lightbulb me-1"></i> SkillOpt Mutation Proposals (@proposals.Count)</span>
+                <span class="badge badge-neon-purple font-monospace">Autonomous Evolution</span>
+            </div>
+
+            @if (proposals.Count == 0)
+            {
+                <div class="p-4 text-center text-muted font-monospace small">No pending mutation proposals at this time.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover align-middle mb-0" style="background: transparent;">
+                        <thead>
+                            <tr class="text-muted small border-secondary border-opacity-25 font-monospace">
+                                <th>SKILL ID</th>
+                                <th>TITLE</th>
+                                <th>RATIONALE</th>
+                                <th>STATUS</th>
+                                <th class="text-end">ACTIONS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var prop in proposals)
+                            {
+                                <tr class="border-secondary border-opacity-10">
+                                    <td><code class="text-info fw-bold font-monospace">@prop.SkillId</code></td>
+                                    <td class="text-light small font-monospace">@prop.Title</td>
+                                    <td class="text-muted small font-monospace">@prop.Rationale</td>
+                                    <td><span class="badge bg-dark border border-secondary border-opacity-50 text-muted font-monospace">@prop.Status</span></td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-success font-monospace py-0 px-2" @onclick="() => ApproveProposal(prop.Id)" disabled="@isProcessing" style="font-size: 0.75rem;">
+                                                <i class="bi bi-check-lg me-1"></i> Apply
+                                            </button>
+                                            <button type="button" class="btn btn-outline-danger font-monospace py-0 px-2" @onclick="() => RejectProposal(prop.Id)" disabled="@isProcessing" style="font-size: 0.75rem;">
+                                                <i class="bi bi-x-lg me-1"></i> Reject
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    }
 </div>
 
 @code {
     private HubConnection? hubConnection;
     private List<SkillRegistryRecordDto> skills = new();
     private List<SkillProposalRecordDto> proposals = new();
-    private Dictionary<string, string> rejectionReasons = new();
+    private string activeTab = "registered";
     private bool isLoading = true;
     private bool isProcessing = false;
-    private string activeTab = "registered";
-    private string? errorMessage;
-    private string? successMessage;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
-        try
+        await EnsureConnectedAsync();
+        await LoadSkills();
+    }
+
+    private async Task EnsureConnectedAsync()
+    {
+        if (hubConnection == null)
         {
             hubConnection = new HubConnectionBuilder()
                 .WithUrl(NavigationManager.ToAbsoluteUri("/controlPlaneHub"))
                 .WithAutomaticReconnect()
                 .Build();
-
-            await hubConnection.StartAsync();
-            await LoadSkills();
         }
-        catch (Exception ex)
-        {
-            errorMessage = $"Failed to connect to SignalR control plane: {ex.Message}";
-            isLoading = false;
-        }
-    }
 
-    private async Task LoadSkills()
-    {
-        isLoading = true;
-        errorMessage = null;
-        successMessage = null;
-        StateHasChanged();
-
-        try
+        if (hubConnection.State == HubConnectionState.Disconnected)
         {
-            if (hubConnection is not null)
+            try
             {
-                var state = await hubConnection.InvokeAsync<SkillControlPlaneState>("GetSkills");
-                skills = state?.Skills ?? new List<SkillRegistryRecordDto>();
-                proposals = state?.Proposals ?? new List<SkillProposalRecordDto>();
+                await hubConnection.StartAsync();
             }
-            else
+            catch (Exception ex)
             {
-                errorMessage = "Hub connection is not established.";
+                errorMessage = $"Connection error: {ex.Message}";
             }
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Error loading skills and proposals: {ex.Message}";
-        }
-        finally
-        {
-            isLoading = false;
-            StateHasChanged();
         }
     }
 
     private void SetActiveTab(string tab)
     {
         activeTab = tab;
-        errorMessage = null;
-        successMessage = null;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
     }
 
-    private string GetRejectionReason(string proposalId)
+    private async Task LoadSkills()
     {
-        if (!rejectionReasons.TryGetValue(proposalId, out var reason))
+        await EnsureConnectedAsync();
+        if (hubConnection is null || hubConnection.State != HubConnectionState.Connected)
         {
-            reason = string.Empty;
-            rejectionReasons[proposalId] = reason;
+            isLoading = false;
+            return;
         }
-        return reason;
-    }
 
-    private async Task Approve(string proposalId)
-    {
-        isProcessing = true;
-        errorMessage = null;
-        successMessage = null;
-        StateHasChanged();
+        isLoading = true;
+        errorMessage = string.Empty;
 
         try
         {
-            if (hubConnection is not null)
+            var state = await hubConnection.InvokeAsync<SkillControlPlaneState>("GetSkills");
+            if (state != null)
             {
-                var result = await hubConnection.InvokeAsync<CommandResult>("ApproveSkillProposal", proposalId);
-                if (result.Success)
-                {
-                    successMessage = result.Message ?? $"Proposal '{proposalId}' approved.";
-                }
-                else
-                {
-                    errorMessage = result.Error ?? $"Failed to approve proposal '{proposalId}'.";
-                }
+                skills = state.Skills ?? new List<SkillRegistryRecordDto>();
+                proposals = state.Proposals ?? new List<SkillProposalRecordDto>();
             }
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error approving proposal: {ex.Message}";
+            errorMessage = $"Failed to fetch skills data: {ex.Message}";
         }
         finally
         {
-            isProcessing = false;
-            StateHasChanged();
-            await LoadSkills();
+            isLoading = false;
+            await InvokeAsync(StateHasChanged);
         }
     }
 
-    private async Task Reject(string proposalId)
+    private async Task ApproveProposal(string proposalId)
     {
+        await EnsureConnectedAsync();
+        if (hubConnection is null || hubConnection.State != HubConnectionState.Connected) return;
+
         isProcessing = true;
-        errorMessage = null;
-        successMessage = null;
-        StateHasChanged();
-
-        string reason = GetRejectionReason(proposalId);
-
         try
         {
-            if (hubConnection is not null)
+            var res = await hubConnection.InvokeAsync<CommandResult>("ApproveSkillProposal", proposalId);
+            if (res != null && res.Success)
             {
-                var result = await hubConnection.InvokeAsync<CommandResult>("RejectSkillProposal", proposalId, reason);
-                if (result.Success)
-                {
-                    successMessage = result.Message ?? $"Proposal '{proposalId}' rejected.";
-                    rejectionReasons.Remove(proposalId);
-                }
-                else
-                {
-                    errorMessage = result.Error ?? $"Failed to reject proposal '{proposalId}'.";
-                }
+                successMessage = $"Proposal {proposalId} applied successfully!";
+                await LoadSkills();
+            }
+            else
+            {
+                errorMessage = res?.Error ?? "Failed to apply proposal";
             }
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error rejecting proposal: {ex.Message}";
+            errorMessage = $"Approval error: {ex.Message}";
         }
         finally
         {
             isProcessing = false;
-            StateHasChanged();
-            await LoadSkills();
+            await InvokeAsync(StateHasChanged);
         }
     }
 
-    private async Task Apply(string proposalId)
+    private async Task RejectProposal(string proposalId)
     {
-        isProcessing = true;
-        errorMessage = null;
-        successMessage = null;
-        StateHasChanged();
+        await EnsureConnectedAsync();
+        if (hubConnection is null || hubConnection.State != HubConnectionState.Connected) return;
 
+        isProcessing = true;
         try
         {
-            if (hubConnection is not null)
+            var res = await hubConnection.InvokeAsync<CommandResult>("RejectSkillProposal", proposalId, "Rejected by User");
+            if (res != null && res.Success)
             {
-                var result = await hubConnection.InvokeAsync<CommandResult>("ApplySkillProposal", proposalId);
-                if (result.Success)
-                {
-                    successMessage = result.Message ?? $"Proposal '{proposalId}' applied successfully.";
-                }
-                else
-                {
-                    // Failures in verification could be a warning/rollback
-                    errorMessage = result.Error ?? $"Proposal '{proposalId}' application failed (possibly rolled back).";
-                }
+                successMessage = $"Proposal {proposalId} rejected.";
+                await LoadSkills();
+            }
+            else
+            {
+                errorMessage = res?.Error ?? "Failed to reject proposal";
             }
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error applying proposal: {ex.Message}";
+            errorMessage = $"Rejection error: {ex.Message}";
         }
         finally
         {
             isProcessing = false;
-            StateHasChanged();
-            await LoadSkills();
+            await InvokeAsync(StateHasChanged);
         }
     }
 

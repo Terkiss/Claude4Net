@@ -91,3 +91,41 @@
 - Generated and integrated high-resolution visual assets: `docs/pic/banner.png` (hero banner), `docs/pic/api_hub.png` (universal API hub architecture), `docs/pic/dashboard_tui.png` (split-view CLI TUI & Blazor control plane).
 - Revamped `README.md`, `README.ko.md`, and `README.ja.md` with modern copywriting, architecture Mermaid diagrams, OpenCode/Hermes integration templates, 2026 model lineups, and 978/978 test pass badges.
 - Updated `.gitignore` to track documentation images under `docs/pic/`.
+
+2026-08-22: Cybernetic Obsidian Dark Blazor Dashboard Redesign.
+- Redesigned Blazor WebAssembly Dashboard (`Home.razor`, `MainLayout.razor`, `NavMenu.razor`, `ThoughtStream.razor`, `app.css`) based on the README cybernetic mockup.
+- Implemented Top 4 KPI Metrics Cards: Active Agents, Total Tokens, Latency/Throughput, and System Uptime.
+- Implemented real-time dynamic SVG charts: SignalR Message Throughput Area Chart, Response Time Line Chart, and Token Usage Donut Gauge.
+- Added Multi-Agent Execution Timeline (Gantt Tracker) with animated progress bars.
+- Upgraded ThoughtStream with dark terminal styling and neon SDK event badges.
+- Verification: Solution build 0 errors, 978 / 978 tests passing (100%).
+
+2026-08-23: Native Terukirdo Supreme Orchestrator Core Integration.
+- Designed and authored ADR Specification (`ADR-2026-TERUKIRDO-CORE-001`).
+- Implemented Domain Types & Interfaces in `Claude4Net.SDK.Terukirdo`: `ITerukirdoOrchestrator`, `ITerukirdoTierRouter`, `ITerukirdoMemoryService`, `ITerukirdoPrimeDirective`, `TerukirdoMode`, `AdaptiveLoopTier`.
+- Added Event Sourcing types: `TerukirdoModeChangedEvent`, `TerukirdoTierRoutedEvent`, `TerukirdoPrimeDirectiveEvent`, `TerukirdoMemorySyncedEvent`.
+- Implemented Runtime Core in `Claude4Net.Runtime.Terukirdo`: `TerukirdoOrchestrator.cs`, `TerukirdoTierRouter.cs`, `TerukirdoPrimeDirective.cs`, `TerukirdoMemoryService.cs`.
+- Added CLI & REPL Command Suite in `Claude4Net.Commands`: `/maid status`, `/maid mode`, `/maid tier`, `/maid memory`, `/maid tea`.
+- Hardened API mode tool prompt against hallucinated waiting text in `PromptBuilder.cs`.
+- Verified with new unit test suite (`TerukirdoCoreTests.cs`, 10/10 passed). Solution build: 0 errors.
+
+2026-08-23: Next-Gen Engineering Observability Dashboard & TeruTeruPandas Telemetry Integration (/goal).
+- Co-designed by Claude Opus 4.6 & Gemini 3.1 Pro, reviewed and verified by Claude Sonnet 4.6 & Gemini 3.7 Thinking (`ADR-2026-001 v3.0`).
+- Implemented Backend In-Memory OLAP Engine in `Claude4Net.Runtime.Telemetry`: `TeruTeruPandasTelemetryEngine.cs` (TokenTelemetry & RequestTraceSpan), `PricingEngine.cs` (2026 Gemini 3.7, Claude 3.7, DeepSeek-V3 pricing).
+- Integrated KST Timezone Offset compensation and hourly/project-level SQL analytical queries in `ControlPlaneHub.cs`.
+- Built Blazor WebAssembly Component Suite:
+  - `ActivityDock.razor`: 56px slim left navigation dock with dynamic approvals badge `[3]` and Terukirdo mode quick-switch popover.
+  - `CalendarView.razor`: Continuous GitHub-style contribution heatmap grid with hourly line chart drilldown and project shares.
+  - `TraceWaterfall.razor`: Datadog/Jaeger-style distributed tracing timeline (API Gateway -> Orchestrator -> LLM -> Vector DB -> Response).
+  - `ApprovalsQueue.razor`: Tier 3 High-Risk checkpoint Master approval/rejection queue.
+  - `TerukirdoProtocolRibbon.razor`: Live telemetry protocol v5.4 ribbon.
+  - `Home.razor`: Revamped with 4 KPI cards, Calendar Heatmap, Trace Waterfall, and ThoughtStream terminal console.
+- Verification: Added `TeruTeruPandasTelemetryTests.cs` (6/6 passed). Full solution test suite: 995 / 995 tests passed 100% (0 failures, 0 skips). Build: 0 errors.
+
+2026-08-23: End-to-End Real Telemetry Pipeline & Two-Way Master Security Approvals Integration.
+- Eliminated mock dependencies and wired all dashboard subsystems directly to real runtime engines.
+- Real API Gateway Telemetry: `Claude4NetApiServer.cs` now records real prompt/completion tokens, latency (ms), and gateway trace spans into `TeruTeruPandasTelemetryEngine.Shared` on every streaming and non-streaming completion.
+- Real Agent & Tier Tracing: `AgentLoop.cs` and `TerukirdoOrchestrator.cs` record real execution token metrics and adaptive tier routing spans.
+- Two-Way Security Master Approval Bridge: `CliUserApprovalHandler.cs` registers Tier 3 actions directly into `TeruTeruPandasTelemetryEngine` and yields `TaskCompletionSource`, allowing the master to confirm/reject via terminal or directly inside the Web Dashboard at `/approvals`.
+- Real-Time SignalR Event Sourcing: `SignalRBroadcaster.cs` now dual-broadcasts to `AgentHub` and `ControlPlaneHub` (`ReceiveAgentEvent` & `ReceiveLiveTelemetry`) so `ThoughtStream.razor` visualizes real-time SDK events.
+- Verification: Full test suite passing 996 / 996 (100% passed, 0 failures, 0 skips). Build: 0 errors.

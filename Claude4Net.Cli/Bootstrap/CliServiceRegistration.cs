@@ -28,7 +28,7 @@ public static class CliServiceRegistration
 
         // 외부 API 호출에 사용하는 HTTP 클라이언트
         services.AddHttpClient();
-        foreach (string clientName in new[] { "Anthropic", "Gemini", "glm", "Ollama", "lmstudio", "OpenAiCompat" })
+        foreach (string clientName in new[] { "Anthropic", "Gemini", "glm", "qwen", "Ollama", "lmstudio", "OpenAiCompat" })
         {
             services.AddHttpClient(clientName)
                 .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
@@ -124,6 +124,11 @@ public static class CliServiceRegistration
             var clientFactory = sp.GetRequiredService<IHttpClientFactory>();
             return new GlmProvider(clientFactory.CreateClient("glm"), sp.GetRequiredService<IToolRegistry>());
         });
+        services.AddSingleton<QwenProvider>(sp =>
+        {
+            var clientFactory = sp.GetRequiredService<IHttpClientFactory>();
+            return new QwenProvider(clientFactory.CreateClient("qwen"), sp.GetRequiredService<IToolRegistry>());
+        });
         services.AddSingleton<IEmbeddingProvider, GeminiEmbeddingProvider>(sp =>
         {
             var clientFactory = sp.GetRequiredService<IHttpClientFactory>();
@@ -145,6 +150,7 @@ public static class CliServiceRegistration
         services.AddSingleton<IProviderFactory, GeminiCliProviderFactory>();
         services.AddSingleton<IProviderFactory, AntigravityCliProviderFactory>();
         services.AddSingleton<IProviderFactory, GlmProviderFactory>();
+        services.AddSingleton<IProviderFactory, QwenProviderFactory>();
         services.AddSingleton<IProviderFactory, OpenAiCompatProviderFactory>();
     }
 }

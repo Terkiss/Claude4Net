@@ -468,6 +468,24 @@ namespace Claude4Net.Runtime
             sw.Stop();
             _router.UpdateMetric(provider.Name, sw.Elapsed.TotalMilliseconds, hasError);
 
+            try
+            {
+                int promptTokens = Math.Max(10, userPrompt.Length / 4);
+                int compTokens = Math.Max(10, (lastTurnResponse?.Length ?? 0) / 4);
+
+                _ = Claude4Net.Runtime.Telemetry.TeruTeruPandasTelemetryEngine.Shared.RecordTokenUsageAsync(
+                    sessionId: AppState.SessionId ?? "agent-session",
+                    projectName: "Claude4Net-Agent",
+                    provider: provider.Name,
+                    model: model,
+                    promptTokens: promptTokens,
+                    compTokens: compTokens,
+                    latencyMs: sw.Elapsed.TotalMilliseconds,
+                    ct: ct
+                );
+            }
+            catch { }
+
             if (!hasError && !string.IsNullOrEmpty(lastTurnResponse))
             {
                 if (_sessionStore != null)
@@ -584,21 +602,6 @@ namespace Claude4Net.Runtime
                 case "replay":
                     string replayResult = await AgentControlCommands.HandleReplay(args, _serviceProvider);
                     await context.Output.WriteAsync(replayResult);
-                    return true;
-
-                case "build":
-                    string buildResult = await AgentControlCommands.HandleBuild(args, _serviceProvider);
-                    await context.Output.WriteAsync(buildResult);
-                    return true;
-
-                case "test":
-                    string testResult = await AgentControlCommands.HandleTest(args, _serviceProvider);
-                    await context.Output.WriteAsync(testResult);
-                    return true;
-
-                case "clean":
-                    string cleanResult = await AgentControlCommands.HandleClean(args, _serviceProvider);
-                    await context.Output.WriteAsync(cleanResult);
                     return true;
 
                 case "clear":

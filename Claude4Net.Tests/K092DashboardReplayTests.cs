@@ -17,11 +17,13 @@ namespace Claude4Net.Tests
     {
         private readonly string _tempWorkspace;
         private readonly string _originalCwd;
+        private readonly string _originalSessionId;
         private readonly string _testSessionId;
 
         public K092DashboardReplayTests()
         {
             _originalCwd = AppState.CurrentCwd ?? string.Empty;
+            _originalSessionId = AppState.SessionId;
             _tempWorkspace = Path.Combine(Path.GetTempPath(), "Claude4Net_K092_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_tempWorkspace);
             AppState.CurrentCwd = _tempWorkspace;
@@ -32,6 +34,7 @@ namespace Claude4Net.Tests
         public void Dispose()
         {
             AppState.CurrentCwd = _originalCwd;
+            AppState.SessionId = _originalSessionId;
             try
             {
                 if (Directory.Exists(_tempWorkspace))
@@ -126,6 +129,8 @@ namespace Claude4Net.Tests
         [Fact]
         public async Task ReconstructState_ShouldReconstructStateAtStep()
         {
+            AppState.CurrentCwd = _tempWorkspace;
+            AppState.SessionId = _testSessionId;
             var eventStore = new FileAgentEventStore(_tempWorkspace);
             await eventStore.AppendEventAsync(_testSessionId, new SessionStartedEvent
             {

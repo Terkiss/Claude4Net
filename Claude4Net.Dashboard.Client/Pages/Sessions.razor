@@ -1,4 +1,5 @@
-﻿@page "/sessions"
+@page "/sessions"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.SignalR.Client
 @using Claude4Net.Dashboard.Client.Models
 @inject NavigationManager NavigationManager
@@ -6,100 +7,107 @@
 
 <PageTitle>Sessions Observatory</PageTitle>
 
-<div class="container mt-4">
+<div class="container-fluid p-0">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3><i class="bi bi-cpu-fill text-primary"></i> Multi-Session Observatory</h3>
-        <button class="btn btn-outline-primary" @onclick="LoadSessions" disabled="@isLoading">
+        <div>
+            <h4 class="fw-bold text-light mb-0"><i class="bi bi-robot text-cyan me-2" style="color: var(--neon-cyan);"></i> Multi-Session Observatory</h4>
+            <small class="text-muted font-monospace">Event-Sourced Autonomous Agent Sessions & Trajectory Store</small>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary font-monospace" @onclick="LoadSessions" disabled="@isLoading">
             @if (isLoading)
             {
-                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                <span> Loading...</span>
+                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                <span>불러오는 중...</span>
             }
             else
             {
-                <i class="bi bi-arrow-clockwise"></i>
-                <span> Refresh</span>
+                <i class="bi bi-arrow-clockwise me-1"></i><span>새로고침</span>
             }
         </button>
     </div>
-    <p class="text-muted">Explore and manage execution history sessions recorded in the workspace event store.</p>
 
     @if (!string.IsNullOrEmpty(errorMessage))
     {
-        <div class="alert alert-danger" role="alert">
-            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+        <div class="alert alert-danger font-monospace small" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> @errorMessage
         </div>
     }
 
     @if (isLoading && sessions.Count == 0)
     {
-        <div class="d-flex justify-content-center my-5">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading sessions...</span>
-            </div>
+        <div class="cyber-card p-5 text-center">
+            <div class="spinner-border text-info mb-3" role="status"></div>
+            <div class="text-muted small font-monospace">세션 저장소 및 Antigravity EventStore에서 세션 목록을 검색하는 중...</div>
         </div>
     }
     else if (sessions.Count == 0)
     {
-        <div class="alert alert-info">
-            No session records found. Active sessions will appear here once started.
+        <div class="cyber-card p-5 text-center">
+            <i class="bi bi-folder2-open text-secondary mb-3" style="font-size: 2.5rem;"></i>
+            <h5 class="text-light fw-bold">기록된 에이전트 세션이 없습니다</h5>
+            <p class="text-muted small mb-0 font-monospace">CLI 또는 대시보드에서 에이전트 작업을 실행하면 멀티턴 트랙잭토리가 실시간 캡처됩니다.</p>
         </div>
     }
     else
     {
-        <div class="table-responsive">
-            <table class="table table-bordered table-hover align-middle">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Session ID</th>
-                        <th>Start Time</th>
-                        <th>Provider</th>
-                        <th>Model</th>
-                        <th>Permission</th>
-                        <th>Status</th>
-                        <th class="text-center">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var session in sessions)
-                    {
-                        <tr>
-                            <td>
-                                <code class="fw-bold">@session.SessionId</code>
-                            </td>
-                            <td>
-                                @session.StartTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
-                            </td>
-                            <td>
-                                <span class="badge bg-secondary">@session.Provider</span>
-                            </td>
-                            <td>
-                                <small class="font-monospace">@session.Model</small>
-                            </td>
-                            <td>
-                                <span class="badge bg-light text-dark border">@session.PermissionMode</span>
-                            </td>
-                            <td>
-                                @if (session.Status.Equals("Active", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    <span class="badge bg-success">Active</span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-outline-secondary border text-secondary">@session.Status</span>
-                                }
-                            </td>
-                            <td class="text-center">
-                                <div class="d-flex gap-2 justify-content-center">
-                                    <a class="btn btn-sm btn-primary" href="replay?sessionId=@session.SessionId">
-                                        <i class="bi bi-play-circle-fill"></i> Replay
-                                    </a>
-                                </div>
-                            </td>
+        <div class="cyber-card p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary border-opacity-25">
+                <span class="fw-bold text-light small"><i class="bi bi-list-columns me-1"></i> Recorded Agent Sessions (@sessions.Count)</span>
+                <span class="badge badge-neon-emerald font-monospace">Online EventStore</span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle mb-0" style="background: transparent;">
+                    <thead>
+                        <tr class="text-muted small border-secondary border-opacity-25 font-monospace">
+                            <th>SESSION ID</th>
+                            <th>START TIME (KST)</th>
+                            <th>PROVIDER</th>
+                            <th>MODEL</th>
+                            <th>TIER / MODE</th>
+                            <th>STATUS</th>
+                            <th class="text-end">ACTIONS</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach (var session in sessions)
+                        {
+                            <tr class="border-secondary border-opacity-10">
+                                <td>
+                                    <code class="text-info fw-bold font-monospace">@session.SessionId</code>
+                                </td>
+                                <td class="text-light small font-monospace">
+                                    @session.StartTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+                                </td>
+                                <td>
+                                    <span class="badge bg-dark border border-secondary border-opacity-50 text-light font-monospace">@session.Provider</span>
+                                </td>
+                                <td>
+                                    <span class="badge badge-neon-cyan font-monospace" style="font-size: 0.72rem;">@session.Model</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary bg-opacity-25 text-light font-monospace">@session.PermissionMode</span>
+                                </td>
+                                <td>
+                                    @if (session.Status.Equals("Active", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="badge badge-neon-emerald font-monospace"><span class="pulse-dot me-1"></span> Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-dark border border-secondary border-opacity-50 text-secondary font-monospace">@session.Status</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <a class="btn btn-sm btn-outline-info font-monospace py-0 px-2" href="replay?sessionId=@session.SessionId" style="font-size: 0.75rem;">
+                                        <i class="bi bi-play-circle me-1"></i> Replay
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         </div>
     }
 </div>
@@ -108,52 +116,73 @@
     private HubConnection? hubConnection;
     private List<AgentSessionRecordDto> sessions = new();
     private bool isLoading = true;
-    private string? errorMessage;
+    private string errorMessage = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
-        try
+        await EnsureConnectedAsync();
+        await LoadSessions();
+    }
+
+    private async Task EnsureConnectedAsync()
+    {
+        if (hubConnection == null)
         {
             hubConnection = new HubConnectionBuilder()
                 .WithUrl(NavigationManager.ToAbsoluteUri("/controlPlaneHub"))
                 .WithAutomaticReconnect()
                 .Build();
 
-            await hubConnection.StartAsync();
-            await LoadSessions();
+            hubConnection.On<AgentSessionRecordDto>("ReceiveNewSession", (newSession) =>
+            {
+                var existing = sessions.FirstOrDefault(s => s.SessionId == newSession.SessionId);
+                if (existing != null)
+                {
+                    sessions.Remove(existing);
+                }
+                sessions.Insert(0, newSession);
+                InvokeAsync(StateHasChanged);
+            });
         }
-        catch (Exception ex)
+
+        if (hubConnection.State == HubConnectionState.Disconnected)
         {
-            errorMessage = $"Failed to connect to control plane: {ex.Message}";
-            isLoading = false;
+            try
+            {
+                await hubConnection.StartAsync();
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Connection error: {ex.Message}";
+            }
         }
     }
 
     private async Task LoadSessions()
     {
+        await EnsureConnectedAsync();
+        if (hubConnection is null || hubConnection.State != HubConnectionState.Connected)
+        {
+            isLoading = false;
+            return;
+        }
+
         isLoading = true;
-        errorMessage = null;
-        StateHasChanged();
+        errorMessage = string.Empty;
 
         try
         {
-            if (hubConnection is not null)
-            {
-                sessions = await hubConnection.InvokeAsync<List<AgentSessionRecordDto>>("GetSessions");
-            }
-            else
-            {
-                errorMessage = "Hub connection is not established.";
-            }
+            var result = await hubConnection.InvokeAsync<List<AgentSessionRecordDto>>("GetSessions");
+            sessions = result ?? new List<AgentSessionRecordDto>();
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error loading sessions: {ex.Message}";
+            errorMessage = $"Failed to fetch sessions: {ex.Message}";
         }
         finally
         {
             isLoading = false;
-            StateHasChanged();
+            await InvokeAsync(StateHasChanged);
         }
     }
 

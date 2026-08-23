@@ -1,22 +1,225 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
     <ResourcePreloader />
-    <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
-    <link rel="stylesheet" href="@Assets["app.css"]" />
-    <link rel="stylesheet" href="@Assets["Claude4Net.Dashboard.styles.css"]" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="/app.css" />
+    <link rel="stylesheet" href="/Claude4Net.Dashboard.styles.css" />
     <ImportMap />
-    <link rel="icon" type="image/png" href="favicon.png" />
-    <HeadOutlet />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <HeadOutlet @rendermode="InteractiveServer" />
+
+    <style>
+        :root {
+            --bg-main: #0b0d13;
+            --bg-surface: #12151c;
+            --bg-card: #12151c;
+            --text-main: #f0f2f5;
+            --text-muted: #8b949e;
+            --neon-cyan: #00f0ff;
+            --neon-emerald: #10b981;
+            --neon-purple: #8b5cf6;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-mono: 'Fira Code', monospace;
+            --heatmap-base: #161b22;
+            --heatmap-l1: #0e4429;
+            --heatmap-l2: #006d32;
+            --heatmap-l3: #26a641;
+            --heatmap-l4: #39d353;
+        }
+        html, body {
+            background-color: #0b0d13 !important;
+            color: #f0f2f5 !important;
+            font-family: var(--font-sans) !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            min-height: 100vh !important;
+        }
+        .activity-dock {
+            width: 56px !important;
+            min-width: 56px !important;
+            max-width: 56px !important;
+            flex-shrink: 0 !important;
+            background: #090c12 !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            padding: 0.75rem 0 !important;
+            height: 100vh !important;
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 1000 !important;
+        }
+        .dock-logo {
+            width: 32px !important;
+            height: 32px !important;
+            margin-bottom: 1.25rem !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            color: var(--neon-cyan) !important;
+            font-size: 1.25rem !important;
+        }
+        .dock-nav {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 0.65rem !important;
+            align-items: center !important;
+            width: 100% !important;
+        }
+        .dock-item {
+            width: 38px !important;
+            height: 38px !important;
+            border-radius: 8px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            color: var(--text-muted) !important;
+            font-size: 1.15rem !important;
+            text-decoration: none !important;
+            position: relative !important;
+            transition: all 0.2s ease !important;
+        }
+        .dock-item:hover {
+            color: var(--text-main) !important;
+            background: rgba(255, 255, 255, 0.08) !important;
+        }
+        .dock-item.active {
+            color: var(--neon-cyan) !important;
+            background: rgba(0, 240, 255, 0.12) !important;
+        }
+        .dock-badge {
+            position: absolute !important;
+            top: 2px !important;
+            right: 2px !important;
+            background: #ef4444 !important;
+            color: #fff !important;
+            font-size: 0.65rem !important;
+            font-weight: 700 !important;
+            width: 15px !important;
+            height: 15px !important;
+            border-radius: 50% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            box-shadow: 0 0 6px rgba(239, 68, 68, 0.8) !important;
+        }
+        .dock-avatar {
+            width: 36px !important;
+            height: 36px !important;
+            border-radius: 50% !important;
+            background: #1e293b !important;
+            border: 2px solid #8b5cf6 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            cursor: pointer !important;
+            position: relative !important;
+        }
+        .dock-avatar-dot {
+            position: absolute !important;
+            bottom: -1px !important;
+            right: -1px !important;
+            width: 10px !important;
+            height: 10px !important;
+            border-radius: 50% !important;
+            background: #10b981 !important;
+            border: 2px solid #090c12 !important;
+        }
+        .cyber-card {
+            background: #12151c !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-radius: 8px !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
+            color: #f0f2f5 !important;
+        }
+        .cyber-card-header {
+            background: rgba(255, 255, 255, 0.02) !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+            padding: 0.75rem 1rem !important;
+            font-weight: 600 !important;
+            font-size: 0.9rem !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+        }
+        .badge-neon-cyan {
+            background: rgba(0, 240, 255, 0.15) !important;
+            color: #00f0ff !important;
+            border: 1px solid rgba(0, 240, 255, 0.4) !important;
+        }
+        .badge-neon-emerald {
+            background: rgba(16, 185, 129, 0.15) !important;
+            color: #10b981 !important;
+            border: 1px solid rgba(16, 185, 129, 0.4) !important;
+        }
+        .badge-neon-purple {
+            background: rgba(139, 92, 246, 0.15) !important;
+            color: #8b5cf6 !important;
+            border: 1px solid rgba(139, 92, 246, 0.4) !important;
+        }
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+            display: inline-block;
+            animation: pulse-animation 1.5s infinite;
+        }
+        @@keyframes pulse-animation {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 12px #10b981; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .heatmap-container {
+            display: flex !important;
+            gap: 3px !important;
+            overflow-x: auto !important;
+            padding: 8px !important;
+            background: #090c12 !important;
+            border-radius: 6px !important;
+        }
+        .heatmap-col {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 3px !important;
+        }
+        .heatmap-tile {
+            width: 12px !important;
+            height: 12px !important;
+            min-width: 12px !important;
+            min-height: 12px !important;
+            border-radius: 2px !important;
+            cursor: pointer !important;
+            display: block !important;
+        }
+        .heatmap-tile:hover {
+            transform: scale(1.35) !important;
+            z-index: 10;
+            outline: 1px solid #ffffff !important;
+        }
+        .heatmap-l0 { background-color: #161b22 !important; }
+        .heatmap-l1 { background-color: #0e4429 !important; }
+        .heatmap-l2 { background-color: #006d32 !important; }
+        .heatmap-l3 { background-color: #26a641 !important; }
+        .heatmap-l4 { background-color: #39d353 !important; }
+    </style>
 </head>
 
 <body>
-    <Routes />
-    <script src="@Assets["_framework/blazor.web.js"]"></script>
+    <Routes @rendermode="InteractiveServer" />
+    <script src="/_framework/blazor.web.js"></script>
 </body>
 
 </html>

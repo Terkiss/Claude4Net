@@ -1,0 +1,89 @@
+@using Claude4Net.SDK.Telemetry
+@implements IAsyncDisposable
+
+<div class="cyber-card p-3 h-100">
+    <div class="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom border-secondary border-opacity-25">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-diagram-2 text-info"></i>
+            <span class="fw-bold text-light small">Recent Distributed Trace Waterfall</span>
+            <span class="badge bg-dark text-muted border border-secondary border-opacity-50" style="font-size: 0.68rem;">Live Latency Profile</span>
+        </div>
+        <span class="small font-monospace text-muted" style="font-size: 0.72rem;">Trace ID: @(_activeTraceId)</span>
+    </div>
+
+    <!-- Timeline Header Scale -->
+    <div class="d-flex justify-content-between text-muted font-monospace mb-2 px-2" style="font-size: 0.68rem; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 2px;">
+        <span>0ms</span>
+        <span>50ms</span>
+        <span>100ms</span>
+        <span>150ms</span>
+        <span>200ms+</span>
+    </div>
+
+    <!-- Waterfall Rows -->
+    <div class="d-flex flex-column gap-1" style="max-height: 220px; overflow-y: auto;">
+        @if (Traces == null || Traces.Count == 0)
+        {
+            <div class="text-center py-3 text-muted small">No active distributed trace spans available.</div>
+        }
+        else
+        {
+            @foreach (var span in Traces)
+            {
+                int indent = string.IsNullOrEmpty(span.ParentSpanId) ? 0 : 16;
+                double maxDuration = Traces.Max(s => s.DurationMs);
+                if (maxDuration <= 0) maxDuration = 1;
+                double widthPct = Math.Max(5, Math.Min(95, (span.DurationMs / maxDuration) * 90.0));
+
+                <div class="trace-span-row rounded" style="padding-left: @(indent)px;" title="@span.Details">
+                    <div class="d-flex flex-column" style="width: 170px; min-width: 170px;">
+                        <span class="fw-semibold text-truncate @(string.IsNullOrEmpty(span.ParentSpanId) ? "text-light" : "text-muted")" style="font-size: 0.76rem;">
+                            @if (!string.IsNullOrEmpty(span.ParentSpanId))
+                            {
+                                <span class="text-secondary me-1">↳</span>
+                            }
+                            @span.ComponentName
+                        </span>
+                        <span class="text-dim text-truncate" style="font-size: 0.65rem;">@span.OperationName</span>
+                    </div>
+
+                    <!-- Duration Bar -->
+                    <div class="flex-grow-1 px-2 position-relative">
+                        <div class="trace-bar @GetBarColorClass(span.ComponentName)" style="width: @(widthPct)%;">
+                            <span class="position-absolute end-0 top-50 translate-middle-y pe-1 text-dark fw-bold font-monospace" style="font-size: 0.65rem;">
+                                @span.DurationMs.ToString("F1")ms
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Status -->
+                    <div style="width: 55px; text-align: right;">
+                        <span class="badge @(span.Status == "Success" ? "bg-success" : "bg-danger") bg-opacity-25 text-@(span.Status == "Success" ? "success" : "danger")" style="font-size: 0.65rem;">
+                            @span.Status
+                        </span>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public List<RequestTraceSpanDto> Traces { get; set; } = new();
+
+    private string _activeTraceId => Traces?.FirstOrDefault()?.TraceId ?? "fd3c1a9902e8";
+
+    private string GetBarColorClass(string name)
+    {
+        if (name.Contains("Gateway", StringComparison.OrdinalIgnoreCase)) return "bg-primary";
+        if (name.Contains("Orchestrator", StringComparison.OrdinalIgnoreCase)) return "bg-info";
+        if (name.Contains("Call", StringComparison.OrdinalIgnoreCase) || name.Contains("LLM", StringComparison.OrdinalIgnoreCase)) return "bg-warning";
+        if (name.Contains("Vector", StringComparison.OrdinalIgnoreCase) || name.Contains("Embedding", StringComparison.OrdinalIgnoreCase)) return "bg-success";
+        return "bg-secondary";
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        return ValueTask.CompletedTask;
+    }
+}

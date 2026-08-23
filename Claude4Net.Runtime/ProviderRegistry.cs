@@ -209,6 +209,80 @@ namespace Claude4Net.Runtime
 
             Register(new ProviderDescriptor
             {
+                Id = "qwen",
+                Label = "Alibaba Qwen (알리바바 코딩 플랜 / DashScope)",
+                TransportKind = "openai-compat",
+                Endpoint = Claude4Net.Api.QwenProvider.DefaultEndpoint,
+                DefaultModels = new ProviderDefaultModels
+                {
+                    Small = Claude4Net.Api.QwenProvider.DefaultSmallModel,
+                    Large = Claude4Net.Api.QwenProvider.DefaultLargeModel
+                },
+                Capabilities = new ProviderCapabilities
+                {
+                    ToolCalling = true,
+                    Vision = true,
+                    ThoughtSignature = true,
+                    Streaming = true,
+                    Embeddings = true,
+                    Local = false
+                },
+                Auth = new ProviderAuth
+                {
+                    Mode = "api-key",
+                    EnvVars = new[] { "DASHSCOPE_API_KEY", "ALIBABA_API_KEY", "QWEN_API_KEY" }
+                },
+                CostScore = 0.2,
+                SupportedCategories = new[]
+                {
+                    RoutingCategory.QuickFix,
+                    RoutingCategory.DeepCode,
+                    RoutingCategory.Planner,
+                    RoutingCategory.Verifier,
+                    RoutingCategory.CheapUtility
+                },
+                ContextWindowSize = Claude4Net.Api.QwenProvider.DefaultContextWindowSize
+            });
+
+            Register(new ProviderDescriptor
+            {
+                Id = "alibaba",
+                Label = "Alibaba Cloud (阿里云 / Token Plan / Coding Plan)",
+                TransportKind = "openai-compat",
+                Endpoint = Claude4Net.Api.QwenProvider.DefaultEndpoint,
+                DefaultModels = new ProviderDefaultModels
+                {
+                    Small = Claude4Net.Api.QwenProvider.DefaultSmallModel,
+                    Large = Claude4Net.Api.QwenProvider.DefaultLargeModel
+                },
+                Capabilities = new ProviderCapabilities
+                {
+                    ToolCalling = true,
+                    Vision = true,
+                    ThoughtSignature = true,
+                    Streaming = true,
+                    Embeddings = true,
+                    Local = false
+                },
+                Auth = new ProviderAuth
+                {
+                    Mode = "api-key",
+                    EnvVars = new[] { "ALIBABA_API_KEY", "DASHSCOPE_API_KEY", "ALIBABA_TOKEN_PLAN_KEY", "QWEN_API_KEY" }
+                },
+                CostScore = 0.2,
+                SupportedCategories = new[]
+                {
+                    RoutingCategory.QuickFix,
+                    RoutingCategory.DeepCode,
+                    RoutingCategory.Planner,
+                    RoutingCategory.Verifier,
+                    RoutingCategory.CheapUtility
+                },
+                ContextWindowSize = Claude4Net.Api.QwenProvider.DefaultContextWindowSize
+            });
+
+            Register(new ProviderDescriptor
+            {
                 Id = "gemini-cli",
                 Label = "Gemini CLI (파기 - 오래된 버전, antigravity-cli 권장)",
                 TransportKind = "cli",

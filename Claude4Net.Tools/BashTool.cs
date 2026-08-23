@@ -61,8 +61,11 @@ namespace Claude4Net.Tools
             process.StartInfo.UseShellExecute = false;
             process.StartInfo.CreateNoWindow = true;
             
-            // 작업 디렉토리 설정: AppState에 설정된 CWD가 있으면 사용하고, 없으면 현재 디렉토리를 사용합니다.
-            process.StartInfo.WorkingDirectory = string.IsNullOrEmpty(AppState.CurrentCwd) ? Environment.CurrentDirectory : AppState.CurrentCwd;
+            // 작업 디렉토리 설정: AppState에 설정된 CWD가 존재하면 사용하고, 없으면 현재 디렉토리를 사용합니다.
+            string effectiveCwd = (!string.IsNullOrEmpty(AppState.CurrentCwd) && Directory.Exists(AppState.CurrentCwd))
+                ? AppState.CurrentCwd
+                : Environment.CurrentDirectory;
+            process.StartInfo.WorkingDirectory = effectiveCwd;
 
             process.Start();
             

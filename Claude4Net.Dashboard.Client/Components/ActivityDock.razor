@@ -1,0 +1,105 @@
+@using Microsoft.AspNetCore.Components.Routing
+@inject NavigationManager NavManager
+
+<aside class="activity-dock" aria-label="Main Navigation">
+    <div class="d-flex flex-column align-items-center w-100">
+        <!-- Logo -->
+        <a href="" class="dock-logo text-decoration-none" title="Claude4Net Control Center">
+            <i class="bi bi-triangle-fill" style="transform: rotate(180deg); font-size: 1.1rem; color: var(--neon-cyan);"></i>
+        </a>
+
+        <!-- Main Icon Navigation -->
+        <nav class="dock-nav">
+            <NavLink href="" Match="NavLinkMatch.All" class="dock-item" title="Dashboard (Overview)">
+                <i class="bi bi-grid-1x2-fill"></i>
+            </NavLink>
+
+            <NavLink href="calendar" class="dock-item" title="Token & Cost Calendar">
+                <i class="bi bi-calendar3"></i>
+            </NavLink>
+
+            <NavLink href="sessions" class="dock-item" title="Multi-Agent Sessions">
+                <i class="bi bi-robot"></i>
+            </NavLink>
+
+            <NavLink href="approvals" class="dock-item" title="Master Approvals (Tier 3)">
+                <i class="bi bi-shield-check"></i>
+                @if (ApprovalsBadgeCount > 0)
+                {
+                    <span class="dock-badge">@ApprovalsBadgeCount</span>
+                }
+            </NavLink>
+
+            <NavLink href="replay" class="dock-item" title="Checkpoint Replay">
+                <i class="bi bi-arrow-counterclockwise"></i>
+            </NavLink>
+
+            <NavLink href="skills" class="dock-item" title="Skills Registry">
+                <i class="bi bi-puzzle"></i>
+            </NavLink>
+
+            <NavLink href="usage" class="dock-item" title="Analytics & Telemetry">
+                <i class="bi bi-graph-up"></i>
+            </NavLink>
+
+            <NavLink href="providers" class="dock-item" title="Providers & Settings">
+                <i class="bi bi-gear"></i>
+            </NavLink>
+        </nav>
+    </div>
+
+    <!-- Bottom Terukirdo Avatar & Quick Mode -->
+    <div class="d-flex flex-column align-items-center w-100 position-relative">
+        <div class="dock-avatar" @onclick="ToggleModePopover" title="🎀 Terukirdo Protocol v5.4 (@CurrentMode)">
+            <span style="font-size: 0.95rem; font-weight: 700; color: #c4b5fd;">🎀</span>
+            <span class="dock-avatar-dot" title="Active State"></span>
+        </div>
+
+        @if (_showPopover)
+        {
+            <div class="position-absolute cyber-card p-2 text-start" style="left: 60px; bottom: 0; width: 220px; z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.8);">
+                <div class="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom border-secondary">
+                    <span class="small fw-bold text-light">🎀 Terukirdo Mode</span>
+                    <button type="button" class="btn-close btn-close-white" style="font-size: 0.65rem;" @onclick="ToggleModePopover"></button>
+                </div>
+                <div class="d-flex flex-column gap-1">
+                    <button class="btn btn-sm text-start py-1 px-2 @(CurrentMode == "Orchestrator" ? "btn-primary" : "btn-dark")" style="font-size: 0.78rem;" @onclick='() => ChangeMode("Orchestrator")'>
+                        <i class="bi bi-cpu me-1"></i> Orchestrator (Tier 2)
+                    </button>
+                    <button class="btn btn-sm text-start py-1 px-2 @(CurrentMode == "Companion" ? "btn-primary" : "btn-dark")" style="font-size: 0.78rem;" @onclick='() => ChangeMode("Companion")'>
+                        <i class="bi bi-chat-heart me-1"></i> Companion (Tier 0)
+                    </button>
+                    <button class="btn btn-sm text-start py-1 px-2 @(CurrentMode == "MaidSecretary" ? "btn-primary" : "btn-dark")" style="font-size: 0.78rem;" @onclick='() => ChangeMode("MaidSecretary")'>
+                        <i class="bi bi-card-checklist me-1"></i> Maid Secretary
+                    </button>
+                    <button class="btn btn-sm text-start py-1 px-2 @(CurrentMode == "FinalController" ? "btn-primary" : "btn-dark")" style="font-size: 0.78rem;" @onclick='() => ChangeMode("FinalController")'>
+                        <i class="bi bi-shield-lock me-1"></i> Final Controller
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+</aside>
+
+@code {
+    [Parameter] public int ApprovalsBadgeCount { get; set; } = 3;
+    [Parameter] public string CurrentMode { get; set; } = "Orchestrator";
+    [Parameter] public EventCallback<string> OnModeChanged { get; set; }
+
+    private bool _showPopover = false;
+
+    private void ToggleModePopover()
+    {
+        _showPopover = !_showPopover;
+    }
+
+    private async Task ChangeMode(string newMode)
+    {
+        CurrentMode = newMode;
+        _showPopover = false;
+        if (OnModeChanged.HasDelegate)
+        {
+            await OnModeChanged.InvokeAsync(newMode);
+        }
+    }
+}

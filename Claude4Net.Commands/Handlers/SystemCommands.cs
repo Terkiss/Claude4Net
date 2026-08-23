@@ -135,11 +135,46 @@ namespace Claude4Net.Commands.Handlers
         public static Task<string> HandleHelp(string a, IServiceProvider sp)
         {
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine("[bold cyan]Available Commands:[/]");
-            foreach(var c in CommandRegistry.GetCommands().OrderBy(x => x.Name))
+            sb.AppendLine("[bold cyan]═══════════════════════════════════════════════════════════════════════════════[/]");
+            sb.AppendLine("[bold cyan]                 🎀 Claude4Net CLI & 터미널 UI 사용 도움말                    [/]");
+            sb.AppendLine("[bold cyan]═══════════════════════════════════════════════════════════════════════════════[/]\n");
+
+            sb.AppendLine("[bold yellow]Available Commands (사용 가능한 슬래시/느낌표 명령어):[/]");
+            foreach (var c in CommandRegistry.GetCommands().OrderBy(x => x.Name))
             {
-                sb.AppendLine($"  [bold]/{c.Name.PadRight(10)}[/] - {Markup.Escape(c.Description)}");
+                sb.AppendLine($"  [bold green]/{c.Name.PadRight(14)}[/] - {Markup.Escape(c.Description)}");
             }
+
+            sb.AppendLine("\n[bold yellow]2. Lumen 인터랙티브 터미널 UI (기본 실행 모드):[/]");
+            sb.AppendLine("  • [bold white]실행 방법:[/] [green]Claude4Net.Cli.exe[/] (Lumen TUI가 기본값으로 자동 실행됩니다)");
+            sb.AppendLine("  • [bold white]주요 기능:[/] 실시간 상/하단 분할 뷰(대화 스크롤 영역 + 프롬프트 입력기), 실시간 사고(Thought) 셀, 인라인 보안 결재 팝업");
+            sb.AppendLine("  • [bold white]터미널 단축키:[/] ");
+            sb.AppendLine("    - [cyan]ESC[/]         : 현재 진행 중인 AI 생성 또는 도구 실행 작업 즉시 취소");
+            sb.AppendLine("    - [cyan]Ctrl + L[/]    : 터미널 콘솔 화면 지우기");
+            sb.AppendLine("    - [cyan]Ctrl + C[/]    : 현재 입력 중인 프롬프트 취소 및 초기화");
+            sb.AppendLine("    - [cyan]PgUp / PgDn[/] : 대화 및 도구 실행 히스토리 뷰포트 스크롤");
+            sb.AppendLine("    - [cyan]Up / Down[/]   : 이전 명령어 히스토리 탐색 및 멀티라인 커서 이동");
+
+            sb.AppendLine("\n[bold yellow]3. 레거시 클래식 CLI & 스크립트 자동화 모드 (--legacy-cli):[/]");
+            sb.AppendLine("  • [bold white]실행 방법:[/] [green]Claude4Net.Cli.exe --legacy-cli[/] (또는 파이프 표준 입력 연결 시)");
+            sb.AppendLine("  • [bold white]주요 기능:[/] 표준 순차 스트림 REPL (> 프롬프트), CI/CD 파이프라인 및 쉘 스크립트 연동 최적화");
+            sb.AppendLine("  • [bold white]전체 CLI 시작 플래그 및 옵션:[/] ");
+            sb.AppendLine("    - [cyan]--legacy-cli[/]              : 레거시 표준 스트림 REPL 모드로 실행");
+            sb.AppendLine("    - [cyan]--lumen[/]                   : Lumen 프레임 인터랙티브 TUI 모드로 실행 (기본값)");
+            sb.AppendLine("    - [cyan]--no-dashboard[/]            : 백그라운드 웹 관제 대시보드(http://localhost:5000) 비활성화");
+            sb.AppendLine("    - [cyan]--provider <이름>[/]         : 시작 LLM 프로바이더 지정 (qwen, alibaba, claude, gemini, ollama, glm 등)");
+            sb.AppendLine("    - [cyan]--model <이름>[/]            : 시작 LLM 모델 지정 (예: qwen3.8-max, qwen3.6-flash, claude-3-7-sonnet)");
+            sb.AppendLine("    - [cyan]--yolo[/]                    : YOLO 루트 권한 모드 활성화 (모든 보안 결재 검사 우회)");
+            sb.AppendLine("    - [cyan]--permission-mode <모드>[/]  : 권한 모드 설정 (ReadOnly, WorkspaceWrite, Prompt, Yolo)");
+            sb.AppendLine("    - [cyan]--api [on|off][/]            : 인프로세스 OpenAI 호환 API 서버 구동 (기본 포트: 7836)");
+            sb.AppendLine("    - [cyan]--api-port <포트>[/]         : API 서버 포트 번호 지정");
+            sb.AppendLine("    - [cyan]--api-key-env <환경변수명>[/]: API 서버 인증 토큰이 담긴 환경 변수 이름 지정");
+            sb.AppendLine("    - [cyan]--api-timeout <초>[/]        : API 서버 요청 타임아웃 지정 (기본값: 600초)");
+            sb.AppendLine("    - [cyan]--setworkspace <경로>[/]     : 시작 프로젝트 루트 작업 공간 경로 지정");
+            sb.AppendLine("    - [cyan]doctor [json][/]             : 전체 시스템, 프로바이더 및 환경 상태 진단 실행");
+            sb.AppendLine("    - [cyan]--smoke-exit[/]              : 스모크 시작 점검만 수행 후 즉시 종료");
+
+            sb.AppendLine("\n[bold cyan]═══════════════════════════════════════════════════════════════════════════════[/]");
             return Task.FromResult(sb.ToString());
         }
 

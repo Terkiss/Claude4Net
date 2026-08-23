@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 using Claude4Net.Commands;
 using Claude4Net.Runtime;
 using Claude4Net.SDK;
 using Claude4Net.SDK.Events;
+using Claude4Net.SDK.Telemetry;
+using Claude4Net.Runtime.Telemetry;
 using Claude4Net.Dashboard.Client.Models;
 using System.Threading.Tasks;
 using System.Collections.Generic;
@@ -918,54 +920,76 @@ public class ControlPlaneHub : Hub
 
     public async Task<List<AgentSessionRecordDto>> GetSessions()
     {
+        var result = new List<AgentSessionRecordDto>();
         try
         {
+            // 1. Claude4Net Local Sessions
             string ws = GetWorkspaceRoot();
             string sessionBaseDir = Path.Combine(ws, ".claude4net", "sessions");
-            if (!Directory.Exists(sessionBaseDir))
+            if (Directory.Exists(sessionBaseDir))
             {
-                return new List<AgentSessionRecordDto>();
+                var dirs = Directory.GetDirectories(sessionBaseDir);
+                foreach (var dir in dirs)
+                {
+                    string sessionId = Path.GetFileName(dir);
+                    if (sessionId.Contains("..") || sessionId.Contains("/") || sessionId.Contains("\\") || sessionId.Contains(":"))
+                        continue;
+
+                    if (result.Any(r => r.SessionId == sessionId)) continue;
+
+                    var record = await AgentSessionStore.LoadSessionRecordAsync(ws, sessionId);
+                    if (record != null)
+                    {
+                        result.Add(new AgentSessionRecordDto
+                        {
+                            SessionId = record.SessionId,
+                            StartTime = record.StartTime,
+                            Provider = record.Provider,
+                            Model = record.Model,
+                            PermissionMode = record.PermissionMode.ToString(),
+                            WorkspacePath = record.WorkspacePath,
+                            Status = record.Status,
+                            Metadata = record.Metadata ?? new Dictionary<string, string>()
+                        });
+                    }
+                }
             }
 
-            var dirs = Directory.GetDirectories(sessionBaseDir);
-            var result = new List<AgentSessionRecordDto>();
-            foreach (var dir in dirs)
+            // 2. Antigravity Brain Sessions from .gemini (only when running in main app workspace)
+            if (Directory.Exists(sessionBaseDir) && result.Count > 0)
             {
-                string sessionId = Path.GetFileName(dir);
-                // Validate sessionId path traversal
-                if (sessionId.Contains("..") || sessionId.Contains("/") || sessionId.Contains("\\") || sessionId.Contains(":"))
+                string geminiHome = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".gemini");
+                var searchPaths = new[]
                 {
-                    continue;
-                }
+                    Path.Combine(geminiHome, "antigravity-cli", "brain"),
+                    Path.Combine(geminiHome, "antigravity", "brain")
+                };
 
-                var record = await AgentSessionStore.LoadSessionRecordAsync(ws, sessionId);
-                if (record != null)
+                foreach (var brainDir in searchPaths)
                 {
-                    result.Add(new AgentSessionRecordDto
+                    if (!Directory.Exists(brainDir)) continue;
+
+                    var brainDirs = Directory.GetDirectories(brainDir);
+                    foreach (var dir in brainDirs.Take(40))
                     {
-                        SessionId = record.SessionId,
-                        StartTime = record.StartTime,
-                        Provider = record.Provider,
-                        Model = record.Model,
-                        PermissionMode = record.PermissionMode.ToString(),
-                        WorkspacePath = record.WorkspacePath,
-                        Status = record.Status,
-                        Metadata = record.Metadata ?? new Dictionary<string, string>()
-                    });
-                }
-                else
-                {
-                    result.Add(new AgentSessionRecordDto
-                    {
-                        SessionId = sessionId,
-                        StartTime = Directory.GetCreationTime(dir),
-                        Provider = "Unknown",
-                        Model = "Unknown",
-                        PermissionMode = "Unknown",
-                        WorkspacePath = ws,
-                        Status = "Inactive",
-                        Metadata = new Dictionary<string, string>()
-                    });
+                        string sessId = Path.GetFileName(dir);
+                        if (sessId.StartsWith(".")) continue;
+                        if (result.Any(r => r.SessionId == sessId)) continue;
+
+                        DateTime lastTime = Directory.GetLastWriteTimeUtc(dir);
+
+                        result.Add(new AgentSessionRecordDto
+                        {
+                            SessionId = sessId,
+                            StartTime = lastTime,
+                            Provider = "Antigravity",
+                            Model = "Antigravity DeepCoder 2.0",
+                            PermissionMode = "Autonomous",
+                            WorkspacePath = ws,
+                            Status = "Completed",
+                            Metadata = new Dictionary<string, string> { ["Source"] = "Antigravity Brain", ["Path"] = dir }
+                        });
+                    }
                 }
             }
 
@@ -973,7 +997,7 @@ public class ControlPlaneHub : Hub
         }
         catch (Exception)
         {
-            return new List<AgentSessionRecordDto>();
+            return result;
         }
     }
 
@@ -992,19 +1016,77 @@ public class ControlPlaneHub : Hub
             var events = await eventStore.GetEventsAsync(sessionId, 0);
 
             var result = new List<ReplayEventDto>();
-            foreach (var ev in events.OrderBy(e => e.Version))
+            if (events != null && events.Any())
             {
-                string summary = GetEventSummary(ev);
-                string payloadJson = System.Text.Json.JsonSerializer.Serialize(ev, ev.GetType(), new System.Text.Json.JsonSerializerOptions { WriteIndented = false });
-
-                result.Add(new ReplayEventDto
+                foreach (var ev in events.OrderBy(e => e.Version))
                 {
-                    EventType = ev.EventType,
-                    Version = ev.Version,
-                    Timestamp = ev.Timestamp,
-                    Summary = summary,
-                    PayloadJson = payloadJson
-                });
+                    string summary = GetEventSummary(ev);
+                    string payloadJson = System.Text.Json.JsonSerializer.Serialize(ev, ev.GetType(), new System.Text.Json.JsonSerializerOptions { WriteIndented = false });
+
+                    result.Add(new ReplayEventDto
+                    {
+                        EventType = ev.EventType,
+                        Version = ev.Version,
+                        Timestamp = ev.Timestamp,
+                        Summary = summary,
+                        PayloadJson = payloadJson
+                    });
+                }
+                return result;
+            }
+
+            // Fallback: Check Gemini Brain transcript.jsonl
+            string geminiHome = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".gemini");
+            string[] possibleTranscriptPaths = new[]
+            {
+                Path.Combine(geminiHome, "antigravity-cli", "brain", sessionId, ".system_generated", "logs", "transcript.jsonl"),
+                Path.Combine(geminiHome, "antigravity", "brain", sessionId, ".system_generated", "logs", "transcript.jsonl")
+            };
+
+            foreach (var transcriptPath in possibleTranscriptPaths)
+            {
+                if (File.Exists(transcriptPath))
+                {
+                    var lines = await File.ReadAllLinesAsync(transcriptPath);
+                    int ver = 1;
+                    foreach (var line in lines)
+                    {
+                        if (string.IsNullOrWhiteSpace(line)) continue;
+                        try
+                        {
+                            using var doc = System.Text.Json.JsonDocument.Parse(line);
+                            var root = doc.RootElement;
+                            string? type = root.TryGetProperty("type", out var t) ? t.GetString() : "Event";
+                            string? content = root.TryGetProperty("content", out var c) ? c.GetString() : "";
+                            string? createdAtStr = root.TryGetProperty("created_at", out var ca) ? ca.GetString() : null;
+                            DateTime dt = DateTime.TryParse(createdAtStr, out var parsed) ? parsed : DateTime.UtcNow;
+
+                            string evType = type switch
+                            {
+                                "USER_INPUT" => "UserPromptReceivedEvent",
+                                "PLANNER_RESPONSE" => "AgentThoughtEvent",
+                                "CODE_ACTION" => "ToolCalledEvent",
+                                "TOOL_RESULT" => "ToolResultEvent",
+                                _ => type ?? "AgentEvent"
+                            };
+
+                            string summary = string.IsNullOrEmpty(content)
+                                ? $"[{evType}] Step {ver}"
+                                : (content.Length > 90 ? content.Substring(0, 90) + "..." : content);
+
+                            result.Add(new ReplayEventDto
+                            {
+                                EventType = evType,
+                                Version = ver++,
+                                Timestamp = dt,
+                                Summary = summary.Replace("\n", " "),
+                                PayloadJson = line
+                            });
+                        }
+                        catch { }
+                    }
+                    if (result.Any()) return result;
+                }
             }
 
             return result;
@@ -1069,6 +1151,71 @@ public class ControlPlaneHub : Hub
         {
             return new ReconstructedStateDto();
         }
+    }
+
+    public async Task<List<CalendarHeatmapTileDto>> GetCalendarHeatmap(int days = 90)
+    {
+        var engine = TeruTeruPandasTelemetryEngine.Shared;
+        return await engine.GetCalendarHeatmapAsync(days);
+    }
+
+    public async Task<List<CalendarHeatmapTileDto>> GetMonthUsage(int year, int month)
+    {
+        var engine = TeruTeruPandasTelemetryEngine.Shared;
+        return await engine.GetMonthUsageAsync(year, month);
+    }
+
+    public async Task<List<HourlyUsageBucketDto>> GetHourlyDrilldown(string dateIso)
+    {
+        var engine = TeruTeruPandasTelemetryEngine.Shared;
+        DateTime dt = DateTime.TryParse(dateIso, out var parsed) ? parsed : DateTime.UtcNow;
+        return await engine.GetHourlyDrilldownAsync(dt);
+    }
+
+    public async Task<List<ProjectUsageShareDto>> GetProjectShares()
+    {
+        var engine = TeruTeruPandasTelemetryEngine.Shared;
+        return await engine.GetProjectSharesAsync();
+    }
+
+    public async Task<List<RequestTraceSpanDto>> GetRecentTraces(int count = 10)
+    {
+        var engine = TeruTeruPandasTelemetryEngine.Shared;
+        return await engine.GetRecentTracesAsync(count);
+    }
+
+    public async Task<LiveTelemetryTickDto> GetLiveTelemetryTick()
+    {
+        var engine = TeruTeruPandasTelemetryEngine.Shared;
+        return await engine.GetLiveTickAsync();
+    }
+
+    public async Task<List<MasterApprovalItemDto>> GetPendingApprovals()
+    {
+        var engine = TeruTeruPandasTelemetryEngine.Shared;
+        return await engine.GetPendingApprovalsAsync();
+    }
+
+    public async Task<bool> ApproveTask(string taskId)
+    {
+        var engine = TeruTeruPandasTelemetryEngine.Shared;
+        bool result = await engine.ApproveTaskAsync(taskId);
+        if (result && Claude4Net.Runtime.CliUserApprovalHandler.PendingApproval != null && Claude4Net.Runtime.CliUserApprovalHandler.CurrentTaskId == taskId)
+        {
+            Claude4Net.Runtime.CliUserApprovalHandler.PendingApproval.TrySetResult("y");
+        }
+        return result;
+    }
+
+    public async Task<bool> RejectTask(string taskId, string reason = "Rejected by Master")
+    {
+        var engine = TeruTeruPandasTelemetryEngine.Shared;
+        bool result = await engine.RejectTaskAsync(taskId, reason);
+        if (result && Claude4Net.Runtime.CliUserApprovalHandler.PendingApproval != null && Claude4Net.Runtime.CliUserApprovalHandler.CurrentTaskId == taskId)
+        {
+            Claude4Net.Runtime.CliUserApprovalHandler.PendingApproval.TrySetResult("n");
+        }
+        return result;
     }
 }
 

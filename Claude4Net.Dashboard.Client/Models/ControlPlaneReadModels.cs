@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace Claude4Net.Dashboard.Client.Models
@@ -235,5 +235,27 @@ namespace Claude4Net.Dashboard.Client.Models
         public List<string> HistoryJson { get; set; } = new();
         public string CurrentTask { get; set; } = string.Empty;
         public long LastVersion { get; set; }
+    }
+
+    public class UsageReadModelDto
+    {
+        public string SessionId { get; set; } = string.Empty;
+        public int TotalCalls { get; set; }
+        public int TotalInputTokens { get; set; }
+        public int TotalOutputTokens { get; set; }
+        public double TotalCost { get; set; }
+        public double LatencyEma { get; set; }
+        public List<ModelUsageMetricDto> ModelMetrics { get; set; } = new();
+    }
+
+    public class ModelUsageMetricDto
+    {
+        public string Provider { get; set; } = string.Empty;
+        public string Model { get; set; } = string.Empty;
+        public int Calls { get; set; }
+        public int InputTokens { get; set; }
+        public int OutputTokens { get; set; }
+        public double Cost { get; set; }
+        public double LatencyEma { get; set; }
     }
 }

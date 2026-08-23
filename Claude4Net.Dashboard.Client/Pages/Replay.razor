@@ -1,4 +1,5 @@
-﻿@page "/replay"
+@page "/replay"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.SignalR.Client
 @using Claude4Net.Dashboard.Client.Models
 @using System.Text.Json
@@ -7,85 +8,84 @@
 
 <PageTitle>Time-Travel Session Replay</PageTitle>
 
-<div class="container-fluid mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-3 px-3">
-        <h3><i class="bi bi-clock-history text-info"></i> Time-Travel Replay</h3>
-        <div class="d-flex gap-2 align-items-center">
-            <div class="input-group" style="max-width: 400px;">
-                <span class="input-group-text">Session ID</span>
-                <input type="text" class="form-control" @bind="targetSessionId" placeholder="Enter Session ID" />
+<div class="container-fluid p-0">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="fw-bold text-light mb-0"><i class="bi bi-clock-history text-info me-2"></i> Time-Travel Session Replay</h4>
+            <small class="text-muted font-monospace">Event Sourcing State Reconstruction & Action Step Player</small>
+        </div>
+        <div class="d-flex gap-2 align-items-center mt-2 mt-sm-0">
+            <div class="input-group input-group-sm" style="max-width: 320px;">
+                <span class="input-group-text bg-dark border-secondary border-opacity-50 text-muted font-monospace">Session ID</span>
+                <input type="text" class="form-control bg-dark border-secondary border-opacity-50 text-light font-monospace" @bind="targetSessionId" placeholder="sess-..." />
             </div>
-            <button class="btn btn-primary" @onclick="() => LoadSession(targetSessionId)" disabled="@(isLoading || string.IsNullOrWhiteSpace(targetSessionId))">
-                <i class="bi bi-arrow-right-short"></i> Load
+            <button class="btn btn-sm btn-primary font-monospace px-3" @onclick="() => LoadSession(targetSessionId)" disabled="@(isLoading || string.IsNullOrWhiteSpace(targetSessionId))">
+                <i class="bi bi-arrow-right-short me-1"></i> Load
             </button>
         </div>
     </div>
 
     @if (!string.IsNullOrEmpty(errorMessage))
     {
-        <div class="alert alert-danger mx-3" role="alert">
-            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+        <div class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> @errorMessage
         </div>
     }
 
     @if (isLoading)
     {
-        <div class="d-flex justify-content-center my-5">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading events...</span>
-            </div>
+        <div class="cyber-card p-5 text-center">
+            <div class="spinner-border text-info mb-3" role="status"></div>
+            <div class="text-muted small">Loading event stream and reconstructing checkpoints...</div>
         </div>
     }
     else if (events == null || events.Count == 0)
     {
-        @if (!string.IsNullOrEmpty(currentSessionId))
-        {
-            <div class="alert alert-info mx-3">
-                No events found for session: <code>@currentSessionId</code>. Make sure the session has executed steps.
-            </div>
-        }
-        else
-        {
-            <div class="alert alert-info mx-3">
-                Please enter a Session ID above or select one from the <a href="sessions">Sessions Observatory</a> to begin.
-            </div>
-        }
+        <div class="cyber-card p-5 text-center">
+            <i class="bi bi-play-circle text-secondary mb-3" style="font-size: 2.5rem;"></i>
+            <h5 class="text-light fw-bold">Time-Travel Player Ready</h5>
+            <p class="text-muted small mb-0">Select a session from the <a href="sessions" class="text-info text-decoration-none">Sessions Observatory</a> or enter a Session ID above to replay execution history.</p>
+        </div>
     }
     else
     {
         <!-- Slider Panel -->
-        <div class="card shadow-sm border-0 mb-4 mx-3">
-            <div class="card-body bg-light rounded">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="fw-bold">Time-Travel Slider</span>
-                    <span class="badge bg-dark font-monospace" style="font-size: 0.95rem;">
-                        Step @currentStep / @events.Count
-                    </span>
+        <div class="cyber-card p-3 mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-sliders text-cyan" style="color: var(--neon-cyan);"></i>
+                    <span class="fw-bold text-light small">Time-Travel Scrubber</span>
                 </div>
+                <span class="badge badge-neon-cyan font-monospace" style="font-size: 0.85rem;">
+                    Step @currentStep / @events.Count
+                </span>
+            </div>
 
-                <input type="range" class="form-range" min="0" max="@events.Count" @bind-value="CurrentStep" @bind-value:event="oninput" style="height: 1.5rem;" />
+            <input type="range" class="form-range" min="0" max="@events.Count" @bind-value="CurrentStep" @bind-value:event="oninput" style="height: 1.25rem;" />
 
-                <div class="d-flex justify-content-between small text-muted font-monospace mt-1">
-                    <span>Step 0 (Initial)</span>
-                    <span>Step @events.Count (Latest)</span>
-                </div>
+            <div class="d-flex justify-content-between small text-muted font-monospace mt-1">
+                <span>Step 0 (Initial Baseline)</span>
+                <span>Step @events.Count (Latest State)</span>
             </div>
         </div>
 
-        <div class="row mx-1">
+        <div class="row g-3">
             <!-- Left Side: Event Timeline -->
-            <div class="col-md-5 mb-4">
-                <div class="card shadow-sm border-0 h-100" style="max-height: 700px; display: flex; flex-direction: column;">
-                    <div class="card-header bg-white border-bottom py-3">
-                        <h6 class="mb-0 fw-bold"><i class="bi bi-list-ol me-2 text-primary"></i>Event Timeline</h6>
+            <div class="col-12 col-xl-5">
+                <div class="cyber-card h-100 d-flex flex-column" style="max-height: 650px;">
+                    <div class="cyber-card-header">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-list-ol text-primary"></i>
+                            <span>Event Stream Timeline (@events.Count events)</span>
+                        </div>
                     </div>
-                    <div class="card-body p-0 overflow-auto" style="flex: 1;">
-                        <div class="list-group list-group-flush">
-                            <button type="button" class="list-group-item list-group-item-action p-3 @(currentStep == 0 ? "active text-white" : "")" @onclick="() => UpdateStep(0)">
+                    <div class="p-0 overflow-auto flex-grow-1">
+                        <div class="list-group list-group-flush" style="background: transparent;">
+                            <button type="button" class="list-group-item list-group-item-action p-3 border-secondary border-opacity-10 @(currentStep == 0 ? "bg-primary bg-opacity-25 text-white" : "bg-transparent text-muted")" @onclick="() => UpdateStep(0)">
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <span class="fw-bold small">0. Session Start Baseline</span>
+                                    <span class="fw-bold small text-light">0. Session Start Baseline</span>
                                 </div>
-                                <small class="d-block opacity-75">No events applied yet.</small>
+                                <small class="d-block text-secondary">Initial workspace baseline snapshot.</small>
                             </button>
 
                             @for (int i = 0; i < events.Count; i++)
@@ -93,15 +93,14 @@
                                 var index = i + 1;
                                 var ev = events[i];
                                 var isCurrent = currentStep == index;
-                                var isPast = index <= currentStep;
 
-                                <button type="button" class="list-group-item list-group-item-action p-3 @(isCurrent ? "active text-white" : "")" @onclick="() => UpdateStep(index)">
+                                <button type="button" class="list-group-item list-group-item-action p-3 border-secondary border-opacity-10 @(isCurrent ? "bg-info bg-opacity-20 text-white" : "bg-transparent text-muted")" @onclick="() => UpdateStep(index)">
                                     <div class="d-flex justify-content-between align-items-center">
-                                        <span class="fw-bold small @(isCurrent ? "text-white" : "text-dark")">@index. @ev.EventType</span>
-                                        <span class="badge @(isCurrent ? "bg-light text-dark" : "bg-secondary") font-monospace">v@ev.Version</span>
+                                        <span class="fw-bold small @(isCurrent ? "text-cyan" : "text-light") font-monospace">@index. @ev.EventType</span>
+                                        <span class="badge bg-dark border border-secondary border-opacity-50 text-muted font-monospace">v@ev.Version</span>
                                     </div>
-                                    <small class="d-block mt-1 @(isCurrent ? "text-light" : "text-muted")">@ev.Summary</small>
-                                    <small class="d-block font-monospace @(isCurrent ? "text-light" : "text-secondary")" style="font-size: 0.75rem;">
+                                    <small class="d-block mt-1 @(isCurrent ? "text-light" : "text-secondary")">@ev.Summary</small>
+                                    <small class="d-block font-monospace text-dim" style="font-size: 0.72rem;">
                                         @ev.Timestamp.ToLocalTime().ToString("HH:mm:ss.fff")
                                     </small>
                                 </button>
@@ -112,16 +111,19 @@
             </div>
 
             <!-- Right Side: State Reconstruction -->
-            <div class="col-md-7 mb-4">
-                <div class="card shadow-sm border-0 h-100" style="max-height: 700px; display: flex; flex-direction: column;">
-                    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0 fw-bold"><i class="bi bi-box-seam me-2 text-success"></i>State Reconstruction Snapshot</h6>
+            <div class="col-12 col-xl-7">
+                <div class="cyber-card h-100 d-flex flex-column" style="max-height: 650px;">
+                    <div class="cyber-card-header">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-box-seam text-success"></i>
+                            <span>State Reconstruction Snapshot</span>
+                        </div>
                         @if (reconstructedState != null)
                         {
-                            <span class="badge bg-success font-monospace">Version: @reconstructedState.LastVersion</span>
+                            <span class="badge badge-neon-emerald font-monospace">Version: @reconstructedState.LastVersion</span>
                         }
                     </div>
-                    <div class="card-body overflow-auto p-4" style="flex: 1; background-color: #fcfcfc;">
+                    <div class="p-3 overflow-auto flex-grow-1" style="background: rgba(9, 12, 18, 0.75);">
                         @if (reconstructedState == null)
                         {
                             <div class="text-center text-muted py-5">
@@ -131,9 +133,9 @@
                         }
                         else
                         {
-                            <div class="mb-4">
-                                <span class="text-muted small uppercase font-monospace d-block">Current Task</span>
-                                <div class="p-3 bg-light border rounded fw-bold text-dark">
+                            <div class="mb-3">
+                                <span class="text-muted small uppercase font-monospace d-block mb-1">Active Task</span>
+                                <div class="p-2 rounded font-monospace small text-light" style="background: #111827; border: 1px solid rgba(255,255,255,0.08);">
                                     @(string.IsNullOrWhiteSpace(reconstructedState.CurrentTask) ? "(No Active Task)" : reconstructedState.CurrentTask)
                                 </div>
                             </div>
@@ -142,13 +144,13 @@
 
                             @if (reconstructedState.HistoryJson == null || reconstructedState.HistoryJson.Count == 0)
                             {
-                                <div class="text-center text-muted p-4 border border-dashed rounded bg-white">
+                                <div class="text-center text-muted p-4 border border-secondary border-opacity-25 rounded" style="background: #111827;">
                                     No history messages recorded up to this point.
                                 </div>
                             }
                             else
                             {
-                                <div class="d-flex flex-column gap-3">
+                                <div class="d-flex flex-column gap-2">
                                     @foreach (var historyStr in reconstructedState.HistoryJson)
                                     {
                                         var messageElement = ParseJson(historyStr);
@@ -158,30 +160,11 @@
                                         @if (role.Equals("user", StringComparison.OrdinalIgnoreCase))
                                         {
                                             <div class="d-flex flex-column align-items-start">
-                                                <div class="badge bg-primary mb-1">User</div>
-                                                <div class="p-3 bg-primary bg-opacity-10 border border-primary border-opacity-25 rounded-3 w-100 text-dark">
+                                                <span class="badge bg-primary mb-1">User Prompt</span>
+                                                <div class="p-2 rounded w-100 text-light small" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3);">
                                                     @if (contentElement.ValueKind == JsonValueKind.String)
                                                     {
                                                         <span style="white-space: pre-wrap;">@contentElement.GetString()</span>
-                                                    }
-                                                    else if (contentElement.ValueKind == JsonValueKind.Array)
-                                                    {
-                                                        @foreach (var item in contentElement.EnumerateArray())
-                                                        {
-                                                            var itemType = GetProperty(item, "type");
-                                                            @if (itemType.Equals("tool_result", StringComparison.OrdinalIgnoreCase))
-                                                            {
-                                                                <div class="mt-2 border-top pt-2">
-                                                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                                                        <span class="fw-bold text-info"><i class="bi bi-terminal"></i> Tool Result: @GetProperty(item, "tool_use_id")</span>
-                                                                        <span class="badge @(item.GetProperty("is_error").GetBoolean() ? "bg-danger" : "bg-success")">
-                                                                            @(item.GetProperty("is_error").GetBoolean() ? "Error" : "Success")
-                                                                        </span>
-                                                                    </div>
-                                                                    <pre class="bg-dark text-white p-2 rounded mb-0" style="font-size: 0.85rem; max-height: 200px; overflow-y: auto;"><code>@GetProperty(item, "content")</code></pre>
-                                                                </div>
-                                                            }
-                                                        }
                                                     }
                                                 </div>
                                             </div>
@@ -189,8 +172,8 @@
                                         else if (role.Equals("assistant", StringComparison.OrdinalIgnoreCase))
                                         {
                                             <div class="d-flex flex-column align-items-end">
-                                                <div class="badge bg-success mb-1">Assistant</div>
-                                                <div class="p-3 bg-success bg-opacity-10 border border-success border-opacity-25 rounded-3 w-100 text-dark">
+                                                <span class="badge badge-neon-emerald mb-1">Assistant Turn</span>
+                                                <div class="p-2 rounded w-100 text-light small" style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3);">
                                                     <span style="white-space: pre-wrap;">@contentElement.GetString()</span>
                                                 </div>
                                             </div>
@@ -207,18 +190,17 @@
 </div>
 
 @code {
-    [Parameter]
     [SupplyParameterFromQuery]
     public string? SessionId { get; set; }
 
     private HubConnection? hubConnection;
+    private string targetSessionId = string.Empty;
+    private string currentSessionId = string.Empty;
     private List<ReplayEventDto> events = new();
     private ReconstructedStateDto? reconstructedState;
     private int currentStep = 0;
-    private string targetSessionId = string.Empty;
-    private string currentSessionId = string.Empty;
     private bool isLoading = false;
-    private string? errorMessage;
+    private string errorMessage = string.Empty;
 
     public int CurrentStep
     {
@@ -228,112 +210,105 @@
             if (currentStep != value)
             {
                 currentStep = value;
-                _ = ReconstructStateForStep(currentStep);
+                _ = UpdateStep(value);
             }
         }
     }
 
     protected override async Task OnInitializedAsync()
     {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/controlPlaneHub"))
+            .WithAutomaticReconnect()
+            .Build();
+
         try
         {
-            hubConnection = new HubConnectionBuilder()
-                .WithUrl(NavigationManager.ToAbsoluteUri("/controlPlaneHub"))
-                .WithAutomaticReconnect()
-                .Build();
-
             await hubConnection.StartAsync();
-
-            if (!string.IsNullOrEmpty(SessionId))
-            {
-                targetSessionId = SessionId;
-                await LoadSession(SessionId);
-            }
         }
         catch (Exception ex)
         {
-            errorMessage = $"Failed to connect to control plane: {ex.Message}";
+            errorMessage = $"Connection error: {ex.Message}";
         }
-    }
 
-    protected override async Task OnParametersSetAsync()
-    {
-        // Handle URL parameter update during navigation
-        if (!string.IsNullOrEmpty(SessionId) && SessionId != currentSessionId && hubConnection?.State == HubConnectionState.Connected)
+        if (!string.IsNullOrWhiteSpace(SessionId))
         {
             targetSessionId = SessionId;
             await LoadSession(SessionId);
         }
     }
 
-    private async Task LoadSession(string sessionId)
+    private async Task LoadSession(string sId)
     {
+        if (hubConnection is null || hubConnection.State != HubConnectionState.Connected)
+        {
+            return;
+        }
+
         isLoading = true;
-        errorMessage = null;
-        currentStep = 0;
-        reconstructedState = null;
-        events.Clear();
-        currentSessionId = sessionId;
-        StateHasChanged();
+        errorMessage = string.Empty;
+        currentSessionId = sId;
 
         try
         {
-            if (hubConnection is not null)
+            var result = await hubConnection.InvokeAsync<List<ReplayEventDto>>("GetSessionEvents", sId);
+            events = result ?? new List<ReplayEventDto>();
+
+            currentStep = events.Count;
+            if (events.Count > 0)
             {
-                events = await hubConnection.InvokeAsync<List<ReplayEventDto>>("GetSessionEvents", sessionId);
-                if (events.Count > 0)
-                {
-                    currentStep = events.Count;
-                    await ReconstructStateForStep(currentStep);
-                }
+                await UpdateStep(currentStep);
             }
             else
             {
-                errorMessage = "Hub connection is not established.";
+                reconstructedState = null;
             }
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error loading session events: {ex.Message}";
+            errorMessage = $"Failed to load events for session {sId}: {ex.Message}";
         }
         finally
         {
             isLoading = false;
-            StateHasChanged();
+            await InvokeAsync(StateHasChanged);
         }
     }
 
-    private void UpdateStep(int step)
+    private async Task UpdateStep(int step)
     {
-        CurrentStep = step;
-    }
+        currentStep = step;
+        if (hubConnection is null || hubConnection.State != HubConnectionState.Connected || string.IsNullOrEmpty(currentSessionId))
+        {
+            return;
+        }
 
-    private async Task ReconstructStateForStep(int step)
-    {
         try
         {
-            if (hubConnection is not null && !string.IsNullOrEmpty(currentSessionId))
-            {
-                reconstructedState = await hubConnection.InvokeAsync<ReconstructedStateDto>("ReconstructState", currentSessionId, step);
-                StateHasChanged();
-            }
+            reconstructedState = await hubConnection.InvokeAsync<ReconstructedStateDto>("ReplaySessionUpToVersion", currentSessionId, step);
+            await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error reconstructing state: {ex.Message}";
-            StateHasChanged();
+            errorMessage = $"Failed to replay to step {step}: {ex.Message}";
         }
     }
 
     private JsonElement ParseJson(string json)
     {
-        using var doc = JsonDocument.Parse(json);
-        return doc.RootElement.Clone();
+        try
+        {
+            return JsonDocument.Parse(json).RootElement;
+        }
+        catch
+        {
+            return JsonDocument.Parse("{}").RootElement;
+        }
     }
 
     private string GetProperty(JsonElement element, string propName)
     {
-        if (element.TryGetProperty(propName, out var prop))
+        if (element.ValueKind == JsonValueKind.Object && element.TryGetProperty(propName, out var prop))
         {
             return prop.GetString() ?? string.Empty;
         }
@@ -342,7 +317,6 @@
 
     public async ValueTask DisposeAsync()
     {
-        // Clean up connection to prevent memory leaks
         if (hubConnection is not null)
         {
             await hubConnection.DisposeAsync();

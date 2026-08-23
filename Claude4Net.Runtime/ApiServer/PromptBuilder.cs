@@ -49,7 +49,8 @@ namespace Claude4Net.Runtime.ApiServer
                     if (tool.Function.Parameters != null)
                         sb.AppendLine($"  Parameters: {JsonSerializer.Serialize(tool.Function.Parameters, JsonOptions)}");
                 }
-                sb.AppendLine("To invoke a tool, output: " + GetToolInvocationFormat() + "\n");
+                sb.AppendLine("To invoke a tool, output: " + GetToolInvocationFormat());
+                sb.AppendLine("[CRITICAL RULE]: When an action (e.g. command execution, build, test, file edit, investigation) is required, you MUST emit the <invoke> tool call directly. NEVER output text claiming you are waiting for background results or that a task was initiated without invoking the actual tool.\n");
             }
 
             if (messages.Count == 1 && (tools == null || tools.Count == 0) && responseFormat == null)

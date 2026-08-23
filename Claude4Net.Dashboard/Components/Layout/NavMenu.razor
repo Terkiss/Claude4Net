@@ -1,35 +1,74 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">Claude4Net.Dashboard</a>
+<div class="sidebar-cyber h-100 d-flex flex-column">
+    <!-- Brand Header -->
+    <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex align-items-center gap-2">
+        <div class="p-2 rounded-3 bg-gradient d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, #00f0ff, #8b5cf6); width: 34px; height: 34px;">
+            <i class="bi bi-cpu-fill text-dark fs-5"></i>
+        </div>
+        <div>
+            <span class="fw-bold tracking-wide" style="font-size: 1.05rem; letter-spacing: 0.05em; background: linear-gradient(90deg, #ffffff, #00f0ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Claude4Net</span>
+            <small class="d-block text-secondary font-monospace" style="font-size: 0.65rem;">CONTROL CENTER v10.0</small>
+        </div>
     </div>
-</div>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
-
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Thought Stream
+    <!-- Navigation Links -->
+    <div class="nav-scrollable flex-grow-1 py-3 overflow-auto">
+        <nav class="nav flex-column">
+            <NavLink class="nav-link-cyber" href="" Match="NavLinkMatch.All">
+                <i class="bi bi-grid-1x2-fill text-info"></i> Dashboard
             </NavLink>
-        </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="approvals">
-                <span class="bi bi-shield-check-nav-menu" aria-hidden="true"></span> Approvals
+            <NavLink class="nav-link-cyber" href="calendar">
+                <i class="bi bi-calendar3 text-cyan" style="color: var(--neon-cyan);"></i> Token Calendar
             </NavLink>
-        </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="sessions">
-                <span class="bi bi-cpu-fill" aria-hidden="true"></span> Sessions
+            <NavLink class="nav-link-cyber" href="sessions">
+                <i class="bi bi-robot text-primary"></i> Multi-Agent Sessions
             </NavLink>
-        </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="replay">
-                <span class="bi bi-clock-history" aria-hidden="true"></span> Replay
+            <NavLink class="nav-link-cyber" href="approvals">
+                <div class="d-flex align-items-center justify-content-between w-100">
+                    <div><i class="bi bi-shield-check text-warning"></i> Approvals</div>
+                    <span class="badge bg-danger px-2 py-0" style="font-size: 0.65rem;">3</span>
+                </div>
             </NavLink>
+
+            <NavLink class="nav-link-cyber" href="checkpoints">
+                <i class="bi bi-bookmark-check-fill text-success"></i> Checkpoints
+            </NavLink>
+
+            <NavLink class="nav-link-cyber" href="replay">
+                <i class="bi bi-arrow-counterclockwise text-cyan" style="color: #00f0ff;"></i> Trajectory Replay
+            </NavLink>
+
+            <div class="my-2 border-top border-secondary border-opacity-25 mx-3"></div>
+
+            <NavLink class="nav-link-cyber" href="usage">
+                <i class="bi bi-bar-chart-line-fill text-danger"></i> Token Usage
+            </NavLink>
+
+            <NavLink class="nav-link-cyber" href="providers">
+                <i class="bi bi-diagram-3-fill text-primary"></i> Providers
+            </NavLink>
+
+            <NavLink class="nav-link-cyber" href="skills">
+                <i class="bi bi-puzzle-fill text-info"></i> Skills
+            </NavLink>
+
+            <NavLink class="nav-link-cyber" href="verification">
+                <i class="bi bi-patch-check-fill text-success"></i> Verification
+            </NavLink>
+
+            <NavLink class="nav-link-cyber" href="routines">
+                <i class="bi bi-arrow-repeat text-secondary"></i> Routines
+            </NavLink>
+        </nav>
+    </div>
+
+    <!-- Footer System Status -->
+    <div class="p-3 border-top border-secondary border-opacity-25 bg-dark bg-opacity-50">
+        <div class="d-flex align-items-center justify-content-between">
+            <span class="small text-secondary font-monospace"><span class="pulse-dot me-1"></span> LIVE</span>
+            <span class="badge bg-dark border border-secondary text-secondary font-monospace" style="font-size: 0.7rem;">:5000 / :7836</span>
         </div>
-    </nav>
+    </div>
 </div>

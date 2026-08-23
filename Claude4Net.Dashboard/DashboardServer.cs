@@ -41,9 +41,11 @@ public class DashboardServer
         {
             var builder = WebApplication.CreateBuilder(args);
             builder.WebHost.UseUrls($"http://localhost:{port}");
+            builder.WebHost.UseStaticWebAssets();
 
             // Add services to the container.
             builder.Services.AddRazorComponents()
+                .AddInteractiveServerComponents()
                 .AddInteractiveWebAssemblyComponents();
 
             builder.Services.AddSignalR();
@@ -69,6 +71,7 @@ public class DashboardServer
                 app.UseHsts();
             }
 
+            app.UseStaticFiles();
             app.UseAntiforgery();
 
             try
@@ -81,6 +84,7 @@ public class DashboardServer
             }
 
             app.MapRazorComponents<App>()
+                .AddInteractiveServerRenderMode()
                 .AddInteractiveWebAssemblyRenderMode()
                 .AddAdditionalAssemblies(typeof(Claude4Net.Dashboard.Client._Imports).Assembly);
 

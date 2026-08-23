@@ -232,10 +232,5 @@ namespace Claude4Net.Commands.Handlers
             AppState.IsProviderExplicitlySet = true;
             return $"[green]Model changed to:[/] [bold]{Markup.Escape(newModel)}[/] (Provider switched to: [bold]{Markup.Escape(detectedProvider)}[/])";
         }
-
-        public static Task<string> HandleReset(string args, IServiceProvider sp)
-        {
-            return Task.FromResult("[yellow]Session reset command issued. Provider history will be cleared on next turn.[/]");
-        }
     }
 }

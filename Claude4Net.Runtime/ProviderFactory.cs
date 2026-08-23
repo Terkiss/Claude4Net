@@ -249,6 +249,49 @@ namespace Claude4Net.Runtime
     }
 
     /// <summary>
+    /// Alibaba DashScope / Qwen 및 알리바바 코딩 플랜 프로바이더 생성을 담당하는 팩토리입니다.
+    /// </summary>
+    public class QwenProviderFactory : IProviderFactory
+    {
+        public bool SupportsApiRequests => true;
+
+        public bool CanCreate(ProviderDescriptor descriptor)
+        {
+            if (descriptor == null) return false;
+            return descriptor.Id.Equals("qwen", StringComparison.OrdinalIgnoreCase)
+                || descriptor.Id.Equals("alibaba", StringComparison.OrdinalIgnoreCase)
+                || descriptor.Id.Equals("dashscope", StringComparison.OrdinalIgnoreCase)
+                || descriptor.Id.Equals("qwen-coder", StringComparison.OrdinalIgnoreCase)
+                || descriptor.Id.Equals("alibaba-coding", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public ILLMProvider Create(ProviderDescriptor descriptor, IServiceProvider serviceProvider)
+        {
+            if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
+
+            var httpClient = serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient("qwen");
+            var toolRegistry = serviceProvider.GetRequiredService<IToolRegistry>();
+
+            return new QwenProvider(httpClient, toolRegistry);
+        }
+
+        public ILLMProvider CreateRequestProvider(ProviderDescriptor descriptor, IServiceProvider serviceProvider)
+        {
+            if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
+            var httpClient = serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient("qwen");
+            return new QwenProvider(httpClient, EmptyToolRegistry.Instance);
+        }
+
+        public RequestProviderLease CreateRequestProviderLease(ProviderDescriptor descriptor, IServiceProvider serviceProvider)
+        {
+            if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
+            var httpClient = serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient("qwen");
+            var provider = new QwenProvider(httpClient, EmptyToolRegistry.Instance);
+            return new RequestProviderLease(provider, httpClient);
+        }
+    }
+
+    /// <summary>
     /// 일반 OpenAI 호환 API 프로바이더 생성을 담당하는 팩토리입니다.
     /// </summary>
     public class OpenAiCompatProviderFactory : IProviderFactory

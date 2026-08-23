@@ -746,6 +746,7 @@ namespace Claude4Net.Runtime.ApiServer
 
                 string prompt = PromptBuilder.BuildFromMessages(request.Messages, request.Tools, request.ResponseFormat);
                 string completionId = "chatcmpl-" + Guid.NewGuid().ToString("N")[..12];
+                var sw = System.Diagnostics.Stopwatch.StartNew();
                 var declaredToolNames = request.Tools?
                     .Select(tool => tool.Function.Name)
                     .ToHashSet(StringComparer.Ordinal) ?? new HashSet<string>(StringComparer.Ordinal);
@@ -993,6 +994,22 @@ namespace Claude4Net.Runtime.ApiServer
 
                         await context.Response.WriteAsync("data: [DONE]\n\n", Encoding.UTF8, ct);
                         await context.Response.Body.FlushAsync(ct);
+
+                        try
+                        {
+                            sw.Stop();
+                            int compTokens = provider.TokenCounter.CountTokens(emittedText.ToString());
+                            _ = Claude4Net.Runtime.Telemetry.TeruTeruPandasTelemetryEngine.Shared.RecordTokenUsageAsync(
+                                sessionId: AppState.SessionId ?? "api-gateway",
+                                projectName: "Claude4Net-ApiGateway",
+                                provider: provider.Name,
+                                model: resolvedModel,
+                                promptTokens: promptTokens,
+                                compTokens: compTokens,
+                                latencyMs: sw.Elapsed.TotalMilliseconds
+                            );
+                        }
+                        catch { }
                     }
                     catch (OperationCanceledException) when (ct.IsCancellationRequested)
                     {
@@ -1116,6 +1133,21 @@ namespace Claude4Net.Runtime.ApiServer
                                     CompletionTokens = completionTokens
                                 }
                             };
+
+                            try
+                            {
+                                sw.Stop();
+                                _ = Claude4Net.Runtime.Telemetry.TeruTeruPandasTelemetryEngine.Shared.RecordTokenUsageAsync(
+                                    sessionId: AppState.SessionId ?? "api-gateway",
+                                    projectName: "Claude4Net-ApiGateway",
+                                    provider: provider.Name,
+                                    model: resolvedModel,
+                                    promptTokens: promptTokens,
+                                    compTokens: completionTokens,
+                                    latencyMs: sw.Elapsed.TotalMilliseconds
+                                );
+                            }
+                            catch { }
 
                             return Results.Json(response, _jsonOptions);
                         }

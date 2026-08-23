@@ -113,23 +113,5 @@ namespace Claude4Net.Runtime.Handlers
             
             return $"Replayed {events.Count()} events for session {replaySessionId}";
         }
-
-        public static Task<string> HandleBuild(string a, IServiceProvider sp)
-        {
-            AnsiConsole.MarkupLine("[bold blue]Building project...[/]");
-            return Task.FromResult("Build triggered.");
-        }
-
-        public static Task<string> HandleTest(string a, IServiceProvider sp)
-        {
-            AnsiConsole.MarkupLine("[bold blue]Running tests...[/]");
-            return Task.FromResult("Test suite execution started.");
-        }
-
-        public static Task<string> HandleClean(string a, IServiceProvider sp)
-        {
-            AnsiConsole.MarkupLine("[bold blue]Cleaning solution...[/]");
-            return Task.FromResult("Solution clean started.");
-        }
     }
 }

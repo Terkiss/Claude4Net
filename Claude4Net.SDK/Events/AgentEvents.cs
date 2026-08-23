@@ -164,6 +164,50 @@ namespace Claude4Net.SDK.Events
         public string? Error { get; set; }
     }
 
+    /// <summary>
+    /// 테르키르도 운영 모드 변경 이벤트
+    /// </summary>
+    public class TerukirdoModeChangedEvent : AgentEventBase
+    {
+        public override string EventType => "TerukirdoModeChanged";
+        public string PreviousMode { get; set; } = string.Empty;
+        public string NewMode { get; set; } = string.Empty;
+        public string? Reason { get; set; }
+    }
+
+    /// <summary>
+    /// 테르키르도 적응형 티어 라우팅 결정 이벤트
+    /// </summary>
+    public class TerukirdoTierRoutedEvent : AgentEventBase
+    {
+        public override string EventType => "TerukirdoTierRouted";
+        public string PromptSnippet { get; set; } = string.Empty;
+        public int DecidedTier { get; set; }
+        public string RoutingReason { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// 테르키르도 프라임 디렉티브 감사/차단 이벤트
+    /// </summary>
+    public class TerukirdoPrimeDirectiveEvent : AgentEventBase
+    {
+        public override string EventType => "TerukirdoPrimeDirective";
+        public string ActionType { get; set; } = string.Empty;
+        public string Target { get; set; } = string.Empty;
+        public bool IsAllowed { get; set; }
+        public bool RequiresApproval { get; set; }
+        public string? ViolationReason { get; set; }
+    }
+
+    /// <summary>
+    /// 테르키르도 메모리 & 궤적 동기화 이벤트
+    /// </summary>
+    public class TerukirdoMemorySyncedEvent : AgentEventBase
+    {
+        public override string EventType => "TerukirdoMemorySynced";
+        public string TrajectoryPath { get; set; } = string.Empty;
+        public int EntriesSynced { get; set; }
+    }
 
     /// <summary>
     /// 에이전트 상태 스냅샷 (이벤트 소싱 재생 최적화용)

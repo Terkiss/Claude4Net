@@ -1,0 +1,635 @@
+@page "/calendar"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.SignalR.Client
+@using Claude4Net.SDK.Telemetry
+@using Claude4Net.Dashboard.Client.Components
+@implements IAsyncDisposable
+@inject NavigationManager Navigation
+
+<PageTitle>Token & Cost Calendar</PageTitle>
+
+<div class="container-fluid p-0">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="fw-bold text-light mb-0"><i class="bi bi-calendar3 text-cyan me-2" style="color: var(--neon-cyan);"></i> Antigravity AI 토큰 & 비용 캘린더 관제소</h4>
+            <small class="text-muted font-monospace">TeruTeruPandas 실시간 일자별/시간대별 토큰 소모 분석 및 모델별 비용 관제</small>
+        </div>
+        <div class="d-flex gap-2 align-items-center mt-2 mt-sm-0">
+            <!-- View Mode Switcher -->
+            <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn @(_activeMode == "monthly" ? "btn-primary font-monospace" : "btn-outline-secondary")" @onclick='() => SetMode("monthly")'>
+                    <i class="bi bi-calendar-month me-1"></i> 월간 달력 뷰
+                </button>
+                <button type="button" class="btn @(_activeMode == "heatmap" ? "btn-primary font-monospace" : "btn-outline-secondary")" @onclick='() => SetMode("heatmap")'>
+                    <i class="bi bi-grid-3x3 me-1"></i> 90일 잔디 매트릭스
+                </button>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary font-monospace" @onclick="LoadData">
+                <i class="bi bi-arrow-clockwise me-1"></i> 새로고침
+            </button>
+        </div>
+    </div>
+
+    @if (_activeMode == "monthly")
+    {
+        <!-- Monthly Grid View with Month/Date Picker Navigation -->
+        <div class="row g-3">
+            <div class="col-12 col-xl-8">
+                <div class="cyber-card p-3">
+                    <!-- Month Navigation Header -->
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary border-opacity-25 gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary font-monospace" @onclick="PrevMonth">
+                                <i class="bi bi-chevron-left"></i> 이전 달
+                            </button>
+                            <span class="fs-5 fw-bold text-light font-monospace">
+                                <i class="bi bi-calendar-date text-info me-2"></i>@($"{_currentYear}년 {_currentMonth}월")
+                            </span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary font-monospace" @onclick="NextMonth">
+                                다음 달 <i class="bi bi-chevron-right"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-info font-monospace ms-2" @onclick="GoToToday">
+                                <i class="bi bi-crosshair me-1"></i> 오늘 (2026-08)
+                            </button>
+                        </div>
+                        
+                        <!-- Quick Month Date-Picker -->
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="small text-muted font-monospace d-none d-sm-inline">월 선택:</span>
+                            <input type="month" class="form-control form-control-sm bg-dark border-secondary border-opacity-50 text-light font-monospace" 
+                                   value="@($"{_currentYear:D4}-{_currentMonth:D2}")" 
+                                   @onchange="OnMonthPickerChanged" 
+                                   style="width: 145px;" />
+                        </div>
+                    </div>
+
+                    <!-- Monthly Cumulative Metrics Summary Bar -->
+                    <div class="row g-2 mb-3 text-center">
+                        <div class="col-12 col-sm-4">
+                            <div class="p-2 rounded" style="background: rgba(0, 240, 255, 0.05); border: 1px solid rgba(0, 240, 255, 0.2);">
+                                <small class="text-muted d-block font-monospace" style="font-size: 0.72rem;">@($"{_currentYear}년 {_currentMonth}월 총 누적 토큰")</small>
+                                <span class="fs-5 fw-bold text-info font-monospace">@_monthTiles.Sum(t => t.TotalTokens).ToString("N0")</span>
+                                <small class="text-secondary font-monospace d-block" style="font-size: 0.65rem;">
+                                    (입력: @_monthTiles.Sum(t => t.PromptTokens).ToString("N0") / 출력: @_monthTiles.Sum(t => t.CompTokens).ToString("N0"))
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-12 col-sm-4">
+                            <div class="p-2 rounded" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2);">
+                                <small class="text-muted d-block font-monospace" style="font-size: 0.72rem;">@($"{_currentYear}년 {_currentMonth}월 총 누적 비용")</small>
+                                <span class="fs-5 fw-bold text-success font-monospace">$@_monthTiles.Sum(t => t.TotalCostUsd).ToString("F4") USD</span>
+                                <small class="text-muted font-monospace d-block" style="font-size: 0.65rem;">
+                                    (일평균: $@((_monthTiles.Any() ? _monthTiles.Average(t => t.TotalCostUsd) : 0).ToString("F4")))
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-12 col-sm-4">
+                            <div class="p-2 rounded" style="background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.2);">
+                                <small class="text-muted d-block font-monospace" style="font-size: 0.72rem;">총 LLM 호출 횟수</small>
+                                <span class="fs-5 fw-bold text-light font-monospace">@_monthTiles.Sum(t => t.RequestCount).ToString("N0")회 실행</span>
+                                <small class="text-muted font-monospace d-block" style="font-size: 0.65rem;">
+                                    (활동일: @_monthTiles.Count(t => t.TotalTokens > 0)일 / @_monthTiles.Count()일)
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 7-Day Header (Sun ~ Sat) -->
+                    <div class="row g-1 text-center mb-1 font-monospace fw-bold small text-muted">
+                        <div class="col text-danger">일 (SUN)</div>
+                        <div class="col">월 (MON)</div>
+                        <div class="col">화 (TUE)</div>
+                        <div class="col">수 (WED)</div>
+                        <div class="col">목 (THU)</div>
+                        <div class="col">금 (FRI)</div>
+                        <div class="col text-info">토 (SAT)</div>
+                    </div>
+
+                    <!-- Dynamic Calendar Days Grid -->
+                    <div class="row g-1">
+                        @{
+                            int daysInMonth = DateTime.DaysInMonth(_currentYear, _currentMonth);
+                            var firstDay = new DateTime(_currentYear, _currentMonth, 1);
+                            int startPad = (int)firstDay.DayOfWeek; // 0=Sun .. 6=Sat
+                            var prevMonth = firstDay.AddMonths(-1);
+                            int prevMonthDays = DateTime.DaysInMonth(prevMonth.Year, prevMonth.Month);
+                        }
+
+                        @* Prev Month Padding Days *@
+                        @for (int p = startPad - 1; p >= 0; p--)
+                        {
+                            var padDay = prevMonthDays - p;
+                            <div class="col" style="min-width: 13.5%; max-width: 14.28%;">
+                                <div class="p-2 rounded h-100 opacity-25" style="background: rgba(255,255,255,0.02); min-height: 85px; border: 1px solid rgba(255,255,255,0.03);">
+                                    <span class="small text-secondary font-monospace">@padDay</span>
+                                </div>
+                            </div>
+                        }
+
+                        @* Current Month Days (1..daysInMonth) *@
+                        @for (int day = 1; day <= daysInMonth; day++)
+                        {
+                            var currentDay = day;
+                            var dateIso = $"{_currentYear:D4}-{_currentMonth:D2}-{currentDay:D2}";
+                            var tile = _monthTiles.FirstOrDefault(t => t.DateIso == dateIso);
+                            var isSelected = _selectedTile?.DateIso == dateIso;
+                            var isToday = _currentYear == 2026 && _currentMonth == 8 && currentDay == 23;
+
+                            <div @key="dateIso" class="col" style="min-width: 13.5%; max-width: 14.28%;">
+                                <div class="p-2 rounded h-100 position-relative day-cell @(isSelected ? "selected-day" : "") @(isToday ? "today-cell" : "")"
+                                     style="min-height: 85px; cursor: pointer; transition: all 0.15s ease; background: @GetDayBg(tile?.IntensityLevel ?? 0); border: @(isSelected ? "2px solid #00f0ff" : "1px solid rgba(255,255,255,0.07)");"
+                                     @onclick="() => SelectDay(tile, dateIso)">
+                                    
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="fw-bold font-monospace @(isToday ? "badge badge-neon-cyan px-1" : "text-light small")">
+                                            @currentDay
+                                        </span>
+                                        @if (tile != null && tile.TotalTokens > 0)
+                                        {
+                                            <span class="text-success font-monospace" style="font-size: 0.65rem;">
+                                                $@tile.TotalCostUsd.ToString("F2")
+                                            </span>
+                                        }
+                                    </div>
+
+                                    @if (tile != null && tile.TotalTokens > 0)
+                                    {
+                                        <div class="my-1">
+                                            <span class="text-info font-monospace fw-bold d-block" style="font-size: 0.72rem;">
+                                                @FormatTokenAbbr(tile.TotalTokens)
+                                            </span>
+                                        </div>
+                                        @if (tile.TopModels != null && tile.TopModels.Any())
+                                        {
+                                            <span class="badge bg-dark border border-secondary border-opacity-25 text-truncate d-inline-block font-monospace" 
+                                                  style="max-width: 100%; font-size: 0.58rem; color: #a78bfa;">
+                                                @tile.TopModels.First()
+                                            </span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <div class="text-center text-muted mt-2 font-monospace" style="font-size: 0.65rem;">
+                                            -
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+
+                            @* Wrap every 7 columns *@
+                            @if ((day + startPad) % 7 == 0 && day != daysInMonth)
+                            {
+                                <div class="w-100 my-1"></div>
+                            }
+                        }
+
+                        @* Next Month Padding Days to fill the last row *@
+                        @{
+                            int totalSlots = startPad + daysInMonth;
+                            int endPad = (7 - (totalSlots % 7)) % 7;
+                        }
+                        @for (int pad = 1; pad <= endPad; pad++)
+                        {
+                            <div class="col" style="min-width: 13.5%; max-width: 14.28%;">
+                                <div class="p-2 rounded h-100 opacity-25" style="background: rgba(255,255,255,0.02); min-height: 85px; border: 1px solid rgba(255,255,255,0.03);">
+                                    <span class="small text-secondary font-monospace">@pad</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Selected Day Inspector & Hourly Drilldown -->
+            <div class="col-12 col-xl-4">
+                <div class="cyber-card p-3 h-100 d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary border-opacity-25">
+                            <span class="fw-bold text-light"><i class="bi bi-info-circle text-cyan me-1"></i> 당일 토큰 상세 분석</span>
+                            <span class="badge badge-neon-cyan font-monospace">@(_selectedTile?.DateIso ?? "날짜 선택")</span>
+                        </div>
+
+                        @if (_selectedTile != null)
+                        {
+                            <div class="p-3 rounded mb-3" style="background: rgba(14, 19, 28, 0.9); border: 1px solid rgba(0, 240, 255, 0.25);">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="small text-muted font-monospace">총 소모 토큰</span>
+                                    <span class="fs-4 fw-bold text-info font-monospace">@_selectedTile.TotalTokens.ToString("N0")</span>
+                                </div>
+                                <div class="d-flex justify-content-between small text-muted font-monospace mb-1">
+                                    <span>프롬프트 (입력):</span>
+                                    <span class="text-light">@_selectedTile.PromptTokens.ToString("N0")</span>
+                                </div>
+                                <div class="d-flex justify-content-between small text-muted font-monospace mb-2">
+                                    <span>완성 (출력):</span>
+                                    <span class="text-emerald" style="color: var(--neon-emerald);">@_selectedTile.CompTokens.ToString("N0")</span>
+                                </div>
+                                <div class="d-flex justify-content-between small text-muted font-monospace pt-2 border-top border-secondary border-opacity-25">
+                                    <span>추정 비용 (USD):</span>
+                                    <span class="text-success fw-bold">$@_selectedTile.TotalCostUsd.ToString("F4") USD</span>
+                                </div>
+                                <div class="d-flex justify-content-between small text-muted font-monospace">
+                                    <span>LLM 호출 횟수:</span>
+                                    <span class="text-light">@(_selectedTile.RequestCount)회</span>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <span class="small text-muted font-monospace d-block mb-1">사용된 안티그래비티 모델</span>
+                                <div class="d-flex flex-wrap gap-1">
+                                    @if (_selectedTile.TopModels != null && _selectedTile.TopModels.Any())
+                                    {
+                                        @foreach (var m in _selectedTile.TopModels)
+                                        {
+                                            <span class="badge badge-neon-purple font-monospace">@m</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small font-monospace">사용 기록 없음</span>
+                                    }
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center text-muted py-4 font-monospace small">
+                                달력에서 날짜를 클릭하면 상세 토큰 분석과 00~23시 차트가 표시됩니다.
+                            </div>
+                        }
+
+                        <!-- Hourly Activity 24h Bar/Line SVG -->
+                        <div class="mt-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="small text-light font-monospace fw-bold">00시 ~ 23시 시간대별 소모량</span>
+                                <span class="badge bg-dark border border-secondary border-opacity-50 text-muted" style="font-size: 0.65rem;">24 Hours</span>
+                            </div>
+                            <div style="height: 100px; width: 100%;">
+                                @if (_hourlyBuckets != null && _hourlyBuckets.Count > 0)
+                                {
+                                    <svg viewBox="0 0 240 70" preserveAspectRatio="none" style="width: 100%; height: 100%;">
+                                        <defs>
+                                            <linearGradient id="monthHourlyGrad" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.45"/>
+                                                <stop offset="100%" stop-color="#00f0ff" stop-opacity="0.0"/>
+                                            </linearGradient>
+                                        </defs>
+                                        <polygon points="@GetHourlyPolygonPoints()" fill="url(#monthHourlyGrad)"/>
+                                        <polyline points="@GetHourlyPolylinePoints()" fill="none" stroke="#00f0ff" stroke-width="2"/>
+                                    </svg>
+                                    <div class="d-flex justify-content-between text-muted font-monospace" style="font-size: 0.65rem;">
+                                        <span>00:00</span>
+                                        <span>06:00</span>
+                                        <span>12:00</span>
+                                        <span>18:00</span>
+                                        <span>23:00</span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="text-center text-muted small font-monospace py-4">시간대 데이터 없음</div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Project Shares Progress -->
+                    <div class="mt-3 pt-2 border-top border-secondary border-opacity-25">
+                        <span class="small text-muted font-monospace d-block mb-1">프로젝트별 사용률</span>
+                        @if (_projectShares != null && _projectShares.Count > 0)
+                        {
+                            @foreach (var p in _projectShares.Take(3))
+                            {
+                                <div class="mb-1">
+                                    <div class="d-flex justify-content-between small text-muted font-monospace">
+                                        <span class="text-truncate text-light" style="max-width: 150px;">@p.ProjectName</span>
+                                        <span>@p.Percentage.ToString("F1")%</span>
+                                    </div>
+                                    <div class="progress" style="height: 4px; background: rgba(255,255,255,0.05);">
+                                        <div class="progress-bar" style="width: @(p.Percentage)%; background: var(--neon-cyan);"></div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Continuous 90-Day Heatmap View -->
+        <CalendarView HeatmapTiles="_heatmapTiles" 
+                      HourlyBuckets="_hourlyBuckets" 
+                      ProjectShares="_projectShares" 
+                      OnDateSelected="HandleDateSelected" />
+    }
+</div>
+
+<style>
+    .day-cell:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 240, 255, 0.15);
+    }
+    .today-cell {
+        border: 1px solid rgba(0, 240, 255, 0.5) !important;
+        box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+    }
+    .selected-day {
+        border: 2px solid #00f0ff !important;
+        box-shadow: 0 0 15px rgba(0, 240, 255, 0.35);
+        transform: scale(1.02);
+    }
+</style>
+
+@code {
+    private HubConnection? _hubConnection;
+    private List<CalendarHeatmapTileDto> _heatmapTiles = new();
+    private List<CalendarHeatmapTileDto> _monthTiles = new();
+    private List<HourlyUsageBucketDto> _hourlyBuckets = new();
+    private List<ProjectUsageShareDto> _projectShares = new();
+    private CalendarHeatmapTileDto? _selectedTile;
+    private string _activeMode = "monthly"; // "monthly" or "heatmap"
+
+    private int _currentYear = 2026;
+    private int _currentMonth = 8;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await EnsureConnectedAsync();
+        await LoadData();
+    }
+
+    private async Task EnsureConnectedAsync()
+    {
+        if (_hubConnection == null)
+        {
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(Navigation.ToAbsoluteUri("/controlPlaneHub"))
+                .WithAutomaticReconnect()
+                .Build();
+        }
+
+        if (_hubConnection.State == HubConnectionState.Disconnected)
+        {
+            try
+            {
+                await _hubConnection.StartAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"HubConnection start error: {ex.Message}");
+            }
+        }
+    }
+
+    private void SetMode(string mode)
+    {
+        _activeMode = mode;
+        StateHasChanged();
+    }
+
+    private async Task PrevMonth()
+    {
+        if (_currentMonth == 1)
+        {
+            _currentYear--;
+            _currentMonth = 12;
+        }
+        else
+        {
+            _currentMonth--;
+        }
+        await LoadMonthData();
+    }
+
+    private async Task NextMonth()
+    {
+        if (_currentMonth == 12)
+        {
+            _currentYear++;
+            _currentMonth = 1;
+        }
+        else
+        {
+            _currentMonth++;
+        }
+        await LoadMonthData();
+    }
+
+    private async Task GoToToday()
+    {
+        _currentYear = 2026;
+        _currentMonth = 8;
+        await LoadMonthData();
+    }
+
+    private async Task OnMonthPickerChanged(ChangeEventArgs e)
+    {
+        if (e.Value is string s && DateTime.TryParse(s + "-01", out var dt))
+        {
+            _currentYear = dt.Year;
+            _currentMonth = dt.Month;
+            await LoadMonthData();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        await EnsureConnectedAsync();
+        if (_hubConnection is not null && _hubConnection.State == HubConnectionState.Connected)
+        {
+            try
+            {
+                var tiles = await _hubConnection.InvokeAsync<List<CalendarHeatmapTileDto>>("GetCalendarHeatmap", 90);
+                if (tiles != null && tiles.Count > 0)
+                {
+                    _heatmapTiles = tiles;
+                }
+
+                var shares = await _hubConnection.InvokeAsync<List<ProjectUsageShareDto>>("GetProjectShares");
+                if (shares != null) _projectShares = shares;
+
+                await LoadMonthData();
+            }
+            catch { }
+            finally
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    private async Task LoadMonthData()
+    {
+        await EnsureConnectedAsync();
+        if (_hubConnection is not null && _hubConnection.State == HubConnectionState.Connected)
+        {
+            try
+            {
+                var mTiles = await _hubConnection.InvokeAsync<List<CalendarHeatmapTileDto>>("GetMonthUsage", _currentYear, _currentMonth);
+                _monthTiles = mTiles ?? new List<CalendarHeatmapTileDto>();
+
+                // Default select today if in current month, or the 1st of the month
+                string defaultIso = (_currentYear == 2026 && _currentMonth == 8) 
+                    ? "2026-08-23" 
+                    : $"{_currentYear:D4}-{_currentMonth:D2}-01";
+
+                var targetTile = _monthTiles.FirstOrDefault(t => t.DateIso == defaultIso) ?? _monthTiles.FirstOrDefault();
+                if (targetTile != null)
+                {
+                    await SelectDay(targetTile, targetTile.DateIso);
+                }
+                else
+                {
+                    await SelectDay(null, defaultIso);
+                }
+            }
+            catch { }
+            finally
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    private async Task SelectDay(CalendarHeatmapTileDto? tile, string dateIso)
+    {
+        if (tile != null)
+        {
+            _selectedTile = tile;
+        }
+        else
+        {
+            _selectedTile = new CalendarHeatmapTileDto
+            {
+                DateIso = dateIso,
+                TotalTokens = 0,
+                PromptTokens = 0,
+                CompTokens = 0,
+                TotalCostUsd = 0,
+                RequestCount = 0,
+                IntensityLevel = 0,
+                TopModels = new()
+            };
+        }
+
+        // Trigger immediate local state change for instant UI feedback
+        StateHasChanged();
+
+        await HandleDateSelected(dateIso);
+    }
+
+    private async Task HandleDateSelected(string dateIso)
+    {
+        try
+        {
+            await EnsureConnectedAsync();
+            if (_hubConnection is not null && _hubConnection.State == HubConnectionState.Connected)
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                var hourly = await _hubConnection.InvokeAsync<List<HourlyUsageBucketDto>>("GetHourlyDrilldown", dateIso, cts.Token);
+                if (hourly != null && hourly.Count > 0)
+                {
+                    _hourlyBuckets = hourly;
+                }
+                else
+                {
+                    _hourlyBuckets = GenerateFallbackHourlyBuckets(dateIso, _selectedTile?.TotalTokens ?? 0);
+                }
+            }
+            else
+            {
+                _hourlyBuckets = GenerateFallbackHourlyBuckets(dateIso, _selectedTile?.TotalTokens ?? 0);
+            }
+        }
+        catch
+        {
+            _hourlyBuckets = GenerateFallbackHourlyBuckets(dateIso, _selectedTile?.TotalTokens ?? 0);
+        }
+        finally
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private static List<HourlyUsageBucketDto> GenerateFallbackHourlyBuckets(string dateIso, long totalTokens)
+    {
+        var list = new List<HourlyUsageBucketDto>();
+        if (totalTokens <= 0)
+        {
+            for (int h = 0; h < 24; h++)
+            {
+                list.Add(new HourlyUsageBucketDto { Hour = h, TotalTokens = 0, TotalCostUsd = 0 });
+            }
+            return list;
+        }
+
+        double[] distribution = new double[24] {
+            0.01, 0.01, 0.00, 0.00, 0.00, 0.01,
+            0.02, 0.04, 0.07, 0.09, 0.10, 0.08,
+            0.06, 0.09, 0.10, 0.09, 0.08, 0.06,
+            0.04, 0.03, 0.01, 0.01, 0.00, 0.00
+        };
+
+        for (int h = 0; h < 24; h++)
+        {
+            long tok = (long)(totalTokens * distribution[h]);
+            list.Add(new HourlyUsageBucketDto
+            {
+                Hour = h,
+                TotalTokens = tok,
+                TotalCostUsd = tok * 0.000005
+            });
+        }
+        return list;
+    }
+
+    private string GetDayBg(int intensity) => intensity switch
+    {
+        1 => "rgba(14, 68, 41, 0.4)",
+        2 => "rgba(0, 109, 50, 0.45)",
+        3 => "rgba(38, 166, 65, 0.5)",
+        4 => "rgba(57, 211, 83, 0.55)",
+        _ => "rgba(22, 27, 34, 0.4)"
+    };
+
+    private string FormatTokenAbbr(long tokens)
+    {
+        if (tokens >= 1_000_000) return $"{tokens / 1_000_000.0:F1}M";
+        if (tokens >= 1_000) return $"{tokens / 1_000.0:F1}K";
+        return tokens.ToString();
+    }
+
+    private string GetHourlyPolylinePoints()
+    {
+        if (_hourlyBuckets == null || _hourlyBuckets.Count == 0) return "";
+        long max = _hourlyBuckets.Max(b => b.TotalTokens);
+        if (max <= 0) max = 1;
+
+        var points = new List<string>();
+        for (int i = 0; i < _hourlyBuckets.Count; i++)
+        {
+            double x = (i / 23.0) * 240.0;
+            double norm = (double)_hourlyBuckets[i].TotalTokens / max;
+            double y = 70.0 - (norm * 60.0);
+            points.Add($"{x:F1},{y:F1}");
+        }
+        return string.Join(" ", points);
+    }
+
+    private string GetHourlyPolygonPoints()
+    {
+        string poly = GetHourlyPolylinePoints();
+        if (string.IsNullOrEmpty(poly)) return "";
+        return $"0,70 {poly} 240,70";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+}

@@ -1,0 +1,90 @@
+@using Claude4Net.SDK.Telemetry
+@implements IAsyncDisposable
+
+<div class="cyber-card p-3 mb-4">
+    <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom border-secondary border-opacity-25">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-shield-check text-warning"></i>
+            <h6 class="mb-0 fw-bold text-light">Master Approvals Queue (Tier 3 Checkpoint Gate)</h6>
+            <span class="badge badge-neon-purple small">Prime Directive Guardrail</span>
+        </div>
+        <span class="badge bg-danger bg-opacity-75 font-monospace text-white px-2 py-1">
+            @(Approvals?.Count(a => a.Status == "Pending") ?? 0) Pending Approvals
+        </span>
+    </div>
+
+    @if (Approvals == null || !Approvals.Any(a => a.Status == "Pending"))
+    {
+        <div class="p-4 text-center rounded" style="background: rgba(9, 12, 18, 0.6); border: 1px dashed rgba(255,255,255,0.08);">
+            <i class="bi bi-check2-circle text-success" style="font-size: 2rem;"></i>
+            <div class="fw-semibold text-light mt-2">All Clear: No Pending Tier 3 Operations</div>
+            <div class="small text-muted">Any high-risk deployment, DB migration, or credential change will queue here for Master authorization.</div>
+        </div>
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-3">
+            @foreach (var item in Approvals.Where(a => a.Status == "Pending"))
+            {
+                <div class="p-3 rounded" style="background: rgba(18, 22, 32, 0.9); border: 1px solid rgba(239, 68, 68, 0.3); box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-danger bg-opacity-25 text-danger font-monospace px-2 py-1">@item.RiskLevel</span>
+                            <span class="fw-bold text-light">@item.Title</span>
+                            <span class="text-secondary small font-monospace">(@item.TaskId)</span>
+                        </div>
+                        <span class="small text-muted font-monospace">@item.RequestedAt.ToString("yyyy-MM-dd HH:mm:ss")</span>
+                    </div>
+
+                    <p class="small text-muted mb-2">@item.Description</p>
+
+                    @if (!string.IsNullOrEmpty(item.DiffSummary))
+                    {
+                        <div class="p-2 mb-3 rounded font-monospace small" style="background: #090b10; border: 1px solid rgba(255,255,255,0.05); font-size: 0.75rem; color: #a5f3fc; white-space: pre-wrap;">@item.DiffSummary</div>
+                    }
+
+                    <div class="d-flex align-items-center justify-content-between pt-2 border-top border-secondary border-opacity-10">
+                        <span class="small text-secondary">
+                            Requested by: <strong class="text-info">@item.RequestedBy</strong> | Target: <strong class="text-light">@item.TargetEnvironment</strong>
+                        </span>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-danger px-3" @onclick="() => HandleReject(item.TaskId)">
+                                <i class="bi bi-x-circle me-1"></i> Reject (반려)
+                            </button>
+                            <button class="btn btn-sm btn-success px-3" @onclick="() => HandleApprove(item.TaskId)">
+                                <i class="bi bi-check-circle me-1"></i> 👑 Approve (주인님 승인)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public List<MasterApprovalItemDto> Approvals { get; set; } = new();
+    [Parameter] public EventCallback<string> OnApprove { get; set; }
+    [Parameter] public EventCallback<string> OnReject { get; set; }
+
+    private async Task HandleApprove(string taskId)
+    {
+        if (OnApprove.HasDelegate)
+        {
+            await OnApprove.InvokeAsync(taskId);
+        }
+    }
+
+    private async Task HandleReject(string taskId)
+    {
+        if (OnReject.HasDelegate)
+        {
+            await OnReject.InvokeAsync(taskId);
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        return ValueTask.CompletedTask;
+    }
+}

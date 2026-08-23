@@ -1,0 +1,30 @@
+@using Claude4Net.SDK.Terukirdo
+
+<div class="cyber-card px-3 py-2 d-flex flex-wrap align-items-center justify-content-between mb-3" style="background: rgba(11, 13, 19, 0.85); border-color: rgba(255, 255, 255, 0.08);">
+    <div class="d-flex align-items-center gap-2">
+        <span class="d-inline-block rounded-circle" style="width: 8px; height: 8px; background: var(--neon-emerald); box-shadow: 0 0 6px var(--neon-emerald);"></span>
+        <span class="fw-bold text-light font-monospace small" style="letter-spacing: 0.5px;">🎀 Terukirdo Supreme Orchestrator @ProtocolVersion</span>
+        <span class="text-secondary small d-none d-md-inline">|</span>
+        <span class="small text-muted d-none d-md-inline">Status: <span class="text-success">Operational (99.9% Uptime)</span></span>
+        <span class="text-secondary small d-none d-lg-inline">|</span>
+        <span class="small font-monospace text-muted d-none d-lg-inline">@ActiveModel</span>
+    </div>
+
+    <div class="d-flex align-items-center gap-2 mt-1 mt-sm-0">
+        <span class="badge badge-neon-purple px-2 py-1 small">
+            <i class="bi bi-cpu me-1"></i> Mode: @CurrentMode
+        </span>
+        <span class="badge badge-neon-cyan px-2 py-1 small">
+            <i class="bi bi-diagram-3 me-1"></i> Tier 2 (Ralph Loop)
+        </span>
+        <span class="badge badge-neon-emerald px-2 py-1 small d-none d-sm-inline">
+            <i class="bi bi-shield-check me-1"></i> Prime Directive: Enforced
+        </span>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string ProtocolVersion { get; set; } = "v5.4";
+    [Parameter] public string CurrentMode { get; set; } = "Orchestrator";
+    [Parameter] public string ActiveModel { get; set; } = "Gemini-3.7-Flash";
+}

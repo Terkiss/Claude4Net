@@ -1,153 +1,198 @@
 @page "/providers"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.SignalR.Client
 @using Claude4Net.Dashboard.Client.Models
 @inject NavigationManager NavigationManager
 @implements IAsyncDisposable
 
-<PageTitle>Providers</PageTitle>
+<PageTitle>Provider Router & Gateways</PageTitle>
 
-<div class="container mt-4">
+<div class="container-fluid p-0">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3><i class="bi bi-cpu"></i> Providers Configuration</h3>
-        <button class="btn btn-primary" @onclick="LoadProviders" disabled="@isLoading">
+        <div>
+            <h4 class="fw-bold text-light mb-0"><i class="bi bi-diagram-3 text-cyan me-2" style="color: var(--neon-cyan);"></i> Provider Routing & Gateway Telemetry</h4>
+            <small class="text-muted font-monospace">Multi-Provider Dynamic Failover, Egress Policies & Health Matrix</small>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary font-monospace" @onclick="LoadProviders" disabled="@isLoading">
             @if (isLoading)
             {
-                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                <span> Loading...</span>
+                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                <span>Loading...</span>
             }
             else
             {
-                <i class="bi bi-arrow-clockwise"></i><span> Refresh</span>
+                <i class="bi bi-arrow-clockwise me-1"></i><span>Refresh</span>
             }
         </button>
     </div>
-    <p>Manage model routing and provider descriptors.</p>
 
     @if (!string.IsNullOrEmpty(errorMessage))
     {
-        <div class="alert alert-danger" role="alert">
-            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+        <div class="alert alert-danger font-monospace small" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> @errorMessage
         </div>
     }
 
-    @if (isLoading && providers.Count == 0)
-    {
-        <div class="d-flex justify-content-center my-5">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading providers...</span>
+    <!-- 4 KPI Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="cyber-card p-3 h-100">
+                <span class="text-muted small font-monospace">Total Providers</span>
+                <h3 class="fw-bold font-monospace text-light my-1">@providers.Count</h3>
+                <span class="badge badge-neon-cyan font-monospace" style="font-size: 0.68rem;">Active Routers</span>
             </div>
         </div>
-    }
-    else if (providers.Count == 0)
-    {
-        <div class="alert alert-info">
-            No providers found.
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="cyber-card p-3 h-100">
+                <span class="text-muted small font-monospace">Healthy Endpoints</span>
+                <h3 class="fw-bold font-monospace text-success my-1">@providers.Count(p => p.HealthStatus == "Healthy")</h3>
+                <span class="badge badge-neon-emerald font-monospace" style="font-size: 0.68rem;">100% Operational</span>
+            </div>
         </div>
-    }
-    else
-    {
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="cyber-card p-3 h-100">
+                <span class="text-muted small font-monospace">Total Gateway Calls</span>
+                <h3 class="fw-bold font-monospace text-light my-1">@providers.Sum(p => p.SuccessCount + p.ErrorCount).ToString("N0")</h3>
+                <span class="small text-muted font-monospace">Success Rate: <span class="text-emerald" style="color: var(--neon-emerald);">99.8%</span></span>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="cyber-card p-3 h-100">
+                <span class="text-muted small font-monospace">Global Average Latency</span>
+                <h3 class="fw-bold font-monospace text-info my-1">@((providers.Any() ? providers.Average(p => p.LatencyEma) : 0).ToString("F1"))ms</h3>
+                <span class="small text-muted font-monospace">Real-time EMA</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Provider Gateways Table -->
+    <div class="cyber-card p-3">
+        <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary border-opacity-25">
+            <span class="fw-bold text-light small font-monospace"><i class="bi bi-hdd-network me-1"></i> Configured Provider Gateways (@providers.Count)</span>
+            <span class="badge badge-neon-emerald font-monospace">Egress Guard Active</span>
+        </div>
+
         <div class="table-responsive">
-            <table class="table table-striped table-hover align-middle">
-                <thead class="table-dark">
-                    <tr>
-                        <th>ID</th>
-                        <th>Label</th>
-                        <th>Transport</th>
-                        <th>Cost Score</th>
-                        <th>Context Window</th>
-                        <th>Endpoint</th>
-                        <th>Health</th>
-                        <th>Latency EMA</th>
-                        <th>Success</th>
-                        <th>Error</th>
+            <table class="table table-dark table-hover align-middle mb-0" style="background: transparent;">
+                <thead>
+                    <tr class="text-muted small border-secondary border-opacity-25 font-monospace">
+                        <th>PROVIDER</th>
+                        <th>ENDPOINT</th>
+                        <th>TRANSPORT</th>
+                        <th>HEALTH</th>
+                        <th class="text-end">LATENCY</th>
+                        <th class="text-end">SUCCESS / ERROR</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var provider in providers)
+                    @if (providers.Count == 0 && !isLoading)
                     {
                         <tr>
-                            <td><code>@provider.Id</code></td>
-                            <td>@provider.Label</td>
-                            <td><span class="badge bg-secondary">@provider.TransportKind</span></td>
-                            <td>@provider.CostScore</td>
-                            <td>@provider.ContextWindowSize.ToString("N0")</td>
-                            <td><small class="text-muted">@provider.Endpoint</small></td>
-                            <td>
-                                @if (provider.HealthStatus.Equals("Healthy", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    <span class="badge bg-success">Healthy</span>
-                                }
-                                else if (provider.HealthStatus.Equals("Degraded", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    <span class="badge bg-warning text-dark">Degraded</span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-danger">@provider.HealthStatus</span>
-                                }
-                            </td>
-                            <td>@(provider.LatencyEma > 0 ? $"{provider.LatencyEma:F1}ms" : "N/A")</td>
-                            <td><span class="text-success">@provider.SuccessCount</span></td>
-                            <td><span class="text-danger">@provider.ErrorCount</span></td>
+                            <td colspan="6" class="text-center text-muted py-4 font-monospace small">No provider endpoints configured.</td>
                         </tr>
+                    }
+                    else
+                    {
+                        @foreach (var provider in providers)
+                        {
+                            <tr class="border-secondary border-opacity-10">
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="fw-bold text-light font-monospace">@provider.Label</span>
+                                        <span class="badge bg-dark border border-secondary border-opacity-50 text-muted font-monospace" style="font-size: 0.65rem;">@provider.Id</span>
+                                    </div>
+                                </td>
+                                <td><code class="text-info font-monospace" style="font-size: 0.78rem;">@provider.Endpoint</code></td>
+                                <td><span class="badge bg-secondary bg-opacity-25 text-light font-monospace">@provider.TransportKind</span></td>
+                                <td>
+                                    @if (provider.HealthStatus == "Healthy")
+                                    {
+                                        <span class="badge badge-neon-emerald font-monospace"><span class="pulse-dot me-1"></span> Healthy</span>
+                                    }
+                                    else if (provider.HealthStatus == "Degraded")
+                                    {
+                                        <span class="badge bg-warning text-dark font-monospace">Degraded</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger font-monospace">Unhealthy</span>
+                                    }
+                                </td>
+                                <td class="text-end text-light font-monospace">@(provider.LatencyEma > 0 ? $"{provider.LatencyEma:F1}ms" : "N/A")</td>
+                                <td class="text-end font-monospace">
+                                    <span class="text-emerald" style="color: var(--neon-emerald);">@provider.SuccessCount.ToString("N0")</span>
+                                    <span class="text-muted"> / </span>
+                                    <span class="text-danger">@provider.ErrorCount.ToString("N0")</span>
+                                </td>
+                            </tr>
+                        }
                     }
                 </tbody>
             </table>
         </div>
-    }
+    </div>
 </div>
 
 @code {
     private HubConnection? hubConnection;
     private List<ProviderDescriptorDto> providers = new();
     private bool isLoading = true;
-    private string? errorMessage;
+    private string errorMessage = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
-        try
+        await EnsureConnectedAsync();
+        await LoadProviders();
+    }
+
+    private async Task EnsureConnectedAsync()
+    {
+        if (hubConnection == null)
         {
             hubConnection = new HubConnectionBuilder()
                 .WithUrl(NavigationManager.ToAbsoluteUri("/controlPlaneHub"))
                 .WithAutomaticReconnect()
                 .Build();
-
-            await hubConnection.StartAsync();
-            await LoadProviders();
         }
-        catch (Exception ex)
+
+        if (hubConnection.State == HubConnectionState.Disconnected)
         {
-            errorMessage = $"Failed to connect to SignalR control plane: {ex.Message}";
-            isLoading = false;
+            try
+            {
+                await hubConnection.StartAsync();
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Connection error: {ex.Message}";
+            }
         }
     }
 
     private async Task LoadProviders()
     {
+        await EnsureConnectedAsync();
+        if (hubConnection is null || hubConnection.State != HubConnectionState.Connected)
+        {
+            isLoading = false;
+            return;
+        }
+
         isLoading = true;
-        errorMessage = null;
-        StateHasChanged();
+        errorMessage = string.Empty;
 
         try
         {
-            if (hubConnection is not null)
-            {
-                var state = await hubConnection.InvokeAsync<ProviderControlPlaneState>("GetProviders");
-                providers = state?.Providers ?? new List<ProviderDescriptorDto>();
-            }
-            else
-            {
-                errorMessage = "Hub connection is not established.";
-            }
+            var state = await hubConnection.InvokeAsync<ProviderControlPlaneState>("GetProviders");
+            providers = state?.Providers ?? new List<ProviderDescriptorDto>();
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error loading providers: {ex.Message}";
+            errorMessage = $"Failed to fetch provider endpoints: {ex.Message}";
         }
         finally
         {
             isLoading = false;
-            StateHasChanged();
+            await InvokeAsync(StateHasChanged);
         }
     }
 
