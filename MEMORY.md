@@ -1,20 +1,21 @@
 # Terukirdo Memory Ledger
 
 ## Current Status
-- `OpenAI-Compatible API Rework (Wave 1~15)` 및 Ralph Loop 전체 품질 게이트 통과 완료.
-- **Hermes Agent & OpenAI Client Integration / Antigravity CLI API Streaming Fix** 완료:
-  1. `stream-json` 표준 입력(stdin) 파이프라인 전환: 80KB 이상의 대용량 프롬프트 전송 시 Windows `CreateProcess` 32KB 명령줄 길이 제한으로 인한 `Win32Exception` (502 Bad Gateway) 완벽 해결.
-  2. 공백 없는 표준 슬러그(Kebab-case) 모델 ID로 전면 개편 (`gemini-3.7-flash-high`, `gemini-3.6-flash-high`, `claude-sonnet-4-6-thinking` 등) 및 `NormalizeAgyModel` 자동 매핑 적용 (Hermes `model switch failed model names cannot contain spaces` 해결).
-  3. `ProviderEndpointPolicy` 엔드포인트 검증 및 API Descriptor 조회 시 격리성 보장.
-  4. API 에러 응답 정보 은닉화(Sanitization)로 클라이언트로의 내부 예외 누수 차단 및 서버 콘솔 진단 로깅.
-- **Google Gemini Official API & Antigravity Model Catalog Modernization** 완료:
-  1. Google Gemini Native API 3.x 전체 라인업(`gemini-3.7-flash`, `gemini-3.6-flash`, `gemini-3.5-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-pro` 등) 등록 및 DefaultModels 최신화.
-  2. Google Antigravity CLI 실제 가용 모델 정밀화 (`Gemini 3.7 Flash`, `Gemini 3.6 Flash`, `Gemini 3.5 Flash`, `Gemini 3.1 Pro`, `Claude Sonnet/Opus 4.6 Thinking`, `GPT-OSS 120B`).
-  3. Spectre.Console 대괄호 파서 이스케이프 (`[[Antigravity]]` 등) 완료.
-- 솔루션 전체 빌드 0 errors, 전체 테스트 100% 통과 (0 failures, 0 skipped).
+- **Alibaba Coding Plan (Qwen 3.8 Max, Wan 2.7, HappyHorse 1.1, DeepSeek-V4-Pro, GLM-5.2) 공식 탑재 완료**:
+  - `token-plan.ap-southeast-1.maas.aliyuncs.com` 공식 엔드포인트 연동, 멀티모달 & 스트리밍 응답 파이프라인 탑재.
+  - `/login qwen <key>` 및 `/login alibaba <key>` 자동 지원.
+- **TeruTeruPandas 실시간 텔레메트리 파이프라인 & Blazor 관제 대시보드 고도화 완료**:
+  - 90일 잔디 히트맵, 24시간 시간대별 토큰 소모 분석, 분산 추적(Distributed Traces) 워터폴, 브라우저 실시간 결재 큐, 테르키르도 리본 연동.
+  - 캘린더 상호작용(재클릭 먹통) 결함 해결 (로컬 즉시 반응, `@key` 가상 DOM 안정화, SignalR 2초 타임아웃 및 자동 폴백 엔진).
+- **슬래시 명령어 전체 정비 및 한국어 매뉴얼 번역 완료**:
+  - 사용되지 않는 더미/스텁 명령 제거 및 24개 핵심 명령어의 한국어 설명과 `/help` 가이드 제공.
+- **3개 국어 README (한국어, 영어, 일본어) 전면 최신화 완료**:
+  - 'Why Claude4Net?' 6대 킬러 가치 제안 섹션, 아키텍처 다이어그램 및 최신 뱃지 동기화.
+- **전체 단위/통합 테스트 슈트**: 1,012 / 1,012 전수 통과 (100% All-Pass, 0 실패, 0 스킵).
+- **Git 상태**: `origin/experiment` 원격 푸시 완료.
 
 ## Active Task
-- Hermes Agent와의 실제 연결 테스트 및 대화/툴 호출 검증
+- 사용자 후속 요청 대기
 
 ## Known Risks
 - 없음
@@ -23,7 +24,7 @@
 - 없음
 
 ## Next Steps
-- 헤르메스(Hermes) 에이전트에서 Claude4Net API 서버(포트 7836)로 대화 재시도 및 정상 동작 확인
+- 사용자 피드백 반영 및 추가 기능 요청 지원
 
 - **Actionable Insight**: Deep reasoning and ultra-work agent modes (e.g. OpenCode ULTRAWORK) with massive multi-turn prompts (150KB+) require extended request timeouts (defaulting to 10~30 minutes) to prevent 504 Gateway Timeout aborts during deep thinking steps.
 - **Actionable Insight**: When Claude4Net runs as an OpenAI-compatible API server, providers like `GeminiCliProvider` must operate in **Pure Passthrough Mode (API Mode)** without prepending Claude4Net's internal workspace confinement rules (`[ACTIVE WORKSPACE DIRECTORY]`) or skills, so external agents (Hermes, Cursor, Roo Code) retain their own workspace and system prompt integrity.
